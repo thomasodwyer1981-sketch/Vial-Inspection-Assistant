@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "VialScreen"
+version = "1.0.0"
+id = "artifacts/vialscreen"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22989
+
+[services.development]
+run = "pnpm --filter @workspace/vialscreen run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/vialscreen", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/vialscreen/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22989"
+BASE_PATH = "/"
