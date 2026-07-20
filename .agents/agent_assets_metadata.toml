@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "ghRjgoBPj_LKafTiwd8Zy"
+uri = "file://vialscreen-completion-report.md"
+type = "text"
+title = "VialScreen Completion Report"
