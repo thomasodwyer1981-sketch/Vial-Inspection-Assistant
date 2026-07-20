@@ -10,7 +10,7 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2 } from 'lucide-react';
 import { ScanStep } from '@/types';
 import { loadActiveSession } from '@/utils/storage';
 
@@ -379,6 +379,7 @@ function CaptureStep({ background }: { background: 'white' | 'black' }) {
         <CaptureButton
           onCapture={(res) => addCapture({ background, ...res })}
           captured={!!existing}
+          background={background}
         />
         {existing && (
           <button
@@ -421,6 +422,7 @@ function LabelCaptureStep() {
               label="Capture Label"
               onCapture={(res) => addCapture({ background: 'label', ...res })}
               captured={!!label1}
+              background="label"
             />
           </div>
 
@@ -436,6 +438,7 @@ function LabelCaptureStep() {
               label="Add Detail"
               onCapture={(res) => addCapture({ background: 'label2', ...res })}
               captured={!!label2}
+              background="label2"
             />
           </div>
         </div>
@@ -631,7 +634,43 @@ interface ResultsStepProps {
 function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
   const { session } = useScanSession();
   const [, setLocation] = useLocation();
+  const [copied, setCopied] = useState(false);
   const result = session?.analysisResult;
+
+  const handleShare = async () => {
+    if (!result) return;
+    const name = session?.metadata.peptideName;
+    const lines = [
+      'VialScreen Screening Result',
+      '─────────────────────────',
+      name ? `Vial: ${name}` : null,
+      `Result: ${result.triageResult === 'do-not-use' ? 'DO NOT USE' : result.triageResult.toUpperCase()}`,
+      `Confidence: ${result.overallConfidence}%`,
+      '',
+      'Findings:',
+      ...result.primaryReasons.map((r) => `• ${r}`),
+      '',
+      '⚠️ Visual screening only. Does not confirm safety, identity, purity, or potency.',
+    ].filter((l): l is string => l !== null);
+    const text = lines.join('\n');
+
+    if ('share' in navigator) {
+      try {
+        await navigator.share({ title: 'VialScreen Result', text });
+        return;
+      } catch {
+        // User cancelled — fall through to clipboard
+      }
+    }
+    // Clipboard fallback
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard unavailable — silently ignore
+    }
+  };
 
   // Null guard — if results step renders without a result, show recovery state
   if (!result) {
@@ -795,15 +834,22 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             onClick={onRetake}
             className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98]"
           >
-            Retake Scan
+            Retake
           </button>
           <button
-            onClick={() => setLocation('/limitations')}
-            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98]"
+            onClick={handleShare}
+            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            View Limitations
+            <Share2 className="w-4 h-4" />
+            {copied ? 'Copied!' : 'Share'}
           </button>
         </div>
+        <button
+          onClick={() => setLocation('/limitations')}
+          className="w-full text-center text-xs text-muted-foreground py-1"
+        >
+          View Limitations →
+        </button>
       </div>
     </div>
   );

@@ -1,39 +1,39 @@
 ---
-name: VialScreen architecture
-description: Key architectural decisions, gotchas, and constraints for the VialScreen MVP — things not derivable from reading the code alone.
+name: VialScreen Architecture
+description: Stack, key files, and non-obvious decisions for the VialScreen MVP
 ---
 
 ## Stack
-React + Vite, TypeScript, Tailwind CSS v4, Wouter routing, localStorage only.
+- React 18 + TypeScript + Vite (SPA, no SSR)
+- Tailwind CSS v4 via `@tailwindcss/vite`
+- Wouter for routing (base path from `import.meta.env.BASE_URL`)
+- Tesseract.js for OCR (dynamically imported, pre-warmed on HomeScreen mount)
+- All analysis is client-side canvas — no AI, no server
 
-## Primary camera path
-`<input type="file" capture="environment">` — NOT getUserMedia. This is intentional for iOS/Android reliability. getUserMedia utilities exist in camera.ts but are secondary.
+## Key files
+- `src/types/index.ts` — all data model types (AppearanceProfile, ScanSession, HistoryItem, etc.)
+- `src/analysis/engine.ts` — heuristic scoring engine, `runAnalysis()` entry point
+- `src/analysis/imageAnalysis.ts` — canvas pixel analysis utilities
+- `src/hooks/useScanSession.ts` — central scan state machine + storage persistence
+- `src/utils/storage.ts` — all localStorage reads/writes
+- `src/constants/copy.ts` — all user-facing text
+- `src/pages/ScanScreen.tsx` — multi-step scan flow (PrepareStep → captures → review → analysis → results)
+- `src/components/LiveCameraCapture.tsx` — fullscreen camera viewfinder with best-of-3 burst
 
-## Analysis engine
-Canvas 2D API only — no AI. `runAnalysis()` runs 8 scorers in parallel via `Promise.all`. OCR (Tesseract.js) is dynamically imported only when a label capture exists, to avoid bundle bloat.
+## Camera flow
+`CaptureButton` → opens `LiveCameraCapture` overlay if `isCameraApiAvailable()`, else falls back to `openFilePicker({ capture: 'environment' })`.
 
-## OCR progress threading
-`runAnalysis(captures, name, onProgress?)` — third parameter is optional. `useScanSession` passes `setAnalysisStatus` as `onProgress`. `AnalysisStep` reads `analysisStatus` from the hook. Tesseract logger pipes back through this chain. First-run OCR can take 10–30s (language model download).
+`LiveCameraCapture` uses `getUserMedia`, shows live video feed, takes 3 frames on tap (400ms AF settle + 280ms between frames), picks sharpest via Laplacian variance, shows quality feedback, lets user accept or retake. Has torch toggle (where supported).
 
-## ResultsStep layout
-Uses `flex flex-col h-full` with `flex-1 overflow-y-auto` + `shrink-0` footer — NOT `fixed bottom-0`. Fixed positioning inside a `max-w-md` container breaks on wide screens; the flex approach is correct.
+## PWA
+- `public/manifest.webmanifest` — links icon-192.png + icon-512.png (generated from favicon.svg via ImageMagick)
+- `public/apple-touch-icon.png` — 180x180 PNG for iOS
+- `index.html` has `theme-color`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`
+- No service worker — app is not offline-first
 
-## Session storage pattern
-Each session is a separate localStorage key (`vialscreen:session:<id>`) to avoid one giant key containing all base64 images. Active session: `vialscreen:active-session`. History index: `vialscreen:history`.
-
-## Storage validation
-`getScanHistory()` filters malformed items (missing id/createdAt/triageResult). `loadSession()` validates shape before returning. `saveSession()` returns boolean (false = quota exceeded).
-
-## Scoring bias
-Engine strongly biased toward REVIEW over PASS: poor capture quality → forced REVIEW; single flagged category → REVIEW (not PASS); only produces PASS when zero flags, zero reviews, and quality not degraded.
-
-## `scoreVisibleParticles` unable score
-Returns `score: 0, status: 'unable'` when no captures available. Previously returned score: 100 (bug — inflated confidence).
-
-**Why:** A score of 100 for an unable category could have inflated the overall confidence average even though the category was filtered from triage. Now correctly scores 0 so any confidence calc that includes it won't be misleadingly high.
-
-## PrepareStep scrolling
-PrepareStep has 5 checklist items + 6 metadata fields. Container uses `flex-1 overflow-y-auto` on the inner content div, not `h-full` — prevents content overflow on small screens.
-
-## Result copy rule
-`RESULT_COPY` in `copy.ts` is the single source of truth for all result-specific strings (summary, caveat, action). Never duplicate result-specific copy elsewhere. "Pass" copy must never imply safety — always references "negative screen only" / "does not replace direct examination".
+## Non-obvious decisions
+- `ScanSession.pendingSave?: boolean` — set when finalize fails due to quota; preserves active session so user can free storage and resume to results without data loss.
+- `APPEARANCE_PROFILES` constant lives in `types/index.ts` (co-located with the type, not copy.ts) because engine.ts imports it directly.
+- Old history items have `appearanceProfile: undefined` — all consumers must use `?? null`.
+- Error boundary (`ErrorBoundary.tsx`) wraps the entire app in `App.tsx` — prevents blank screen on unhandled React errors.
+- Share button uses Web Share API with clipboard fallback; shows "Copied!" state on clipboard success.

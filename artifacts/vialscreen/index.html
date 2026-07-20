@@ -2,20 +2,42 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>VialScreen</title>
-    <meta name="description" content="VialScreen — built on Replit. Update this description to reflect the app." />
+
+    <!-- Viewport: prevent user zoom (single-tap action accuracy) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+
+    <!-- Primary meta -->
+    <title>VialScreen — Visual Vial Screening</title>
+    <meta name="description" content="VialScreen guides you through a standardised two-background phone-camera inspection of peptide vials and produces a triage result: Pass, Review, or Do Not Use. All analysis runs locally — no data sent to any server." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="VialScreen" />
-    <meta property="og:description" content="VialScreen — built on Replit. Update this description to reflect the app." />
+
+    <!-- PWA / Install -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#FF3C00" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VialScreen" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="VialScreen — Visual Vial Screening" />
+    <meta property="og:description" content="Phone-camera visual QC for peptide vials. Guides a two-background inspection and produces Pass / Review / Do Not Use. Runs entirely on your device." />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="VialScreen" />
-    <meta name="twitter:description" content="VialScreen — built on Replit. Update this description to reflect the app." />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="VialScreen — Visual Vial Screening" />
+    <meta name="twitter:description" content="Phone-camera visual QC for peptide vials. All analysis runs locally — no data sent to any server." />
+
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

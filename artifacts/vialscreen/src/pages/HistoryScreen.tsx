@@ -4,7 +4,24 @@ import { getScanHistory, clearHistory, deleteSession } from '@/utils/storage';
 import { useState } from 'react';
 import TriageBadge from '@/components/TriageBadge';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
+import { APPEARANCE_PROFILES } from '@/types';
+import type { AppearanceProfile } from '@/types';
 import { format } from 'date-fns';
+
+const PROFILE_BADGE: Record<
+  AppearanceProfile,
+  { label: string; className: string } | null
+> = {
+  'clear-standard': null, // default — no badge needed
+  'ghk-cu': {
+    label: 'GHK-Cu',
+    className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+  },
+  'unknown-custom': {
+    label: 'Custom',
+    className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  },
+};
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState(getScanHistory());
@@ -20,7 +37,7 @@ export default function HistoryScreen() {
     e.preventDefault();
     e.stopPropagation();
     if (confirm('Delete this scan?')) {
-      deleteSession(id); // removes full session blob + history entry
+      deleteSession(id);
       setHistory(getScanHistory());
     }
   };
@@ -29,15 +46,26 @@ export default function HistoryScreen() {
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/home" className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors">
+          <Link
+            href="/home"
+            className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors"
+          >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <h1 className="text-lg font-bold">
-            Scan History{history.length > 0 && <span className="text-muted-foreground font-normal text-sm ml-1.5">({history.length})</span>}
+            Scan History
+            {history.length > 0 && (
+              <span className="text-muted-foreground font-normal text-sm ml-1.5">
+                ({history.length})
+              </span>
+            )}
           </h1>
         </div>
         {history.length > 0 && (
-          <button onClick={handleClearAll} className="text-xs font-semibold text-destructive uppercase tracking-wider p-2">
+          <button
+            onClick={handleClearAll}
+            className="text-xs font-semibold text-destructive uppercase tracking-wider p-2"
+          >
             Clear All
           </button>
         )}
@@ -48,70 +76,106 @@ export default function HistoryScreen() {
           <div className="mb-3 bg-warning/10 border border-warning/30 rounded-xl p-3 flex gap-3 items-start">
             <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
             <p className="text-xs text-warning leading-relaxed">
-              {history.length} scans saved. Each scan stores images locally — delete older scans to free device storage.
+              {history.length} scans saved. Each scan stores images locally — delete older
+              scans to free device storage.
             </p>
           </div>
         )}
+
         {history.length === 0 ? (
           <div className="h-[60vh] flex flex-col items-center justify-center text-center px-6">
             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4">
               <HistoryIcon />
             </div>
             <h2 className="text-lg font-bold mb-2">No History Yet</h2>
-            <p className="text-sm text-muted-foreground mb-6">Completed scans will appear here.</p>
-            <Link href="/scan" className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold shadow-sm">
+            <p className="text-sm text-muted-foreground mb-6">
+              Completed scans will appear here.
+            </p>
+            <Link
+              href="/scan"
+              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold shadow-sm"
+            >
               Start a Scan
             </Link>
           </div>
         ) : (
           <div className="space-y-3">
-            {history.map((item) => (
-              <div key={item.id} className="relative">
-                <Link 
-                  href={`/history/${item.id}`}
-                  className="block bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform"
-                >
-                  <div className="flex gap-4">
-                    {item.thumbnailDataUrl ? (
-                      <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0 border">
-                        <img src={item.thumbnailDataUrl} alt="" className="w-full h-full object-cover opacity-80" />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 bg-secondary rounded-lg shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
-                        No Image
-                      </div>
-                    )}
-                    
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        <div className="flex justify-between items-start mb-1">
-                          <h3 className="font-bold text-sm truncate pr-2">
-                            {item.peptideName || 'Unnamed Vial'}
-                          </h3>
-                          <TriageBadge result={item.triageResult} size="sm" className="shrink-0" />
+            {history.map((item) => {
+              const profileBadge =
+                item.appearanceProfile
+                  ? PROFILE_BADGE[item.appearanceProfile]
+                  : null;
+
+              return (
+                <div key={item.id} className="relative">
+                  <Link
+                    href={`/history/${item.id}`}
+                    className="block bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform"
+                  >
+                    <div className="flex gap-4">
+                      {/* Thumbnail */}
+                      {item.thumbnailDataUrl ? (
+                        <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0 border">
+                          <img
+                            src={item.thumbnailDataUrl}
+                            alt=""
+                            className="w-full h-full object-cover opacity-80"
+                          />
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {item.vendor || 'No vendor'}
-                        </p>
-                      </div>
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex justify-between items-center mt-2">
-                        <span>{format(new Date(item.createdAt), 'MMM d, yyyy • HH:mm')}</span>
-                        <span>{item.overallConfidence}% Conf</span>
+                      ) : (
+                        <div className="w-16 h-16 bg-secondary rounded-lg shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
+                          No Image
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start mb-1">
+                            <h3 className="font-bold text-sm truncate pr-2">
+                              {item.peptideName || 'Unnamed Vial'}
+                            </h3>
+                            <TriageBadge
+                              result={item.triageResult}
+                              size="sm"
+                              className="shrink-0"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs text-muted-foreground truncate">
+                              {item.vendor || 'No vendor'}
+                            </p>
+                            {/* Profile badge — only for non-standard profiles */}
+                            {profileBadge && (
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 ${profileBadge.className}`}
+                              >
+                                {profileBadge.label}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex justify-between items-center mt-2">
+                          <span>
+                            {format(new Date(item.createdAt), 'MMM d, yyyy · HH:mm')}
+                          </span>
+                          <span>{item.overallConfidence}% Conf</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
 
-                {/* Delete button — min 44px touch target for mobile */}
-                <button 
-                  onClick={(e) => handleDelete(item.id, e)}
-                  className="absolute top-1.5 right-1.5 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-2.5 rounded-lg transition-colors shadow-sm"
-                  aria-label="Delete scan"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+                  {/* Delete — min 44px touch target */}
+                  <button
+                    onClick={(e) => handleDelete(item.id, e)}
+                    className="absolute top-1.5 right-1.5 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-2.5 rounded-lg transition-colors shadow-sm"
+                    aria-label="Delete scan"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -123,10 +187,21 @@ export default function HistoryScreen() {
 
 function HistoryIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-      <path d="M3 3v5h5"/>
-      <path d="M12 7v5l4 2"/>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-muted-foreground"
+    >
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l4 2" />
     </svg>
   );
 }
