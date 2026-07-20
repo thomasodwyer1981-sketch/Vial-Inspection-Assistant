@@ -289,6 +289,7 @@ export function computeGlareAnalysis(imageData: ImageData): GlareAnalysis {
 export function computeParticleAnalysis(
   imageData: ImageData,
   background: 'black' | 'white',
+  roi?: VialROI,
 ): ParticleAnalysis {
   const { data, width, height } = imageData;
 
@@ -307,13 +308,20 @@ export function computeParticleAnalysis(
   const threshold = background === 'black' ? 180 : 80;
   const comparator = background === 'black' ? (v: number) => v > threshold : (v: number) => v < threshold;
 
-  // Simple connected-components approach: scan for candidate pixels,
-  // ignore pixels adjacent to borders (frame artifacts).
+  // Simple connected-components approach: scan for candidate pixels.
+  // When an ROI is provided, focus on that region only (vial body) to
+  // eliminate false positives from background edges, label text, and
+  // objects outside the vial frame.
   const margin = Math.floor(Math.min(width, height) * 0.05);
+  const scanX0 = roi ? Math.max(margin, roi.x) : margin;
+  const scanY0 = roi ? Math.max(margin, roi.y) : margin;
+  const scanX1 = roi ? Math.min(width - margin, roi.x + roi.width) : width - margin;
+  const scanY1 = roi ? Math.min(height - margin, roi.y + roi.height) : height - margin;
+
   const visited = new Uint8Array(width * height);
 
-  for (let y = margin; y < height - margin; y++) {
-    for (let x = margin; x < width - margin; x++) {
+  for (let y = scanY0; y < scanY1; y++) {
+    for (let x = scanX0; x < scanX1; x++) {
       const idx = y * width + x;
       if (visited[idx]) continue;
       if (!comparator(gray[idx])) continue;
@@ -360,6 +368,216 @@ export function computeParticleAnalysis(
     suspiciousSpeckCount > 20 ? 'high' : suspiciousSpeckCount > 5 ? 'medium' : 'low';
 
   return { suspiciousSpeckCount, particleRiskScore, confidence };
+}
+
+// ----------------------------------------------------------------
+// Vial Region-of-Interest Estimation
+//
+// On a black background, the vial appears as a brighter vertical column
+// (glass refraction, cap, meniscus) surrounded by near-black. We use
+// this to find the actual vial body bounds so downstream analysis can
+// focus there rather than polluting stats with background pixels.
+//
+// Without ROI isolation, a clear vial surrounded by pure white background
+// will score as "very clear" even if the liquid is turbid, because the
+// background pixels dominate the brightness average.
+// ----------------------------------------------------------------
+
+export interface VialROI {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Estimate the bounding box of the vial body in a black-background image.
+ * Returns the ROI inset slightly from the detected edges to exclude the
+ * bright curved-glass-wall reflections that appear at the vial edges.
+ *
+ * Falls back to a central 55%×65% region if detection fails.
+ */
+export function estimateVialROI(imageData: ImageData): VialROI {
+  const { data, width, height } = imageData;
+  const edgeMargin = Math.floor(Math.min(width, height) * 0.05);
+
+  const gray = new Float32Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+  }
+
+  const THRESHOLD = 28; // pixels significantly brighter than a dark background
+  let minX = width, maxX = 0, minY = height, maxY = 0;
+  let foundPixels = 0;
+
+  for (let y = edgeMargin; y < height - edgeMargin; y++) {
+    for (let x = edgeMargin; x < width - edgeMargin; x++) {
+      if (gray[y * width + x] > THRESHOLD) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        foundPixels++;
+      }
+    }
+  }
+
+  const roiW = maxX - minX;
+  const roiH = maxY - minY;
+
+  if (foundPixels < 200 || roiW < 20 || roiH < 40 || maxX <= minX || maxY <= minY) {
+    // Fallback: central region
+    const fbW = Math.round(width * 0.55);
+    const fbH = Math.round(height * 0.65);
+    return {
+      x: Math.round((width - fbW) / 2),
+      y: Math.round(height * 0.1),
+      width: fbW,
+      height: fbH,
+    };
+  }
+
+  // Inset from detected edges to avoid the bright curved-glass-wall refraction bands
+  const insetX = Math.max(2, Math.round(roiW * 0.1));
+  const insetY = Math.max(2, Math.round(roiH * 0.04));
+
+  return {
+    x: Math.min(width - 1, minX + insetX),
+    y: Math.min(height - 1, minY + insetY),
+    width: Math.max(10, roiW - insetX * 2),
+    height: Math.max(10, roiH - insetY * 2),
+  };
+}
+
+/** Extract mean perceived brightness of pixels within the given ROI. */
+function roiMeanBrightness(imageData: ImageData, roi: VialROI): number {
+  const { data, width, height } = imageData;
+  let sum = 0;
+  let count = 0;
+  const x2 = Math.min(roi.x + roi.width, width);
+  const y2 = Math.min(roi.y + roi.height, height);
+  for (let y = roi.y; y < y2; y++) {
+    for (let x = roi.x; x < x2; x++) {
+      const idx = (y * width + x) * 4;
+      sum += 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : 128;
+}
+
+// ----------------------------------------------------------------
+// Differential Turbidity Analysis
+//
+// The core principle: a CLEAR solution is nearly transparent.
+// Against a white background it appears very bright (high transmittance);
+// against a black background it appears very dark (little scattering).
+// The DIFFERENCE between the two is therefore high for clear solutions.
+//
+// A TURBID/HAZY solution scatters light in all directions.
+// It appears moderately bright on BOTH backgrounds.
+// The difference between the two is therefore LOW.
+//
+// This mirrors the principle of nephelometry / transmittance measurement,
+// adapted for phone-camera captures.
+//
+// Expected brightness delta (whiteMean − blackMean) in vial body ROI:
+//   Very clear:   ~180–210  → score 90–100
+//   Clear:        ~140–180  → score 70–90
+//   Slight haze:  ~90–140   → score 45–70
+//   Hazy:         ~50–90    → score 15–45
+//   Opaque/turbid: <50      → score 0–15
+// ----------------------------------------------------------------
+
+export interface DifferentialTurbidity {
+  /** Mean brightness in vial ROI on white-background capture. Clear ≈ 220+, turbid ≈ 150-180. */
+  whiteMeanBrightness: number;
+  /** Mean brightness in vial ROI on black-background capture. Clear ≈ 5-25, turbid ≈ 60-110. */
+  blackMeanBrightness: number;
+  /**
+   * whiteMean − blackMean. The primary turbidity signal.
+   * High delta (≥160) = optically clear. Low delta (≤60) = turbid.
+   */
+  brightnessDelta: number;
+  /** 0–100 clarity score derived from the brightness delta. */
+  differentialClarityScore: number;
+  /**
+   * Whether sediment-like brightness patterns were found in the bottom
+   * portion of the vial body — suggesting incomplete dissolution or precipitation.
+   */
+  sedimentSuspected: boolean;
+  /** The ROI used for this analysis (from estimateVialROI on the black-bg image). */
+  roi: VialROI;
+}
+
+/**
+ * Compute differential turbidity by comparing vial body brightness across
+ * the white-background and black-background captures.
+ *
+ * This is the most physically meaningful turbidity signal available from
+ * two-background phone captures. Always prefer this over single-image
+ * brightness std dev when both captures are available.
+ */
+export function computeDifferentialTurbidity(
+  whiteImageData: ImageData,
+  blackImageData: ImageData,
+): DifferentialTurbidity {
+  const roi = estimateVialROI(blackImageData);
+
+  const whiteMean = roiMeanBrightness(whiteImageData, roi);
+  const blackMean = roiMeanBrightness(blackImageData, roi);
+  const delta = whiteMean - blackMean;
+
+  // Linear score: delta=25 → 0, delta=180 → 100
+  const differentialClarityScore = Math.round(
+    Math.min(100, Math.max(0, (delta - 25) * (100 / 155))),
+  );
+
+  // ── Sediment / precipitation check ──────────────────────────
+  // Compare body zone vs bottom zone within the ROI.
+  // On black bg: clear body ≈ near-black. Precipitate = BRIGHTER than body.
+  // On white bg: clear body ≈ near-white. Precipitate = DARKER than body.
+  let sedimentSuspected = false;
+
+  if (roi.height > 40) {
+    const zoneVal = (imageData: ImageData, yFrac0: number, yFrac1: number): number => {
+      const { data, width } = imageData;
+      const y1 = roi.y + Math.round(roi.height * yFrac0);
+      const y2 = Math.min(roi.y + Math.round(roi.height * yFrac1), imageData.height);
+      const x2 = Math.min(roi.x + roi.width, width);
+      let sum = 0;
+      let count = 0;
+      for (let y = y1; y < y2; y++) {
+        for (let x = roi.x; x < x2; x++) {
+          const idx = (y * width + x) * 4;
+          sum += 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+          count++;
+        }
+      }
+      return count > 0 ? sum / count : -1;
+    };
+
+    const bkBody = zoneVal(blackImageData, 0.1, 0.7);
+    const bkBottom = zoneVal(blackImageData, 0.76, 0.97);
+    const whBody = zoneVal(whiteImageData, 0.1, 0.7);
+    const whBottom = zoneVal(whiteImageData, 0.76, 0.97);
+
+    // Precipitate on black bg appears as bright spots at bottom
+    const sedimentOnBlack = bkBody >= 0 && bkBottom >= 0 && (bkBottom - bkBody) > 22;
+    // Opaque sediment on white bg blocks light → bottom darker than body
+    const sedimentOnWhite = whBody >= 0 && whBottom >= 0 && (whBody - whBottom) > 20;
+
+    sedimentSuspected = sedimentOnBlack || sedimentOnWhite;
+  }
+
+  return {
+    whiteMeanBrightness: whiteMean,
+    blackMeanBrightness: blackMean,
+    brightnessDelta: delta,
+    differentialClarityScore,
+    sedimentSuspected,
+    roi,
+  };
 }
 
 // ----------------------------------------------------------------

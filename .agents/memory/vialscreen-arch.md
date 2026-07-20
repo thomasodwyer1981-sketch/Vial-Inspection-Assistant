@@ -39,6 +39,14 @@ description: Stack, key files, and non-obvious decisions for the VialScreen MVP
 - `TriageBadge` size="lg" now renders: large circular icon (CheckCircle2 / Eye / XCircle) + pill label below, with soft glow shadow matching the verdict color.
 - `DisclaimerBanner` now has a ShieldAlert icon and slightly refined opacity.
 
+## Analysis engine improvements (July 2026)
+- `computeDifferentialTurbidity(whiteData, blackData)` — core nephelometry-inspired upgrade. Finds vial ROI from black-bg image via `estimateVialROI()`, then measures brightness delta between the two captures in that region. Clear = high delta (~180-210); turbid = low delta (<80). Used as 65% weight in clarity scoring.
+- `estimateVialROI(blackImageData)` — estimates vial body bounding box by finding pixels >28 brightness against a dark background, then insets 10% from edges to exclude curved-glass-wall refraction bands. Falls back to central 55%×65% if detection fails.
+- Sediment check inside `computeDifferentialTurbidity` — compares bottom 22% vs body zone brightness in both captures. Black-bg: precipitate appears BRIGHTER than clear body. White-bg: opaque sediment appears DARKER.
+- `amberDominant` in `ColorProfile` is now actually used in scoring — applies a 12-point oxidation penalty to standard-clear peptides (oxidation of Met/Trp/Cys residues produces yellow-amber shift).
+- `scoreVisibleParticles` — now passes ROI from `estimateVialROI` to `computeParticleAnalysis`, restricting scan to vial body only. Eliminates false positives from label text, cap, background edges.
+- `scoreCrackDamage` — threshold raised from std dev >90 to >115. Rounded glass vials inherently produce std dev >90 from glass-wall refraction; old threshold misfired on every normal vial.
+
 ## Non-obvious decisions
 - `ScanSession.pendingSave?: boolean` — set when finalize fails due to quota; preserves active session so user can free storage and resume to results without data loss.
 - `APPEARANCE_PROFILES` constant lives in `types/index.ts` (co-located with the type, not copy.ts) because engine.ts imports it directly.

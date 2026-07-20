@@ -31,6 +31,9 @@ import {
   computeParticleAnalysis,
   computeColorProfile,
   estimateFillLevel,
+  computeDifferentialTurbidity,
+  estimateVialROI,
+  type DifferentialTurbidity,
 } from './imageAnalysis';
 
 // ----------------------------------------------------------------
@@ -143,11 +146,21 @@ async function scoreCaptureQuality(
 // 2. CLARITY / HAZE SUSPICION
 // Profile-aware: interpretation depends on selected appearance profile.
 //
-// clear-standard: evaluates against a clear/colorless baseline.
-// ghk-cu:         blue tint is expected — separates color from turbidity.
-// unknown-custom: color is not used as signal; conservative turbidity check only.
+// clear-standard: clear/colorless baseline; detects amber oxidation tint.
+// ghk-cu:         blue tint expected — separates color from turbidity.
+// unknown-custom: color is not used as signal; conservative turbidity check.
 //
-// Method: brightness consistency / std deviation on white background.
+// PRIMARY METHOD: Differential turbidity (when both white and black
+// captures are available). Compares brightness of the vial body region
+// across both captures — a clear solution has a high brightness delta
+// (nearly transparent); a turbid/hazy solution has a low delta (light
+// scatters on both backgrounds). This is a nephelometry-inspired approach.
+//
+// SECONDARY METHOD: Std dev of brightness on white background (used as
+// a 35% secondary signal, or as the sole signal when black capture is absent).
+//
+// ALSO CHECKS: Sediment/precipitation patterns in the vial base region.
+// Amber/yellow oxidation tinting for standard-clear peptides.
 // ----------------------------------------------------------------
 async function scoreClarityHaze(
   captures: MediaCapture[],
@@ -157,6 +170,7 @@ async function scoreClarityHaze(
   const label = 'Clarity / Appearance';
 
   const whiteCapture = captures.find((c) => c.background === 'white');
+  const blackCapture = captures.find((c) => c.background === 'black');
 
   if (!whiteCapture) {
     return {
@@ -172,13 +186,34 @@ async function scoreClarityHaze(
   try {
     const img = await loadImage(whiteCapture.dataUrl);
     const { ctx, width, height } = drawToCanvas(img, 512);
-    const imageData = ctx.getImageData(0, 0, width, height);
+    const whiteData = ctx.getImageData(0, 0, width, height);
 
-    const stats = computePixelStats(imageData);
-    const glare = computeGlareAnalysis(imageData);
-    const color = computeColorProfile(imageData);
+    const stats = computePixelStats(whiteData);
+    const glare = computeGlareAnalysis(whiteData);
+    const color = computeColorProfile(whiteData);
 
-    // Glare override applies regardless of profile — glare makes clarity unreliable
+    // ── Differential turbidity (core improvement) ─────────────
+    // When both backgrounds are available, compare the vial body brightness
+    // across captures. High delta = clear; low delta = turbid.
+    let differential: DifferentialTurbidity | null = null;
+    if (blackCapture) {
+      try {
+        const bImg = await loadImage(blackCapture.dataUrl);
+        const { ctx: bCtx, width: bW, height: bH } = drawToCanvas(bImg, 512);
+        const blackData = bCtx.getImageData(0, 0, bW, bH);
+        differential = computeDifferentialTurbidity(whiteData, blackData);
+      } catch {
+        // Black capture couldn't be loaded — fall back to single-image analysis
+      }
+    }
+
+    // Blend: 65% differential (physically meaningful), 35% std dev (local texture)
+    const blendScore = (stdDevScore: number): number => {
+      if (!differential) return stdDevScore;
+      return Math.round(0.65 * differential.differentialClarityScore + 0.35 * stdDevScore);
+    };
+
+    // ── Glare override (all profiles) ─────────────────────────
     if (glare.glareFraction > 0.25) {
       return {
         category,
@@ -187,106 +222,90 @@ async function scoreClarityHaze(
         status: 'review',
         explanation:
           'High glare detected in white-background capture. Clarity cannot be reliably assessed. ' +
-          'Consider recapturing with softer, more even lighting.',
-        method: 'Std dev of brightness as haze proxy. Glare override triggers review at >25% specular fraction.',
+          'Recapture with softer, more even lighting — avoid direct light or specular reflections on the vial surface.',
+        method: 'Glare override: specular fraction >25%. Std dev + differential turbidity suppressed.',
       };
     }
 
-    // ── GHK-Cu / Blue Peptide profile ──────────────────────────
-    // Blue coloration is expected. Separate the expected tint from
-    // actual cloudiness/turbidity concerns.
+    // ── Sediment note ─────────────────────────────────────────
+    const sedimentNote = differential?.sedimentSuspected
+      ? ' A brightness anomaly was detected near the bottom of the vial — ' +
+        'possible precipitation, incomplete dissolution, or settled peptide. ' +
+        'Swirl gently and re-inspect if reconstitution is recent.'
+      : '';
+
+    // ── Amber / oxidation check (all profiles except GHK-Cu) ──
+    // Yellow-amber shift in a reconstituted peptide = oxidation signal.
+    // Methionine, tryptophan, and cysteine residues oxidise to produce
+    // yellow-brown discolouration over time or under poor storage.
+    const oxidationSuspected = color.amberDominant && profile !== 'ghk-cu';
+    const oxidationNote = oxidationSuspected
+      ? ' Amber/yellow tinting detected — possible oxidation or degradation of peptide residues (e.g. methionine, tryptophan). Verify against expected colour and storage conditions.'
+      : '';
+    const oxidationPenalty = oxidationSuspected ? 12 : 0;
+
+    // ─────────────────────────────────────────────────────────
+    // Profile-specific scoring
+    // ─────────────────────────────────────────────────────────
+
+    // ── GHK-Cu / Blue Peptide ─────────────────────────────────
     if (profile === 'ghk-cu') {
       if (color.blueDominant) {
-        // Blue is present and dominant — treat color as expected.
-        // Turbidity is assessed via std dev, but threshold raised because
-        // color variation is normal for blue liquids viewed on white background.
-        const turbidityScore = Math.max(0, 100 - stats.stdDevBrightness * 1.2);
-        const score = Math.round(Math.min(100, Math.max(0, turbidityScore)));
+        const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.2);
+        const score = Math.round(Math.min(100, Math.max(0, blendScore(stdDevScore))));
         const status: CategoryStatus = score >= 65 ? 'pass' : score >= 40 ? 'review' : 'flag';
-
         const explanation =
           score >= 65
-            ? 'Blue coloration detected — consistent with GHK-Cu / Blue Peptide profile selection. ' +
-              'Color is not treated as a concern. No significant additional cloudiness or turbidity detected.'
-            : 'Blue coloration present (consistent with GHK-Cu / Blue Peptide profile). ' +
-              'Elevated brightness variation detected beyond expected blue tint — possible cloudiness or incomplete mixing. ' +
-              'Review the white-background capture carefully.';
-
+            ? `Blue coloration detected — consistent with GHK-Cu / Blue Peptide profile. ` +
+              `Color is not treated as a concern.` +
+              (differential
+                ? ` Two-background turbidity delta of ${Math.round(differential.brightnessDelta)} supports a clear-bodied solution.`
+                : ' No significant additional cloudiness detected.') +
+              sedimentNote
+            : `Blue coloration present (consistent with GHK-Cu / Blue Peptide profile). ` +
+              `Elevated turbidity signal beyond expected tint — possible cloudiness or incomplete mixing.` +
+              sedimentNote;
         return {
-          category,
-          label,
-          score,
-          status,
-          explanation,
-          method:
-            'GHK-Cu profile: std dev of brightness as turbidity proxy with raised tolerance for expected blue tint. ' +
-            'Blue dominance confirmed (meanB − meanR > 20). Glare override applied at >25% specular fraction.',
+          category, label, score, status, explanation,
+          method: `GHK-Cu profile: differential turbidity (65%) + std dev (35%). Blue dominance confirmed. Delta=${differential ? Math.round(differential.brightnessDelta) : 'n/a'}.`,
         };
       } else {
-        // No blue detected despite GHK-Cu profile selection — note the discrepancy
-        const hazeScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
-        const score = Math.round(Math.min(100, Math.max(0, hazeScore)));
+        const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+        const score = Math.round(Math.min(100, Math.max(0, blendScore(stdDevScore))));
         const status = scoreToStatus(score);
-
         const explanation =
           score >= 70
-            ? 'GHK-Cu / Blue Peptide profile selected, but no prominent blue coloration was detected in this capture. ' +
-              'No obvious haze or cloudiness detected. Verify vial contents and profile selection.'
-            : 'GHK-Cu / Blue Peptide profile selected, but no prominent blue coloration detected. ' +
-              'Possible haze or cloudiness detected. Verify vial contents and review capture carefully.';
-
+            ? `GHK-Cu profile selected, but no prominent blue coloration detected. No obvious turbidity found. Verify vial contents and profile selection.${sedimentNote}`
+            : `GHK-Cu profile selected, but no prominent blue coloration detected. Possible turbidity present. Review carefully.${sedimentNote}`;
         return {
-          category,
-          label,
-          score,
-          status,
-          explanation,
-          method:
-            'GHK-Cu profile: blue dominance not detected. Standard std dev haze assessment applied. ' +
-            'Discrepancy between profile selection and detected color noted.',
+          category, label, score, status, explanation,
+          method: 'GHK-Cu profile (no blue): differential turbidity + std dev. Profile discrepancy noted.',
         };
       }
     }
 
-    // ── Unknown / Custom Appearance profile ────────────────────
-    // Color is not used as a primary signal. Turbidity only.
-    // Apply a conservative bias — slightly lower the effective score.
+    // ── Unknown / Custom Appearance ───────────────────────────
     if (profile === 'unknown-custom') {
-      const turbidityScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
-      // Conservative: subtract a small bias so borderline cases land in REVIEW
-      const score = Math.round(Math.min(100, Math.max(0, turbidityScore - 8)));
+      const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+      // Conservative bias: borderline cases should land in REVIEW
+      const score = Math.round(Math.min(100, Math.max(0, blendScore(stdDevScore) - 8 - oxidationPenalty)));
       const status = scoreToStatus(score);
-
       const explanation =
         score >= 70
-          ? 'Unknown/Custom Appearance profile selected — colour was not used as a screening signal. ' +
-            'No significant turbidity or brightness irregularity detected.'
+          ? `Unknown/Custom profile — colour not used as signal. No significant turbidity detected.${sedimentNote}${oxidationNote}`
           : score >= 40
-          ? 'Unknown/Custom Appearance profile selected. Elevated brightness variation detected. ' +
-            'This profile is conservative — review is recommended when findings are uncertain.'
-          : 'Unknown/Custom Appearance profile selected. Significant brightness irregularity detected. ' +
-            'Review is strongly recommended.';
-
+          ? `Unknown/Custom profile — elevated turbidity signal detected. Conservative profile defaults to review.${sedimentNote}${oxidationNote}`
+          : `Unknown/Custom profile — significant turbidity signal detected. Review strongly recommended.${sedimentNote}${oxidationNote}`;
       return {
-        category,
-        label,
-        score,
-        status,
-        explanation,
-        method:
-          'Unknown/Custom profile: colour excluded from assessment. Conservative turbidity check only. ' +
-          'Std dev haze score with −8 conservative adjustment.',
+        category, label, score, status, explanation,
+        method: `Unknown/Custom profile: differential turbidity (65%) + std dev (35%) −8 conservative. Delta=${differential ? Math.round(differential.brightnessDelta) : 'n/a'}.`,
       };
     }
 
-    // ── Standard Clear Peptide (default) ───────────────────────
-    // On a white background, a clear liquid should show mostly high
-    // brightness with relatively low variation. Hazy or cloudy liquid
-    // shows patches of lower brightness and higher std dev.
-
-    // Note unexpected color tint as informational, not a flag
-    const hazeScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
-    const score = Math.round(Math.min(100, Math.max(0, hazeScore)));
+    // ── Standard Clear Peptide (default) ─────────────────────
+    const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+    const blended = blendScore(stdDevScore);
+    const score = Math.round(Math.min(100, Math.max(0, blended - oxidationPenalty)));
     const status = scoreToStatus(score);
 
     let explanation: string;
@@ -294,18 +313,28 @@ async function scoreClarityHaze(
       explanation =
         'Unexpected blue tint detected — if this compound is expected to appear blue (e.g. GHK-Cu), ' +
         'consider selecting the GHK-Cu / Blue Peptide profile for more accurate interpretation. ' +
-        'No significant cloudiness detected.';
+        `No significant turbidity detected.${sedimentNote}`;
     } else if (score >= 70) {
       explanation =
-        'No obvious cloudiness or haze detected in white-background capture. ' +
-        'Note: this does not confirm the solution is clear.';
+        `No obvious cloudiness or haze detected.` +
+        (differential
+          ? ` Two-background brightness delta of ${Math.round(differential.brightnessDelta)} is consistent with a clear solution.`
+          : '') +
+        sedimentNote + oxidationNote;
     } else if (score >= 40) {
       explanation =
-        'Possible haze or uneven brightness distribution detected. ' +
-        'Review the white-background image carefully.';
+        `Possible haze or cloudiness detected.` +
+        (differential
+          ? ` Two-background brightness delta of ${Math.round(differential.brightnessDelta)} suggests light scattering in the solution.`
+          : '') +
+        sedimentNote + oxidationNote;
     } else {
       explanation =
-        'Significant brightness irregularity detected. A review is strongly recommended.';
+        `Significant turbidity signal detected.` +
+        (differential
+          ? ` Two-background brightness delta of ${Math.round(differential.brightnessDelta)} is consistent with a cloudy or hazy solution.`
+          : '') +
+        sedimentNote + oxidationNote;
     }
 
     return {
@@ -314,9 +343,9 @@ async function scoreClarityHaze(
       score,
       status,
       explanation,
-      method:
-        'Standard clear profile: std dev of pixel brightness on white background as proxy for visual cloudiness. ' +
-        'High std dev (>40) suggests potential haze. Glare override at >25% specular fraction.',
+      method: differential
+        ? `Standard clear: differential turbidity 65% (delta=${Math.round(differential.brightnessDelta)}) + std dev 35%. Amber/oxidation penalty=${oxidationPenalty}. Sediment check: ${differential.sedimentSuspected ? 'POSITIVE' : 'clear'}.`
+        : `Standard clear: std dev only (no black capture). Amber/oxidation penalty=${oxidationPenalty}.`,
     };
   } catch {
     return {
@@ -335,6 +364,11 @@ async function scoreClarityHaze(
 // Best on black background. White background as secondary check.
 // Particle screening applies regardless of profile — particles
 // are a concern in all expected appearances.
+//
+// IMPROVEMENT: Particle detection is now ROI-bounded. The vial body
+// region is estimated from the black-background image and only that
+// region is scanned. This eliminates false positives from label text,
+// background edges, cap details, and surrounding objects.
 // ----------------------------------------------------------------
 async function scoreVisibleParticles(captures: MediaCapture[]): Promise<CategoryScore> {
   const category: CategoryKey = 'visibleParticles';
@@ -345,6 +379,18 @@ async function scoreVisibleParticles(captures: MediaCapture[]): Promise<Category
 
   const results: { score: number; count: number }[] = [];
 
+  // Determine vial ROI from black-background image (most reliable for location)
+  // and reuse it across both background analyses for consistency.
+  let sharedRoi = undefined;
+  if (blackCapture) {
+    try {
+      const bImg = await loadImage(blackCapture.dataUrl);
+      const { ctx: bCtx, width: bW, height: bH } = drawToCanvas(bImg, 512);
+      const bData = bCtx.getImageData(0, 0, bW, bH);
+      sharedRoi = estimateVialROI(bData);
+    } catch { /* fall back to no roi */ }
+  }
+
   for (const [cap, bg] of [
     [blackCapture, 'black'],
     [whiteCapture, 'white'],
@@ -354,7 +400,8 @@ async function scoreVisibleParticles(captures: MediaCapture[]): Promise<Category
       const img = await loadImage(cap.dataUrl);
       const { ctx, width, height } = drawToCanvas(img, 512);
       const imageData = ctx.getImageData(0, 0, width, height);
-      const analysis = computeParticleAnalysis(imageData, bg);
+      // Pass the shared ROI so particle scan focuses on the vial body only
+      const analysis = computeParticleAnalysis(imageData, bg, sharedRoi);
       results.push({ score: analysis.particleRiskScore, count: analysis.suspiciousSpeckCount });
     } catch {
       // skip failed
@@ -660,8 +707,20 @@ async function scoreLabelOcr(
 
 // ----------------------------------------------------------------
 // 7. CRACK / DAMAGE SUSPICION
-// Basic: edge irregularity detection in outer frame of image
-// Extremely limited — do not overclaim
+//
+// IMPORTANT LIMITATION FOR ROUNDED GLASS VIALS:
+// Cylindrical glass vials inherently produce high-contrast images due
+// to glass-wall refraction and specular highlights from the curved surface.
+// A normal undamaged round vial viewed on a white background will routinely
+// produce brightness std dev >90. The previous threshold of >90 was therefore
+// misfiring on essentially every normal rounded vial.
+//
+// The threshold has been raised substantially. This scorer is acknowledged
+// to be unreliable for visual crack detection and is now used only as a
+// very strong anomaly signal (extremely high contrast that exceeds what
+// normal glass-wall reflections produce).
+//
+// For reliable container integrity assessment, physical inspection is required.
 // ----------------------------------------------------------------
 async function scoreCrackDamage(captures: MediaCapture[]): Promise<CategoryScore> {
   const category: CategoryKey = 'crackDamage';
@@ -674,51 +733,47 @@ async function scoreCrackDamage(captures: MediaCapture[]): Promise<CategoryScore
     return {
       category,
       label,
-      score: 50,
-      status: 'unable',
-      explanation: 'No capture available for damage assessment.',
+      score: 60,
+      status: 'review',
+      explanation: 'No capture available for container assessment. Inspect physically.',
       method: 'No image data.',
     };
   }
 
-  // This is a very rough heuristic — we measure edge irregularity
-  // by looking for unexpected dark/bright pixel clusters along the
-  // expected vial silhouette edges. Accuracy is low; prefer 'review'
-  // for uncertain cases.
   try {
     const img = await loadImage(primary.dataUrl);
     const { ctx, width, height } = drawToCanvas(img, 256);
     const imageData = ctx.getImageData(0, 0, width, height);
     const stats = computePixelStats(imageData);
 
-    // Very high contrast overall (stdDev > 80) could indicate cracks/chips
-    // but is also common with normal vials and reflections.
-    // Prefer 'review' unless clearly normal.
-    const anomalyScore = stats.stdDevBrightness > 90 ? 40 : 75;
+    // Rounded glass vials always have std dev >70 due to glass-wall refraction.
+    // Only flag at a substantially higher threshold (>115) to avoid constant
+    // false positives — and even then, note this is not a reliable crack signal.
+    const extremeAnomaly = stats.stdDevBrightness > 115;
 
     return {
       category,
       label,
-      score: anomalyScore,
-      status: anomalyScore >= 70 ? 'pass' : 'review',
-      explanation:
-        anomalyScore >= 70
-          ? 'No obvious structural anomalies detected in silhouette. ' +
-            'Note: this screen cannot reliably detect hairline cracks or micro-damage.'
-          : 'High brightness variation detected which may indicate surface damage or glare. ' +
-            'Inspect the container physically before use. ' +
-            'This heuristic is not reliable for crack detection.',
+      score: extremeAnomaly ? 45 : 78,
+      status: extremeAnomaly ? 'review' : 'pass',
+      explanation: extremeAnomaly
+        ? 'Unusually high brightness contrast detected — could indicate physical damage, but rounded glass vials inherently produce strong reflections. ' +
+          'Physically inspect the container before use.'
+        : 'No extreme contrast anomalies detected. ' +
+          'Note: hairline cracks and micro-damage cannot be reliably detected from phone captures. ' +
+          'Always physically inspect the vial before use.',
       method:
-        'Overall brightness std dev used as edge-irregularity proxy. ' +
-        '>90 std dev → potential anomaly flag. Very limited accuracy — heuristic only.',
+        'Brightness std dev as rough edge-irregularity proxy. ' +
+        'Threshold raised to >115 to account for normal rounded-glass-wall refraction artifacts. ' +
+        'This heuristic cannot confirm or rule out crack/chip damage.',
     };
   } catch {
     return {
       category,
       label,
-      score: 50,
-      status: 'unable',
-      explanation: 'Container damage assessment encountered an error.',
+      score: 60,
+      status: 'review',
+      explanation: 'Container assessment encountered an error. Inspect physically.',
       method: 'Analysis failed.',
     };
   }
