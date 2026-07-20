@@ -1,3 +1,37 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <!-- Dark background -->
+  <rect width="180" height="180" rx="40" fill="#0D1117"/>
+
+  <!-- Molecular backbone decoration (background) -->
+  <g opacity="0.25" stroke="#14C9A0" stroke-width="1.8" stroke-linecap="round" fill="none">
+    <!-- Zigzag backbone segment -->
+    <polyline points="18,85 40,68 62,85 84,68" />
+    <polyline points="96,112 118,95 140,112 162,95" />
+    <!-- Carbonyl branches -->
+    <line x1="40" y1="68" x2="50" y2="54"/>
+    <circle cx="50" cy="53" r="3.5" fill="#14C9A0"/>
+    <line x1="118" y1="95" x2="128" y2="81"/>
+    <circle cx="128" cy="80" r="3.5" fill="#14C9A0"/>
+    <!-- Alpha carbon nodes -->
+    <circle cx="40" cy="68" r="3" fill="#14C9A0"/>
+    <circle cx="62" cy="85" r="3" fill="#14C9A0"/>
+    <circle cx="118" cy="95" r="3" fill="#14C9A0"/>
+    <circle cx="140" cy="112" r="3" fill="#14C9A0"/>
+  </g>
+
+  <!-- Vial body -->
+  <rect x="78" y="85" width="24" height="55" rx="12" fill="#14C9A0" fill-opacity="0.12" stroke="#14C9A0" stroke-width="2.2"/>
+  <!-- Liquid fill (~60%) -->
+  <path d="M80 115 L80 128 Q80 138 90 138 Q100 138 100 128 L100 115 Z" fill="#14C9A0" fill-opacity="0.55"/>
+  <!-- Neck -->
+  <rect x="84" y="60" width="12" height="28" rx="4" fill="#14C9A0" fill-opacity="0.12" stroke="#14C9A0" stroke-width="2.2"/>
+  <!-- Cap -->
+  <rect x="81" y="52" width="18" height="11" rx="4" fill="#14C9A0"/>
+  <!-- Shine line on vial -->
+  <line x1="83" y1="90" x2="83" y2="125" stroke="white" stroke-width="1.2" stroke-opacity="0.25" stroke-linecap="round"/>
+
+  <!-- Small hexagonal ring (top-right) -->
+  <g opacity="0.3" stroke="#14C9A0" stroke-width="1.5" fill="none">
+    <polygon points="148,30 159,36.5 159,49.5 148,56 137,49.5 137,36.5"/>
+  </g>
 </svg>

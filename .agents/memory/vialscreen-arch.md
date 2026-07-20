@@ -31,6 +31,14 @@ description: Stack, key files, and non-obvious decisions for the VialScreen MVP
 - `index.html` has `theme-color`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`
 - No service worker — app is not offline-first
 
+## Visual design system
+- Primary color: teal `168 75% 38%` light / `168 75% 52%` dark (HSL). NOT blue. Chosen because teal/blue-green is the actual color of copper-peptide complexes (GHK-Cu) and lab equipment — domain-coherent.
+- Home screen hero: dark `#0d1117` background with `MolecularPattern` SVG overlay in teal at 9% opacity.
+- Favicon: dark rounded square + teal vial icon with molecular bond lines — `public/favicon.svg`. PNG icons regenerated from this SVG via ImageMagick.
+- `MolecularPattern.tsx` renders a 320×200 SVG tile with: N-Cα-C=O zigzag backbone, carbonyl branches, NH branches, Phe aromatic ring (hexagon + double bond markers), alpha-carbon dot nodes, and amino acid single-letter watermarks (G, K, P, W, Y) at low opacity.
+- `TriageBadge` size="lg" now renders: large circular icon (CheckCircle2 / Eye / XCircle) + pill label below, with soft glow shadow matching the verdict color.
+- `DisclaimerBanner` now has a ShieldAlert icon and slightly refined opacity.
+
 ## Non-obvious decisions
 - `ScanSession.pendingSave?: boolean` — set when finalize fails due to quota; preserves active session so user can free storage and resume to results without data loss.
 - `APPEARANCE_PROFILES` constant lives in `types/index.ts` (co-located with the type, not copy.ts) because engine.ts imports it directly.

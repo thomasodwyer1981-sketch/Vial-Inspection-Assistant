@@ -77,7 +77,7 @@
   --foreground: 220 40% 10%;
   --border: 220 15% 85%;
   --input: 220 15% 85%;
-  --ring: 215 85% 45%;
+  --ring: 168 75% 38%;
 
   --card: 0 0% 100%;
   --card-foreground: 220 40% 10%;
@@ -87,16 +87,16 @@
   --popover-foreground: 220 40% 10%;
   --popover-border: 220 15% 90%;
 
-  --primary: 215 85% 45%;
+  --primary: 168 75% 38%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 220 15% 92%;
+  --secondary: 220 15% 93%;
   --secondary-foreground: 220 40% 20%;
   
-  --muted: 220 15% 92%;
-  --muted-foreground: 220 20% 40%;
+  --muted: 220 15% 93%;
+  --muted-foreground: 220 20% 42%;
   
-  --accent: 215 85% 95%;
-  --accent-foreground: 215 85% 45%;
+  --accent: 168 60% 94%;
+  --accent-foreground: 168 75% 32%;
 
   --destructive: 350 70% 45%;
   --destructive-foreground: 0 0% 100%;
@@ -110,11 +110,11 @@
   --sidebar: 220 20% 97%;
   --sidebar-foreground: 220 40% 20%;
   --sidebar-border: 220 15% 85%;
-  --sidebar-primary: 215 85% 45%;
+  --sidebar-primary: 168 75% 38%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 220 15% 92%;
   --sidebar-accent-foreground: 220 40% 20%;
-  --sidebar-ring: 215 85% 45%;
+  --sidebar-ring: 168 75% 38%;
 
   --app-font-sans: 'Plus Jakarta Sans', sans-serif;
   --app-font-mono: 'Spline Sans Mono', monospace;
@@ -132,7 +132,7 @@
   --foreground: 220 15% 90%;
   --border: 220 20% 16%;
   --input: 220 20% 16%;
-  --ring: 215 85% 55%;
+  --ring: 168 75% 52%;
 
   --card: 220 30% 10%;
   --card-foreground: 220 15% 90%;
@@ -142,16 +142,16 @@
   --popover-foreground: 220 15% 90%;
   --popover-border: 220 20% 16%;
 
-  --primary: 215 85% 55%;
-  --primary-foreground: 220 40% 10%;
+  --primary: 168 75% 52%;
+  --primary-foreground: 220 40% 8%;
   --secondary: 220 20% 16%;
   --secondary-foreground: 220 15% 90%;
   
   --muted: 220 20% 16%;
   --muted-foreground: 220 15% 65%;
   
-  --accent: 215 50% 20%;
-  --accent-foreground: 215 85% 75%;
+  --accent: 168 40% 16%;
+  --accent-foreground: 168 75% 70%;
 
   --destructive: 350 65% 55%;
   --destructive-foreground: 0 0% 100%;
@@ -165,11 +165,11 @@
   --sidebar: 220 30% 8%;
   --sidebar-foreground: 220 15% 90%;
   --sidebar-border: 220 20% 16%;
-  --sidebar-primary: 215 85% 55%;
-  --sidebar-primary-foreground: 220 40% 10%;
+  --sidebar-primary: 168 75% 52%;
+  --sidebar-primary-foreground: 220 40% 8%;
   --sidebar-accent: 220 20% 16%;
   --sidebar-accent-foreground: 220 15% 90%;
-  --sidebar-ring: 215 85% 55%;
+  --sidebar-ring: 168 75% 52%;
 }
 
 @layer base {
