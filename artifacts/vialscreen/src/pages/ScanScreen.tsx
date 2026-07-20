@@ -641,7 +641,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     if (!result) return;
     const name = session?.metadata.peptideName;
     const lines = [
-      'VialScreen Screening Result',
+      'PepScan Screening Result',
       '─────────────────────────',
       name ? `Vial: ${name}` : null,
       `Result: ${result.triageResult === 'do-not-use' ? 'DO NOT USE' : result.triageResult.toUpperCase()}`,
@@ -656,7 +656,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
 
     if ('share' in navigator) {
       try {
-        await navigator.share({ title: 'VialScreen Result', text });
+        await navigator.share({ title: 'PepScan Result', text });
         return;
       } catch {
         // User cancelled — fall through to clipboard

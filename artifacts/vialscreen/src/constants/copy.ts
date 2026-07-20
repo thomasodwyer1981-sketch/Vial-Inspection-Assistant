@@ -1,5 +1,5 @@
 /**
- * VialScreen — App Copy & Disclaimers
+ * PepScan — App Copy & Disclaimers
  *
  * All user-facing text is centralized here for consistency.
  * Regulatory-sensitive language is clearly marked.
@@ -11,7 +11,7 @@ import type { AppearanceProfile } from '../types';
 // App Identity
 // ----------------------------------------------------------------
 
-export const APP_NAME = 'VialScreen';
+export const APP_NAME = 'PepScan';
 export const APP_TAGLINE = 'A phone-based vial screening assistant for obvious visual red flags.';
 export const APP_VERSION = '1.0.0-mvp';
 
@@ -19,7 +19,7 @@ export const APP_VERSION = '1.0.0-mvp';
 // Primary Disclaimer (shown on onboarding + limitations screen)
 // ----------------------------------------------------------------
 
-export const PRIMARY_DISCLAIMER = `VialScreen is a consumer visual screening assistant only.
+export const PRIMARY_DISCLAIMER = `PepScan is a consumer visual screening assistant only.
 
 It screens for obvious visible presentation issues using photographs taken under controlled background conditions. It does not:
 
@@ -73,7 +73,7 @@ export const ONBOARDING = {
   subtitle: 'Read carefully before your first scan.',
 
   whatItDoes: {
-    heading: 'What VialScreen Does',
+    heading: 'What PepScan Does',
     points: [
       'Guides you through a standardized two-background visual inspection',
       'Screens for obvious presentation red flags: visible particulates, haze, fill anomalies, label readability',
@@ -83,7 +83,7 @@ export const ONBOARDING = {
   },
 
   whatItDoesNot: {
-    heading: 'What VialScreen Does Not Do',
+    heading: 'What PepScan Does Not Do',
     points: [
       'Confirm the identity or authenticity of a compound',
       'Verify purity, potency, or concentration',
@@ -301,7 +301,7 @@ export const LIMITATIONS_COPY = {
   recommendation: {
     heading: 'Recommended Approach:',
     detail:
-      'Use VialScreen as part of a multi-step visual inspection process. ' +
+      'Use PepScan as part of a multi-step visual inspection process. ' +
       'Always combine app-based screening with direct physical examination under good lighting, ' +
       'cross-reference with your supplier documentation, and follow your own research protocols.',
   },

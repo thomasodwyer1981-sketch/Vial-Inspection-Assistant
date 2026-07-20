@@ -1,12 +1,12 @@
 {
-  "name": "VialScreen",
-  "short_name": "VialScreen",
+  "name": "PepScan",
+  "short_name": "PepScan",
   "description": "Visual vial screening assistant for peptide researchers. Guides phone-camera inspection and produces a triage result: Pass, Review, or Do Not Use.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#FF3C00",
+  "background_color": "#0E1E35",
+  "theme_color": "#1BAB98",
   "categories": ["utilities", "health"],
   "icons": [
     {

@@ -14,20 +14,36 @@ import { getScanHistory, loadActiveSession, clearActiveSession } from '@/utils/s
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 import MolecularPattern from '@/components/MolecularPattern';
 
-// Inline vial SVG — used in hero so it matches the dark background
+// PepScan hero icon — phone with vial + scan brackets
 function VialHeroIcon() {
   return (
     <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Phone body */}
+      <rect x="11" y="3" width="30" height="46" rx="6" fill="none" stroke="url(#hg)" strokeWidth="1.8" />
+      {/* Phone speaker */}
+      <rect x="19" y="7" width="14" height="3" rx="1.5" fill="url(#hg)" opacity="0.5" />
+      {/* Home button */}
+      <circle cx="26" cy="44" r="2.5" fill="none" stroke="url(#hg)" strokeWidth="1.4" />
+
+      {/* Scan brackets — green */}
+      <path d="M17 17 L17 14 L20 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M35 17 L35 14 L32 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 31 L17 34 L20 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M35 31 L35 34 L32 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* Vial body */}
+      <rect x="22" y="18" width="8" height="14" rx="4" fill="none" stroke="#2EDFC8" strokeWidth="1.5" />
+      {/* Liquid */}
+      <path d="M22.8 27 L22.8 29 Q22.8 31.5 26 31.5 Q29.2 31.5 29.2 29 L29.2 27 Z" fill="#60C8F0" fillOpacity="0.75" />
       {/* Cap */}
-      <rect x="20" y="4" width="12" height="8" rx="3" fill="#14C9A0" />
-      {/* Neck */}
-      <rect x="22" y="10" width="8" height="12" rx="2" fill="none" stroke="#14C9A0" strokeWidth="1.8" />
-      {/* Body */}
-      <rect x="16" y="20" width="20" height="26" rx="10" fill="none" stroke="#14C9A0" strokeWidth="1.8" />
-      {/* Liquid fill */}
-      <path d="M17.5 34 L17.5 36 Q17.5 44.5 26 44.5 Q34.5 44.5 34.5 36 L34.5 34 Z" fill="#14C9A0" fillOpacity="0.45" />
-      {/* Shine */}
-      <line x1="20" y1="24" x2="20" y2="38" stroke="white" strokeWidth="1.2" strokeOpacity="0.25" strokeLinecap="round" />
+      <rect x="23" y="14" width="6" height="5" rx="2" fill="url(#hg)" />
+
+      <defs>
+        <linearGradient id="hg" x1="11" y1="3" x2="41" y2="49" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#2EDFC8" />
+          <stop offset="100%" stopColor="#1BAB98" />
+        </linearGradient>
+      </defs>
     </svg>
   );
 }

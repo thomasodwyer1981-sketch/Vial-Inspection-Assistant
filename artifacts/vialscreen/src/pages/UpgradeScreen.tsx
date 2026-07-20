@@ -47,7 +47,7 @@ export default function UpgradeScreen() {
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Zap className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight mb-2">VialScreen Pro</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight mb-2">PepScan Pro</h2>
           <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
             Keep every scan on record and export results — for people who screen seriously.
           </p>
