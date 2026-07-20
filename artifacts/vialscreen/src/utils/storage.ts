@@ -42,7 +42,11 @@ export function setOnboardingComplete(): void {
 }
 
 export function resetOnboarding(): void {
-  localStorage.removeItem(KEYS.ONBOARDING);
+  try {
+    localStorage.removeItem(KEYS.ONBOARDING);
+  } catch {
+    // ignore
+  }
 }
 
 // ----------------------------------------------------------------
@@ -85,6 +89,7 @@ export function addToHistory(session: ScanSession): void {
       vendor: session.metadata.vendor || '',
       overallConfidence: session.analysisResult?.overallConfidence ?? 0,
       thumbnailDataUrl: thumb,
+      appearanceProfile: session.metadata.appearanceProfile ?? null,
     };
 
     // Prepend (newest first), keep max 100 items
@@ -97,12 +102,20 @@ export function addToHistory(session: ScanSession): void {
 }
 
 export function removeFromHistory(id: string): void {
-  const history = getScanHistory().filter((h) => h.id !== id);
-  localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(history));
+  try {
+    const history = getScanHistory().filter((h) => h.id !== id);
+    localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(history));
+  } catch {
+    console.warn('[VialScreen] Could not remove history entry.');
+  }
 }
 
 export function clearHistory(): void {
-  localStorage.removeItem(KEYS.SCAN_HISTORY);
+  try {
+    localStorage.removeItem(KEYS.SCAN_HISTORY);
+  } catch {
+    // ignore
+  }
 }
 
 // ----------------------------------------------------------------
@@ -147,8 +160,12 @@ export function loadSession(id: string): ScanSession | null {
 }
 
 export function deleteSession(id: string): void {
-  localStorage.removeItem(sessionKey(id));
-  removeFromHistory(id);
+  try {
+    localStorage.removeItem(sessionKey(id));
+    removeFromHistory(id);
+  } catch {
+    console.warn('[VialScreen] Could not delete session.');
+  }
 }
 
 // ----------------------------------------------------------------
@@ -159,7 +176,7 @@ export function saveActiveSession(session: ScanSession): void {
   try {
     localStorage.setItem(KEYS.ACTIVE_SESSION, JSON.stringify(session));
   } catch {
-    // quota exceeded — skip
+    // quota exceeded — skip (best-effort only)
   }
 }
 
@@ -184,7 +201,11 @@ export function loadActiveSession(): ScanSession | null {
 }
 
 export function clearActiveSession(): void {
-  localStorage.removeItem(KEYS.ACTIVE_SESSION);
+  try {
+    localStorage.removeItem(KEYS.ACTIVE_SESSION);
+  } catch {
+    // ignore
+  }
 }
 
 // ----------------------------------------------------------------
@@ -210,6 +231,7 @@ export function createNewSession(): ScanSession {
       concentration: '',
       purchaseDate: '',
       notes: '',
+      appearanceProfile: null,
     },
     captures: [],
     analysisResult: null,

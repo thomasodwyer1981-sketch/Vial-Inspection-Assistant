@@ -5,6 +5,8 @@
  * Regulatory-sensitive language is clearly marked.
  */
 
+import type { AppearanceProfile } from '../types';
+
 // ----------------------------------------------------------------
 // App Identity
 // ----------------------------------------------------------------
@@ -33,6 +35,34 @@ Use this tool as one part of a broader visual inspection routine. Never rely sol
 
 export const SHORT_DISCLAIMER =
   'Visual screening only. Does not confirm identity, purity, potency, or safety.';
+
+// ----------------------------------------------------------------
+// Appearance Profile Copy
+// ----------------------------------------------------------------
+
+export const APPEARANCE_PROFILE_COPY: Record<
+  AppearanceProfile,
+  { label: string; description: string; analysisNote: string }
+> = {
+  'clear-standard': {
+    label: 'Standard Clear Peptide',
+    description: 'Expected to appear mostly clear and colorless after mixing.',
+    analysisNote: 'Color and clarity are evaluated against a clear/colorless baseline.',
+  },
+  'ghk-cu': {
+    label: 'GHK-Cu / Blue Peptide',
+    description: 'Blue coloration may be expected. Screens for haze, particles, or poor mixing.',
+    analysisNote:
+      'Blue coloration is not treated as a flag. Analysis focuses on turbidity, particles, and mixing quality.',
+  },
+  'unknown-custom': {
+    label: 'Unknown / Custom Appearance',
+    description:
+      'Use when colour alone should not drive interpretation. More conservative screening.',
+    analysisNote:
+      'Color is not used as a primary screening signal. This profile is deliberately conservative.',
+  },
+};
 
 // ----------------------------------------------------------------
 // Onboarding Copy
@@ -122,7 +152,10 @@ export const PREPARATION = {
 export const SCAN_COPY = {
   prepare: {
     title: 'Prepare Your Vial',
-    instruction: 'Before capturing, complete these preparation steps.',
+    instruction: 'Before capturing, select an appearance profile and complete the preparation checklist.',
+    profileHeading: 'Appearance Profile',
+    profileSubheading: 'Select the profile that best describes what this vial is expected to look like. This affects how the analysis interprets color and clarity.',
+    checklistHeading: 'Preparation Checklist',
     checklist: [
       'Exterior of vial is clean and dry',
       'Matte black and white background materials are ready',
@@ -243,6 +276,17 @@ export const LIMITATIONS_COPY = {
       'Very small vials (< 1mL) — difficult to frame and assess accurately',
       'Poor lighting, blur, glare, or motion in captures — reduces all analysis accuracy',
       'Labels printed over the glass body — interferes with clarity assessment',
+    ],
+  },
+
+  appearanceProfiles: {
+    heading: 'About Appearance Profiles:',
+    items: [
+      'Appearance profiles improve interpretation by adjusting what the analysis treats as expected vs. suspicious.',
+      'A profile selection does not confirm the identity of the compound — a blue liquid is not confirmed to be GHK-Cu.',
+      'Expected color can vary by product, preparation, concentration, and storage history.',
+      'The Unknown/Custom profile is deliberately conservative — it reduces reliance on color and accepts a higher rate of Review results.',
+      'Visual screening cannot replace laboratory testing regardless of the profile selected.',
     ],
   },
 

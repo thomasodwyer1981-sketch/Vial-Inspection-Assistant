@@ -1,7 +1,18 @@
 import { Link, useLocation, useParams } from 'wouter';
-import { ArrowLeft, Trash2, Calendar, FlaskConical, Building2, Beaker, Tag, AlertTriangle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Trash2,
+  Calendar,
+  FlaskConical,
+  Building2,
+  Beaker,
+  Tag,
+  AlertTriangle,
+  Palette,
+} from 'lucide-react';
 import { loadSession, deleteSession } from '@/utils/storage';
 import { RESULT_COPY } from '@/constants/copy';
+import { APPEARANCE_PROFILES } from '@/types';
 import { format } from 'date-fns';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
@@ -17,7 +28,7 @@ export default function HistoryDetailScreen() {
     return (
       <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center">
         <h2 className="text-xl font-bold mb-2">Scan Not Found</h2>
-        <p className="text-muted-foreground mb-6">This scan may have been deleted or never completed.</p>
+        <p className="text-muted-foreground mb-6 text-sm">This scan may have been deleted or never completed.</p>
         <Link href="/history" className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold">
           Back to History
         </Link>
@@ -36,10 +47,17 @@ export default function HistoryDetailScreen() {
   const { metadata } = session;
   const resultCopy = RESULT_COPY[result.triageResult];
 
+  // Resolve profile — prefer result.profileUsed (accurate at time of analysis),
+  // fall back to metadata.appearanceProfile for older sessions.
+  // Old sessions without either field get null (graceful fallback).
+  const profileUsed = result.profileUsed ?? metadata.appearanceProfile ?? null;
+  const profileInfo = profileUsed ? APPEARANCE_PROFILES[profileUsed] : null;
+
   // Only show the metadata section if at least one field has a value
   const hasMetadata = !!(
     metadata.peptideName || metadata.vendor || metadata.batchLot ||
-    metadata.concentration || metadata.purchaseDate || metadata.notes
+    metadata.concentration || metadata.purchaseDate || metadata.notes ||
+    profileUsed
   );
 
   return (
@@ -75,14 +93,22 @@ export default function HistoryDetailScreen() {
           </div>
 
           {result.overallConfidence < 50 && (
-            <div className="mb-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
+            <div className="mt-2 mb-2 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
               <AlertTriangle className="w-3.5 h-3.5" />
               Low Confidence — results less reliable
             </div>
           )}
 
+          {/* Appearance profile note */}
+          {profileInfo && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Palette className="w-3.5 h-3.5 shrink-0" />
+              <span>Profile: <span className="font-semibold text-foreground">{profileInfo.label}</span></span>
+            </div>
+          )}
+
           {/* Recommended action */}
-          <div className="mt-2 bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">
+          <div className="mt-4 bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">
             <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">Recommended Action</p>
             <p className="leading-relaxed">{resultCopy.action}</p>
           </div>
@@ -97,7 +123,23 @@ export default function HistoryDetailScreen() {
               <MetaRow icon={<Building2 className="w-4 h-4"/>} label="Vendor" value={metadata.vendor} />
               <MetaRow icon={<Tag className="w-4 h-4"/>} label="Batch/Lot" value={metadata.batchLot} />
               <MetaRow icon={<Beaker className="w-4 h-4"/>} label="Concentration" value={metadata.concentration} />
-              <MetaRow icon={<Calendar className="w-4 h-4"/>} label="Purchase Date" value={metadata.purchaseDate} border={false} />
+              <MetaRow icon={<Calendar className="w-4 h-4"/>} label="Purchase Date" value={metadata.purchaseDate} />
+              {profileInfo && (
+                <MetaRow
+                  icon={<Palette className="w-4 h-4"/>}
+                  label="Appearance Profile"
+                  value={profileInfo.label}
+                  border={false}
+                />
+              )}
+              {!profileInfo && (
+                <MetaRow
+                  icon={<Palette className="w-4 h-4"/>}
+                  label="Appearance Profile"
+                  value="Not specified"
+                  border={false}
+                />
+              )}
             </div>
             {metadata.notes && (
               <div className="mt-3 bg-secondary/50 p-4 rounded-xl border text-sm text-foreground italic">
@@ -158,7 +200,17 @@ export default function HistoryDetailScreen() {
   );
 }
 
-function MetaRow({ icon, label, value, border = true }: { icon: React.ReactNode, label: string, value: string, border?: boolean }) {
+function MetaRow({
+  icon,
+  label,
+  value,
+  border = true,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  border?: boolean;
+}) {
   if (!value) return null;
   return (
     <div className={`flex items-center justify-between p-4 ${border ? 'border-b' : ''}`}>

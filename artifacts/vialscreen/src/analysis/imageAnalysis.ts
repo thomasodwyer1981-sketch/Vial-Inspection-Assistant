@@ -51,6 +51,28 @@ export interface GlareAnalysis {
   glareScore: number;
 }
 
+/**
+ * Color profile of the image — used for profile-aware clarity scoring.
+ * Helps distinguish expected tints (e.g. GHK-Cu blue) from haze or discoloration.
+ */
+export interface ColorProfile {
+  /** Whether blue channel significantly dominates over red (GHK-Cu type blue) */
+  blueDominant: boolean;
+  /** Whether amber/yellow dominates (R+G >> B) */
+  amberDominant: boolean;
+  /** Mean red channel value 0–255 */
+  meanR: number;
+  /** Mean green channel value 0–255 */
+  meanG: number;
+  /** Mean blue channel value 0–255 */
+  meanB: number;
+  /**
+   * Blue excess: meanB - meanR.
+   * Positive = blue-tinted; negative = warmer toned.
+   */
+  blueExcess: number;
+}
+
 // ----------------------------------------------------------------
 // Helper: load an image from a data URL into an HTMLImageElement
 // ----------------------------------------------------------------
@@ -135,6 +157,36 @@ export function computePixelStats(imageData: ImageData): PixelStats {
     maxBrightness: maxBright,
     overexposedFraction: overexposed / n,
     underexposedFraction: underexposed / n,
+  };
+}
+
+// ----------------------------------------------------------------
+// Color Profile Analysis
+//
+// Detects dominant tint to support profile-aware clarity scoring.
+// Uses mean RGB channel ratios to identify blue-dominant liquids
+// (GHK-Cu type) vs clear vs amber-tinted. Heuristic only.
+// ----------------------------------------------------------------
+export function computeColorProfile(imageData: ImageData): ColorProfile {
+  const stats = computePixelStats(imageData);
+  const { meanR, meanG, meanB } = stats;
+
+  // Blue dominant: B channel significantly exceeds R, and is substantial in absolute terms.
+  // GHK-Cu peptides typically appear visibly blue — this requires meanB > meanR by at least 20 points.
+  const blueExcess = meanB - meanR;
+  const blueDominant = blueExcess > 20 && meanB > 80;
+
+  // Amber/yellow dominant: R and G together substantially exceed B.
+  // Typical of amber glass reflection, yellowed compounds, or serum-like content.
+  const amberDominant = (meanR + meanG) / 2 > meanB + 35 && meanR > 90;
+
+  return {
+    blueDominant,
+    amberDominant,
+    meanR,
+    meanG,
+    meanB,
+    blueExcess,
   };
 }
 

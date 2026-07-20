@@ -52,6 +52,38 @@ export type CategoryKey =
   | 'crackDamage'
   | 'glareInterference';
 
+// ---- Appearance Profile -----------------------------------
+
+/**
+ * The user-selected appearance profile describes what the vial
+ * is expected to look like visually. This changes how the analysis
+ * engine interprets color, tint, and clarity findings.
+ */
+export type AppearanceProfile =
+  | 'clear-standard'   // Standard clear/colorless peptide after mixing
+  | 'ghk-cu'           // GHK-Cu or similar blue-tinted compound
+  | 'unknown-custom';  // Unknown or non-standard appearance — conservative mode
+
+export const APPEARANCE_PROFILES: Record<
+  AppearanceProfile,
+  { label: string; description: string }
+> = {
+  'clear-standard': {
+    label: 'Standard Clear Peptide',
+    description: 'Expected to appear mostly clear and colorless after mixing.',
+  },
+  'ghk-cu': {
+    label: 'GHK-Cu / Blue Peptide',
+    description:
+      'Blue coloration may be expected. Screens for haze, particles, or poor mixing.',
+  },
+  'unknown-custom': {
+    label: 'Unknown / Custom Appearance',
+    description:
+      'Use when colour alone should not drive interpretation. More conservative screening.',
+  },
+};
+
 // ---- Media Capture ----------------------------------------
 
 export type CaptureBackground = 'white' | 'black' | 'label' | 'label2';
@@ -110,6 +142,12 @@ export interface ScanMetadata {
    * Freeform notes.
    */
   notes: string;
+
+  /**
+   * Selected appearance profile — affects how color/clarity is interpreted.
+   * Null means not selected (should be required before analysis starts).
+   */
+  appearanceProfile: AppearanceProfile | null;
 }
 
 // ---- Analysis Result --------------------------------------
@@ -145,6 +183,13 @@ export interface AnalysisResult {
    * OCR-extracted text from the label capture, if available.
    */
   ocrText: string | null;
+
+  /**
+   * The appearance profile that was active when analysis ran.
+   * Stored with the result so history detail can show it accurately.
+   * Null for sessions created before profile support was added.
+   */
+  profileUsed: AppearanceProfile | null;
 }
 
 // ---- Full Scan Session ------------------------------------
@@ -183,6 +228,13 @@ export interface ScanSession {
    * Whether the session has been finalized.
    */
   finalized: boolean;
+
+  /**
+   * True if the session was finalized but could not be saved to history
+   * due to storage quota being exceeded. The session is preserved as the
+   * active session so the user can retry after freeing storage.
+   */
+  pendingSave?: boolean;
 }
 
 // ---- History Item (lightweight summary for list view) ----
@@ -195,6 +247,11 @@ export interface HistoryItem {
   vendor: string;
   overallConfidence: number;
   thumbnailDataUrl: string | null;
+  /**
+   * Appearance profile selected for this scan.
+   * Optional for backward compatibility with older history entries.
+   */
+  appearanceProfile?: AppearanceProfile | null;
 }
 
 // ---- App State Shapes ------------------------------------

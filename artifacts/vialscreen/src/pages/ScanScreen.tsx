@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useScanSession } from '@/hooks/useScanSession';
-import { SCAN_COPY, RESULT_COPY } from '@/constants/copy';
+import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
+import { APPEARANCE_PROFILES, type AppearanceProfile } from '@/types';
 import StepProgress from '@/components/StepProgress';
 import CaptureButton from '@/components/CaptureButton';
 import MediaPreview from '@/components/MediaPreview';
@@ -9,7 +10,7 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, AlertTriangle, HardDrive } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2 } from 'lucide-react';
 import { ScanStep } from '@/types';
 import { loadActiveSession } from '@/utils/storage';
 
@@ -20,6 +21,9 @@ const CAPTURE_TIPS = [
   'Hold steady — full vial body must be visible',
   'Avoid reflections on the vial face',
 ];
+
+// Appearance profile options in display order
+const PROFILE_OPTIONS: AppearanceProfile[] = ['clear-standard', 'ghk-cu', 'unknown-custom'];
 
 export default function ScanScreen() {
   const [, setLocation] = useLocation();
@@ -43,11 +47,19 @@ export default function ScanScreen() {
     abandonSession,
   } = useScanSession();
 
-  // On mount: resume active session from storage or start a fresh one
+  // On mount: resume active session from storage or start fresh
+  // Handles three cases:
+  // 1. Finalized + pendingSave: resume directly to results with save-failure state
+  // 2. In-progress (not finalized): resume normally
+  // 3. No active session: start new session
   useEffect(() => {
     if (!session) {
       const activeSession = loadActiveSession();
-      if (activeSession && !activeSession.finalized) {
+      if (activeSession && activeSession.finalized && activeSession.pendingSave) {
+        // Finalized but not saved — resume to results so user can retry
+        resumeSession(activeSession);
+        setSaveFailed(true);
+      } else if (activeSession && !activeSession.finalized) {
         resumeSession(activeSession);
       } else {
         startNewSession();
@@ -72,6 +84,7 @@ export default function ScanScreen() {
   const handleFinish = () => {
     const saved = finalizeSession();
     if (saved) {
+      setSaveFailed(false);
       setLocation('/history');
     } else {
       setSaveFailed(true);
@@ -84,7 +97,7 @@ export default function ScanScreen() {
       setSaveFailed(false);
       setLocation('/history');
     }
-    // If still fails, the banner stays — user sees the same error
+    // If still fails, banner stays visible
   };
 
   const isResults = currentStep === 'results';
@@ -136,11 +149,19 @@ function PrepareStep() {
   );
 
   const allChecked = checkedItems.every(Boolean);
+  const selectedProfile = session?.metadata.appearanceProfile ?? null;
+
+  // Begin Capture requires both a profile selection AND all checklist items checked
+  const canProceed = allChecked && selectedProfile !== null;
 
   const handleCheck = (index: number, val: boolean) => {
     const newItems = [...checkedItems];
     newItems[index] = val;
     setCheckedItems(newItems);
+  };
+
+  const handleProfileSelect = (profile: AppearanceProfile) => {
+    updateMetadata({ appearanceProfile: profile });
   };
 
   return (
@@ -150,17 +171,82 @@ function PrepareStep() {
         <p className="text-muted-foreground text-sm">{SCAN_COPY.prepare.instruction}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 -mx-1 px-1">
-        {SCAN_COPY.prepare.checklist.map((item, i) => (
-          <ChecklistItem
-            key={i}
-            label={item}
-            checked={checkedItems[i]}
-            onCheckedChange={(c) => handleCheck(i, c)}
-          />
-        ))}
+      <div className="flex-1 overflow-y-auto space-y-6 -mx-1 px-1">
 
-        <div className="mt-8">
+        {/* ── Appearance Profile Selection ── */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Palette className="w-4 h-4 text-muted-foreground shrink-0" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              {SCAN_COPY.prepare.profileHeading}
+            </h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3 pl-6">
+            {SCAN_COPY.prepare.profileSubheading}
+          </p>
+          <div className="space-y-2">
+            {PROFILE_OPTIONS.map((profile) => {
+              const info = APPEARANCE_PROFILES[profile];
+              const copy = APPEARANCE_PROFILE_COPY[profile];
+              const isSelected = selectedProfile === profile;
+              return (
+                <button
+                  key={profile}
+                  onClick={() => handleProfileSelect(profile)}
+                  className={`w-full text-left rounded-xl border p-4 transition-colors ${
+                    isSelected
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                      : 'border-border bg-card hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${
+                      isSelected ? 'border-primary' : 'border-muted-foreground/40'
+                    }`}>
+                      {isSelected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm leading-snug">{info.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        {copy.description}
+                      </p>
+                      {isSelected && profile === 'ghk-cu' && (
+                        <p className="text-xs text-primary/80 mt-1.5 font-medium">
+                          Blue coloration will not be treated as a concern.
+                        </p>
+                      )}
+                      {isSelected && profile === 'unknown-custom' && (
+                        <p className="text-xs text-warning mt-1.5 font-medium">
+                          Conservative mode — uncertain findings default to Review.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Preparation Checklist ── */}
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
+            {SCAN_COPY.prepare.checklistHeading}
+          </h3>
+          <div className="space-y-3">
+            {SCAN_COPY.prepare.checklist.map((item, i) => (
+              <ChecklistItem
+                key={i}
+                label={item}
+                checked={checkedItems[i]}
+                onCheckedChange={(c) => handleCheck(i, c)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── Optional Metadata ── */}
+        <div>
           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
             Optional Details
           </h3>
@@ -213,13 +299,26 @@ function PrepareStep() {
         </div>
       </div>
 
-      <button
-        disabled={!allChecked}
-        onClick={advanceStep}
-        className="w-full bg-primary text-primary-foreground py-4 px-4 rounded-xl font-bold disabled:opacity-50 transition-opacity active:scale-[0.98]"
-      >
-        Begin Capture
-      </button>
+      {/* Gate button on both profile selection and checklist */}
+      <div className="space-y-2 pt-2">
+        {!selectedProfile && (
+          <p className="text-xs text-muted-foreground text-center">
+            Select an appearance profile above to continue.
+          </p>
+        )}
+        {selectedProfile && !allChecked && (
+          <p className="text-xs text-muted-foreground text-center">
+            Complete the preparation checklist to continue.
+          </p>
+        )}
+        <button
+          disabled={!canProceed}
+          onClick={advanceStep}
+          className="w-full bg-primary text-primary-foreground py-4 px-4 rounded-xl font-bold disabled:opacity-40 transition-opacity active:scale-[0.98]"
+        >
+          Begin Capture
+        </button>
+      </div>
     </div>
   );
 }
@@ -260,7 +359,7 @@ function CaptureStep({ background }: { background: 'white' | 'black' }) {
           ))}
         </ul>
 
-        {/* Capture quality tips — always visible, not dependent on capture state */}
+        {/* Capture quality tips — always visible */}
         <div className="bg-secondary/40 rounded-xl p-3 border border-secondary">
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
             Quality Tips
@@ -361,10 +460,11 @@ function ReviewStep() {
 
   const handleAnalyze = async () => {
     advanceStep(); // Advance to analysis step UI immediately
-    await runHeuristicAnalysis(); // Then start analysis (isAnalyzing batched with advanceStep)
+    await runHeuristicAnalysis();
   };
 
   const captures = session?.captures ?? [];
+  const profile = session?.metadata.appearanceProfile ?? null;
 
   // Guard: user reached review without any captures
   if (captures.length === 0) {
@@ -400,6 +500,20 @@ function ReviewStep() {
         <h2 className="text-2xl font-bold mb-2">{SCAN_COPY.review.title}</h2>
         <p className="text-muted-foreground text-sm">{SCAN_COPY.review.instruction}</p>
       </div>
+
+      {/* Profile reminder */}
+      {profile && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 border rounded-lg px-3 py-2">
+          <Palette className="w-3.5 h-3.5 shrink-0" />
+          <span>Profile: <span className="font-semibold text-foreground">{APPEARANCE_PROFILES[profile].label}</span></span>
+          {profile === 'ghk-cu' && (
+            <span className="ml-auto text-primary/80 font-medium">Blue tint expected</span>
+          )}
+          {profile === 'unknown-custom' && (
+            <span className="ml-auto text-warning font-medium">Conservative mode</span>
+          )}
+        </div>
+      )}
 
       {missingCaptures && (
         <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex gap-3 items-start">
@@ -449,9 +563,6 @@ function AnalysisStep() {
 
   // Safety-net: if this step renders without analysis running (e.g., session was
   // resumed with currentStep stuck at 'analysis'), auto-trigger once on mount.
-  // In the normal flow, isAnalyzing is already true when this component first mounts
-  // because ReviewStep calls setIsAnalyzing(true) before advanceStep — React 18
-  // batches both updates, so the component mounts with isAnalyzing === true.
   useEffect(() => {
     if (!isAnalyzing && !session?.analysisResult && !analysisError) {
       runHeuristicAnalysis();
@@ -494,7 +605,6 @@ function AnalysisStep() {
             <p className="text-sm text-muted-foreground min-h-[40px] leading-relaxed transition-opacity">
               {analysisStatus || SCAN_COPY.analysis.instruction}
             </p>
-            {/* Surface a helpful note when OCR engine is loading — prevents "frozen" perception */}
             {isOcrPhase && (
               <p className="mt-3 text-xs text-muted-foreground/70 italic">
                 First-run label recognition may take 10–30 s while the engine loads.
@@ -523,7 +633,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [, setLocation] = useLocation();
   const result = session?.analysisResult;
 
-  // Null guard — if somehow results step renders without a result, show recovery state
+  // Null guard — if results step renders without a result, show recovery state
   if (!result) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center space-y-6 px-6">
@@ -555,18 +665,21 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   }
 
   const resultCopy = RESULT_COPY[result.triageResult];
+  const profileUsed = result.profileUsed ?? session?.metadata.appearanceProfile ?? null;
+  const profileInfo = profileUsed ? APPEARANCE_PROFILES[profileUsed] : null;
 
   return (
     <div className="flex flex-col h-full">
-      {/* Save failure banner — shown instead of a separate screen so result stays visible */}
+      {/* Save failure banner */}
       {saveFailed && (
-        <div className="bg-destructive/10 border-b border-destructive/30 px-4 py-3">
+        <div className="bg-destructive/10 border-b border-destructive/30 px-4 py-3 shrink-0">
           <div className="flex items-start gap-3">
             <HardDrive className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-destructive mb-0.5">Scan could not be saved</p>
               <p className="text-xs text-destructive/80 leading-relaxed">
                 Device storage may be full. Free space by deleting older scans, then try again.
+                Your result is still visible and available to retry.
               </p>
             </div>
           </div>
@@ -612,6 +725,14 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             <div className="mt-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
               <AlertTriangle className="w-4 h-4" />
               Low Confidence Score ({result.overallConfidence}%)
+            </div>
+          )}
+
+          {/* Profile used */}
+          {profileInfo && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Palette className="w-3.5 h-3.5 shrink-0" />
+              <span>Screened using: <span className="font-semibold text-foreground">{profileInfo.label}</span></span>
             </div>
           )}
         </div>
@@ -660,7 +781,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         <DisclaimerBanner />
       </div>
 
-      {/* Sticky footer — flex-based, not viewport-fixed */}
+      {/* Sticky footer */}
       <div className="shrink-0 p-4 bg-background/95 backdrop-blur border-t space-y-3">
         <button
           onClick={onFinish}

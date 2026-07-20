@@ -10,6 +10,7 @@
  * - Poor capture quality → never produce a falsely reassuring result
  * - Uncertain findings → bias toward REVIEW, not PASS
  * - Multiple strong flags → DO_NOT_USE
+ * - Profile-aware: color/tint interpretation depends on the selected appearance profile
  */
 
 import type {
@@ -19,6 +20,7 @@ import type {
   CategoryStatus,
   MediaCapture,
   TriageResult,
+  AppearanceProfile,
 } from '../types';
 import {
   loadImage,
@@ -27,6 +29,7 @@ import {
   computeBlurMetrics,
   computeGlareAnalysis,
   computeParticleAnalysis,
+  computeColorProfile,
   estimateFillLevel,
 } from './imageAnalysis';
 
@@ -138,12 +141,20 @@ async function scoreCaptureQuality(
 
 // ----------------------------------------------------------------
 // 2. CLARITY / HAZE SUSPICION
-// Method: brightness consistency, contrast in liquid region,
-// std deviation of brightness (high variation may indicate haze)
+// Profile-aware: interpretation depends on selected appearance profile.
+//
+// clear-standard: evaluates against a clear/colorless baseline.
+// ghk-cu:         blue tint is expected — separates color from turbidity.
+// unknown-custom: color is not used as signal; conservative turbidity check only.
+//
+// Method: brightness consistency / std deviation on white background.
 // ----------------------------------------------------------------
-async function scoreClarityHaze(captures: MediaCapture[]): Promise<CategoryScore> {
+async function scoreClarityHaze(
+  captures: MediaCapture[],
+  profile: AppearanceProfile | null,
+): Promise<CategoryScore> {
   const category: CategoryKey = 'clarity';
-  const label = 'Clarity / Haze';
+  const label = 'Clarity / Appearance';
 
   const whiteCapture = captures.find((c) => c.background === 'white');
 
@@ -165,16 +176,9 @@ async function scoreClarityHaze(captures: MediaCapture[]): Promise<CategoryScore
 
     const stats = computePixelStats(imageData);
     const glare = computeGlareAnalysis(imageData);
+    const color = computeColorProfile(imageData);
 
-    // On a white background, a clear liquid vial should show mostly
-    // high brightness with relatively low variation. A hazy or cloudy
-    // liquid will show patches of lower brightness and higher std dev.
-    // These are heuristic proxies only.
-
-    // High std dev in center region may suggest cloudiness
-    const hazeScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
-
-    // If too much glare, confidence drops
+    // Glare override applies regardless of profile — glare makes clarity unreliable
     if (glare.glareFraction > 0.25) {
       return {
         category,
@@ -188,17 +192,121 @@ async function scoreClarityHaze(captures: MediaCapture[]): Promise<CategoryScore
       };
     }
 
+    // ── GHK-Cu / Blue Peptide profile ──────────────────────────
+    // Blue coloration is expected. Separate the expected tint from
+    // actual cloudiness/turbidity concerns.
+    if (profile === 'ghk-cu') {
+      if (color.blueDominant) {
+        // Blue is present and dominant — treat color as expected.
+        // Turbidity is assessed via std dev, but threshold raised because
+        // color variation is normal for blue liquids viewed on white background.
+        const turbidityScore = Math.max(0, 100 - stats.stdDevBrightness * 1.2);
+        const score = Math.round(Math.min(100, Math.max(0, turbidityScore)));
+        const status: CategoryStatus = score >= 65 ? 'pass' : score >= 40 ? 'review' : 'flag';
+
+        const explanation =
+          score >= 65
+            ? 'Blue coloration detected — consistent with GHK-Cu / Blue Peptide profile selection. ' +
+              'Color is not treated as a concern. No significant additional cloudiness or turbidity detected.'
+            : 'Blue coloration present (consistent with GHK-Cu / Blue Peptide profile). ' +
+              'Elevated brightness variation detected beyond expected blue tint — possible cloudiness or incomplete mixing. ' +
+              'Review the white-background capture carefully.';
+
+        return {
+          category,
+          label,
+          score,
+          status,
+          explanation,
+          method:
+            'GHK-Cu profile: std dev of brightness as turbidity proxy with raised tolerance for expected blue tint. ' +
+            'Blue dominance confirmed (meanB − meanR > 20). Glare override applied at >25% specular fraction.',
+        };
+      } else {
+        // No blue detected despite GHK-Cu profile selection — note the discrepancy
+        const hazeScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+        const score = Math.round(Math.min(100, Math.max(0, hazeScore)));
+        const status = scoreToStatus(score);
+
+        const explanation =
+          score >= 70
+            ? 'GHK-Cu / Blue Peptide profile selected, but no prominent blue coloration was detected in this capture. ' +
+              'No obvious haze or cloudiness detected. Verify vial contents and profile selection.'
+            : 'GHK-Cu / Blue Peptide profile selected, but no prominent blue coloration detected. ' +
+              'Possible haze or cloudiness detected. Verify vial contents and review capture carefully.';
+
+        return {
+          category,
+          label,
+          score,
+          status,
+          explanation,
+          method:
+            'GHK-Cu profile: blue dominance not detected. Standard std dev haze assessment applied. ' +
+            'Discrepancy between profile selection and detected color noted.',
+        };
+      }
+    }
+
+    // ── Unknown / Custom Appearance profile ────────────────────
+    // Color is not used as a primary signal. Turbidity only.
+    // Apply a conservative bias — slightly lower the effective score.
+    if (profile === 'unknown-custom') {
+      const turbidityScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+      // Conservative: subtract a small bias so borderline cases land in REVIEW
+      const score = Math.round(Math.min(100, Math.max(0, turbidityScore - 8)));
+      const status = scoreToStatus(score);
+
+      const explanation =
+        score >= 70
+          ? 'Unknown/Custom Appearance profile selected — colour was not used as a screening signal. ' +
+            'No significant turbidity or brightness irregularity detected.'
+          : score >= 40
+          ? 'Unknown/Custom Appearance profile selected. Elevated brightness variation detected. ' +
+            'This profile is conservative — review is recommended when findings are uncertain.'
+          : 'Unknown/Custom Appearance profile selected. Significant brightness irregularity detected. ' +
+            'Review is strongly recommended.';
+
+      return {
+        category,
+        label,
+        score,
+        status,
+        explanation,
+        method:
+          'Unknown/Custom profile: colour excluded from assessment. Conservative turbidity check only. ' +
+          'Std dev haze score with −8 conservative adjustment.',
+      };
+    }
+
+    // ── Standard Clear Peptide (default) ───────────────────────
+    // On a white background, a clear liquid should show mostly high
+    // brightness with relatively low variation. Hazy or cloudy liquid
+    // shows patches of lower brightness and higher std dev.
+
+    // Note unexpected color tint as informational, not a flag
+    const hazeScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
     const score = Math.round(Math.min(100, Math.max(0, hazeScore)));
     const status = scoreToStatus(score);
 
-    const explanation =
-      score >= 70
-        ? 'No obvious cloudiness or haze detected in white-background capture. ' +
-          'Note: this does not confirm the solution is clear.'
-        : score >= 40
-          ? 'Possible haze or uneven brightness distribution detected. ' +
-            'Review the white-background image carefully.'
-          : 'Significant brightness irregularity detected. A review is strongly recommended.';
+    let explanation: string;
+    if (color.blueDominant && score >= 70) {
+      explanation =
+        'Unexpected blue tint detected — if this compound is expected to appear blue (e.g. GHK-Cu), ' +
+        'consider selecting the GHK-Cu / Blue Peptide profile for more accurate interpretation. ' +
+        'No significant cloudiness detected.';
+    } else if (score >= 70) {
+      explanation =
+        'No obvious cloudiness or haze detected in white-background capture. ' +
+        'Note: this does not confirm the solution is clear.';
+    } else if (score >= 40) {
+      explanation =
+        'Possible haze or uneven brightness distribution detected. ' +
+        'Review the white-background image carefully.';
+    } else {
+      explanation =
+        'Significant brightness irregularity detected. A review is strongly recommended.';
+    }
 
     return {
       category,
@@ -207,8 +315,8 @@ async function scoreClarityHaze(captures: MediaCapture[]): Promise<CategoryScore
       status,
       explanation,
       method:
-        'Standard deviation of pixel brightness on white background as a proxy for visual cloudiness. ' +
-        'High std dev (>40) suggests potential haze. Glare override applied if specular fraction >25%.',
+        'Standard clear profile: std dev of pixel brightness on white background as proxy for visual cloudiness. ' +
+        'High std dev (>40) suggests potential haze. Glare override at >25% specular fraction.',
     };
   } catch {
     return {
@@ -225,6 +333,8 @@ async function scoreClarityHaze(captures: MediaCapture[]): Promise<CategoryScore
 // ----------------------------------------------------------------
 // 3. VISIBLE PARTICLE SUSPICION
 // Best on black background. White background as secondary check.
+// Particle screening applies regardless of profile — particles
+// are a concern in all expected appearances.
 // ----------------------------------------------------------------
 async function scoreVisibleParticles(captures: MediaCapture[]): Promise<CategoryScore> {
   const category: CategoryKey = 'visibleParticles';
@@ -497,7 +607,7 @@ async function scoreLabelOcr(
         label,
         score: 30,
         status: 'review',
-        explanation: 'Label capture was captured but text could not be extracted. ' +
+        explanation: 'Label capture was taken but text could not be extracted. ' +
           'Verify the label is clearly visible and well-lit.',
         method: 'Tesseract.js OCR — insufficient text extracted.',
       };
@@ -677,8 +787,11 @@ export async function runAnalysis(
   captures: MediaCapture[],
   expectedPeptideName?: string,
   onProgress?: (phase: string) => void,
+  profile?: AppearanceProfile | null,
 ): Promise<AnalysisResult> {
   onProgress?.('Analyzing capture quality…');
+
+  const resolvedProfile = profile ?? null;
 
   // Run all category scorers in parallel for speed.
   // OCR may take significantly longer than the others on first run.
@@ -693,7 +806,7 @@ export async function runAnalysis(
     glareScore,
   ] = await Promise.all([
     scoreCaptureQuality(captures),
-    scoreClarityHaze(captures),
+    scoreClarityHaze(captures, resolvedProfile),   // profile-aware
     scoreVisibleParticles(captures),
     scoreFillLevel(captures),
     scoreCapIntegrity(captures),
@@ -781,6 +894,27 @@ export async function runAnalysis(
     );
   }
 
+  // ---- Profile-specific adjustments to triage and primary reasons ----
+
+  if (resolvedProfile === 'ghk-cu' && clarityScore.status === 'pass') {
+    // Confirm that blue coloration was treated as expected — adds useful context
+    if (clarityScore.explanation.includes('consistent with') && clarityScore.explanation.includes('Blue')) {
+      primaryReasons.push(
+        'Blue coloration detected and treated as expected based on GHK-Cu / Blue Peptide profile selection. ' +
+        'Turbidity and particle screening completed.',
+      );
+    }
+  }
+
+  if (resolvedProfile === 'unknown-custom' && triageResult === 'pass' && overallConfidence < 78) {
+    // Conservative downgrade: uncertain pass with unknown profile → review
+    triageResult = 'review';
+    primaryReasons.push(
+      'Unknown/Custom Appearance profile selected — result is conservative. ' +
+      'Uncertain findings default to Review when the appearance profile is not specified.',
+    );
+  }
+
   // Additional safety note for low confidence
   if (overallConfidence < 50) {
     primaryReasons.push(
@@ -796,5 +930,6 @@ export async function runAnalysis(
     primaryReasons,
     qualityDegraded,
     ocrText,
+    profileUsed: resolvedProfile,
   };
 }

@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { ArrowLeft, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, Palette } from 'lucide-react';
 import { LIMITATIONS_COPY, PRIMARY_DISCLAIMER } from '@/constants/copy';
 
 export default function LimitationsScreen() {
@@ -49,6 +49,24 @@ export default function LimitationsScreen() {
             {LIMITATIONS_COPY.difficultCases.items.map((item, i) => (
               <li key={i} className="flex gap-3 text-sm text-foreground">
                 <div className="w-1.5 h-1.5 rounded-full bg-warning mt-2 shrink-0" />
+                <span className="leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Appearance Profiles section */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Palette className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              {LIMITATIONS_COPY.appearanceProfiles.heading}
+            </h2>
+          </div>
+          <ul className="bg-card border rounded-xl p-5 space-y-3">
+            {LIMITATIONS_COPY.appearanceProfiles.items.map((item, i) => (
+              <li key={i} className="flex gap-3 text-sm text-foreground">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 shrink-0" />
                 <span className="leading-relaxed">{item}</span>
               </li>
             ))}

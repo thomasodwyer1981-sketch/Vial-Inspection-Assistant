@@ -43,17 +43,20 @@ export interface UseScanSession {
   runHeuristicAnalysis(): Promise<void>;
 
   /**
-   * Finalize the session — persists to localStorage and history.
+   * Finalize the session — attempts to persist to localStorage and history.
    * Returns true if saved successfully, false if storage quota was exceeded.
-   * When false is returned, the session is marked finalized in memory but
-   * NOT persisted to storage. The caller must surface a save-failure UI.
+   *
+   * On failure, the session is preserved as the active session with
+   * pendingSave: true so the user can navigate away to free storage and
+   * return to retry. The active session is NOT cleared on failure.
    */
   finalizeSession(): boolean;
 
   /**
    * Retry saving an already-finalized session.
-   * Call this after the user frees up storage space.
+   * Call after the user frees up storage space.
    * Returns true on success, false on failure.
+   * On success, clears the active session from storage.
    */
   retrySave(): boolean;
 }
@@ -186,6 +189,7 @@ export function useScanSession(): UseScanSession {
         current.captures,
         current.metadata.peptideName || undefined,
         (phase) => setAnalysisStatus(phase),
+        current.metadata.appearanceProfile ?? null,  // pass selected profile to engine
       );
 
       setSession((prev) => {
@@ -212,35 +216,55 @@ export function useScanSession(): UseScanSession {
     const current = sessionRef.current ?? session;
     if (!current) return false;
 
-    const finalized = {
+    const finalized: ScanSession = {
       ...current,
       finalized: true,
+      pendingSave: undefined, // clear any old pending flag before attempting save
       updatedAt: new Date().toISOString(),
     };
 
     // Attempt to persist to localStorage — returns false if quota exceeded
     const saved = saveSession(finalized);
+
     if (saved) {
       // Only write the history index entry if the full session blob was saved
       addToHistory(finalized);
+      // Clear active session — save was successful
+      clearActiveSession();
+    } else {
+      // Save failed. Preserve the finalized session as active session with
+      // pendingSave: true so the user can navigate away, free storage,
+      // and return to retry without losing their result.
+      const pending: ScanSession = { ...finalized, pendingSave: true };
+      saveActiveSession(pending);
+      sessionRef.current = pending;
+      setSession(pending);
+      return false;
     }
-    clearActiveSession();
 
-    // Update React state regardless of save success
+    // Update React state on success
     sessionRef.current = finalized;
     setSession(finalized);
 
-    return saved;
+    return true;
   }, [session]);
 
   const retrySave = useCallback((): boolean => {
     // Re-attempt saving an already-finalized session (e.g., after user freed storage)
     const current = sessionRef.current ?? session;
     if (!current || !current.finalized) return false;
-    const saved = saveSession(current);
+
+    // Strip the pendingSave marker before saving
+    const toSave: ScanSession = { ...current, pendingSave: undefined };
+    const saved = saveSession(toSave);
+
     if (saved) {
-      addToHistory(current);
+      addToHistory(toSave);
+      clearActiveSession(); // Session is now properly saved — remove from active
+      sessionRef.current = toSave;
+      setSession(toSave);
     }
+
     return saved;
   }, [session]);
 
