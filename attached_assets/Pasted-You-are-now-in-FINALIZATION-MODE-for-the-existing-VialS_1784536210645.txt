@@ -1,0 +1,268 @@
+You are now in FINALIZATION MODE for the existing VialScreen project.
+
+Your job is NOT to redesign the app and NOT to add new product scope.
+Your job is to turn the current MVP into a finished, reliable, internally consistent project by hardening the UX, tightening trust/copy, fixing weak states, improving edge-case handling, and ensuring every existing feature works cleanly.
+
+This is a finish-and-polish pass before any aesthetic redesign work.
+Do not drift into visual experimentation.
+Do not add social features, backend, payments, ecommerce, accounts, or new product ideas.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Take the current VialScreen build and make it feel complete, reliable, honest, and production-minded within the MVP scope that already exists.
+
+Priority order:
+1. Reliability
+2. Clarity of result wording
+3. Edge-case handling
+4. Loading/error states
+5. Flow consistency
+6. Mobile usability
+7. Copy polish
+8. Code cleanliness
+9. Small UX refinements
+10. Only then minor visual cleanup if necessary
+
+==================================================
+IMPORTANT CONTEXT
+==================================================
+
+The app is a consumer visual screening assistant for small vials.
+It is NOT:
+- identity testing
+- purity testing
+- potency testing
+- sterility testing
+- endotoxin testing
+- medical diagnosis
+- chemical verification
+
+The app must remain careful and honest.
+Do not make the app sound more accurate than it is.
+
+Current implementation already includes:
+- onboarding/disclaimer
+- setup guide
+- 7-step scan flow
+- white/black background capture
+- metadata entry
+- heuristic analysis engine
+- OCR via Tesseract.js
+- results screen
+- history
+- local-only persistence
+- limitations screen
+
+This pass is about finishing that implementation properly.
+
+==================================================
+WHAT TO AUDIT AND IMPROVE
+==================================================
+
+A. RESULT LANGUAGE HARDENING
+Audit every place the app describes outcomes.
+
+Requirements:
+- Replace any overly reassuring or overly absolute wording
+- Prefer:
+  - “No obvious issue detected in this capture”
+  - “Review recommended”
+  - “Capture quality insufficient”
+  - “Visible concern flagged”
+- Avoid:
+  - “safe”
+  - “verified”
+  - “authentic”
+  - “approved”
+  - “guaranteed”
+  - “clean”
+- Make sure “Pass” never implies safety or identity confirmation
+- Make sure low-confidence results visibly state uncertainty
+- Make sure poor capture quality cannot produce falsely reassuring language
+
+B. RESULT LOGIC REVIEW
+Audit the triage logic and confidence logic.
+
+Requirements:
+- Poor capture quality must strongly reduce confidence
+- Poor capture quality should bias toward REVIEW, not PASS
+- If the app cannot assess something reliably, it must explicitly say “unable to assess”
+- If OCR is unreadable, say that directly
+- If fill level cannot be estimated, say that directly
+- If glare interferes, say that directly
+- Ensure overall result logic is internally consistent across all categories
+
+C. OCR UX HARDENING
+OCR is real but imperfect and may load slowly.
+
+Requirements:
+- Add clear loading/progress state when OCR engine is loading
+- Add user-facing copy explaining first-run OCR may take longer
+- If OCR fails, handle gracefully without crashing or hanging
+- If OCR output is low quality, present it as low confidence / partial match / unreadable
+- Make OCR feel assistive, not authoritative
+
+D. CAMERA / CAPTURE UX HARDENING
+Requirements:
+- Make capture instructions extremely clear
+- Ensure every capture step explains what the user should photograph
+- Ensure retake flow is clean and obvious
+- Ensure permission denial or failed capture has a working fallback path
+- Ensure file upload fallback is easy to use
+- Ensure user always knows what step comes next
+
+E. EDGE-CASE HANDLING
+Audit and improve behavior for:
+- no image selected
+- corrupted image
+- too dark image
+- too bright image
+- blurry image
+- image too small
+- label skipped
+- label unreadable
+- history empty
+- history corrupted in localStorage
+- resumed session partial data
+- direct route refresh on any page
+- analysis failure in one category
+- analysis failure in multiple categories
+
+Requirements:
+- no crashes
+- no blank screens
+- no dead buttons
+- no trapped state
+- graceful recovery whenever possible
+
+F. HISTORY / STORAGE HARDENING
+Requirements:
+- verify save works every time
+- verify detail view loads correctly
+- verify delete works
+- verify clear-all works with confirmation
+- verify corrupted or malformed localStorage does not break app
+- add guard rails / fallback parsing if needed
+- keep data model stable and consistent
+
+G. MOBILE FINISH PASS
+This app must feel good on a real phone.
+
+Requirements:
+- review spacing at mobile widths
+- ensure touch targets are large enough
+- ensure sticky CTAs are not blocking content
+- ensure long result cards are readable
+- ensure collapse/expand interactions feel obvious
+- ensure typography hierarchy is clear
+- ensure scan progress is obvious on mobile
+- ensure footer disclaimers do not overwhelm the UI
+
+H. COPY POLISH
+Audit the entire app copy.
+
+Requirements:
+- remove repetition
+- reduce unnecessary legal-sounding verbosity while keeping caution
+- keep tone serious, practical, and trustworthy
+- make instructions short and clear
+- make the home screen feel purposeful
+- make the results screen feel calm and useful, not alarming or gimmicky
+
+I. SMALL UX IMPROVEMENTS ONLY
+Allowed:
+- better loading states
+- better empty states
+- better disabled states
+- clearer button labels
+- better inline help
+- clearer retake flow
+- better result emphasis hierarchy
+- smoother transitions
+- better error banners/messages
+
+Not allowed:
+- full redesign
+- new product modules
+- account system
+- backend sync
+- exports
+- community
+- ecommerce
+- AI chat
+- large architecture rewrite unless required to fix a serious issue
+
+J. CODE QUALITY HARDENING
+Requirements:
+- reduce obvious duplication where safe
+- improve naming if confusing
+- ensure no console errors
+- ensure TypeScript clean
+- ensure no dead code from abandoned attempts
+- ensure components and helpers remain understandable
+- add concise comments only where logic is genuinely non-obvious
+
+==================================================
+MANDATORY QA CHECKLIST
+==================================================
+
+You must manually verify and report on all of the following:
+
+1. Onboarding/disclaimer flow
+2. Home navigation
+3. Setup guide
+4. All 7 scan steps
+5. White capture flow
+6. Black capture flow
+7. Label capture and skip flow
+8. Review step retakes
+9. Analysis completion
+10. OCR loading/failure state
+11. Result screen wording
+12. Save to history
+13. History detail view
+14. Delete scan
+15. Clear all history
+16. Resume in-progress session
+17. Empty history state
+18. Malformed localStorage fallback
+19. Direct route navigation / refresh
+20. Mobile layout at narrow width
+21. No obvious console errors
+22. No dead-end screens
+23. No misleading reassurance language
+
+==================================================
+DELIVERABLE FORMAT
+==================================================
+
+At the end, give me a FULL COMPLETION REPORT with these sections exactly:
+
+1. Finalization objectives
+2. What I audited
+3. Improvements made
+4. Issues fixed
+5. Any wording changed for trust/compliance reasons
+6. Remaining limitations
+7. QA results
+8. Any items still partial
+9. Recommendation before the aesthetic/design pass
+
+In section 3 and 4, be specific.
+Do not just say “improved UX” or “fixed bugs”.
+Name the screens, flows, and logic you changed.
+
+==================================================
+STRICT RULES
+==================================================
+
+- Do not skip the audit step
+- Do not silently leave broken states
+- Do not add unrelated features
+- Do not overclaim accuracy
+- Do not say the app is finished unless the QA checklist was actually reviewed
+- If you cannot fully solve something, implement the best fallback and report it honestly
+
+Now start by auditing the current implementation and listing the exact finish-pass tasks before making changes.

@@ -255,9 +255,9 @@ async function scoreVisibleParticles(captures: MediaCapture[]): Promise<Category
     return {
       category,
       label,
-      score: 100,
+      score: 0,
       status: 'unable',
-      explanation: 'No captures available for particle analysis.',
+      explanation: 'No captures available for particle analysis. Unable to assess.',
       method: 'No captures available.',
     };
   }
@@ -448,6 +448,7 @@ async function scoreCapIntegrity(captures: MediaCapture[]): Promise<CategoryScor
 async function scoreLabelOcr(
   captures: MediaCapture[],
   expectedPeptideName?: string,
+  onProgress?: (phase: string) => void,
 ): Promise<CategoryScore> {
   const category: CategoryKey = 'labelOcr';
   const label = 'Label Readability';
@@ -470,7 +471,18 @@ async function scoreLabelOcr(
     // Dynamic import — only loaded if label capture exists
     const Tesseract = await import('tesseract.js');
     const result = await Tesseract.recognize(labelCapture.dataUrl, 'eng', {
-      logger: () => {}, // suppress progress logs
+      logger: (m: { status: string; progress: number }) => {
+        if (!onProgress) return;
+        if (m.status === 'loading tesseract core') {
+          onProgress('Loading OCR engine — first run may take a moment…');
+        } else if (m.status === 'loading language traineddata') {
+          onProgress('Downloading OCR language data…');
+        } else if (m.status === 'initializing tesseract') {
+          onProgress('Initializing OCR…');
+        } else if (m.status === 'recognizing text') {
+          onProgress(`Reading label text (${Math.round(m.progress * 100)}%)…`);
+        }
+      },
     });
 
     const text = result.data.text.trim();
@@ -664,8 +676,12 @@ async function scoreGlareInterference(captures: MediaCapture[]): Promise<Categor
 export async function runAnalysis(
   captures: MediaCapture[],
   expectedPeptideName?: string,
+  onProgress?: (phase: string) => void,
 ): Promise<AnalysisResult> {
-  // Run all category scorers in parallel for speed
+  onProgress?.('Analyzing capture quality…');
+
+  // Run all category scorers in parallel for speed.
+  // OCR may take significantly longer than the others on first run.
   const [
     captureQualityScore,
     clarityScore,
@@ -681,7 +697,7 @@ export async function runAnalysis(
     scoreVisibleParticles(captures),
     scoreFillLevel(captures),
     scoreCapIntegrity(captures),
-    scoreLabelOcr(captures, expectedPeptideName),
+    scoreLabelOcr(captures, expectedPeptideName, onProgress),
     scoreCrackDamage(captures),
     scoreGlareInterference(captures),
   ]);

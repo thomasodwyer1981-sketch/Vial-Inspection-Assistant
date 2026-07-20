@@ -22,6 +22,8 @@ export interface UseScanSession {
   session: ScanSession | null;
   isAnalyzing: boolean;
   analysisError: string | null;
+  /** Live status message during analysis — updates as the engine progresses. */
+  analysisStatus: string;
 
   startNewSession(): void;
   resumeSession(session: ScanSession): void;
@@ -46,6 +48,7 @@ export function useScanSession(): UseScanSession {
   const [session, setSession] = useState<ScanSession | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState('');
   const sessionRef = useRef<ScanSession | null>(null);
 
   const persistSession = useCallback((s: ScanSession) => {
@@ -166,6 +169,7 @@ export function useScanSession(): UseScanSession {
       const result: AnalysisResult = await runAnalysis(
         current.captures,
         current.metadata.peptideName || undefined,
+        (phase) => setAnalysisStatus(phase),
       );
 
       setSession((prev) => {
@@ -183,6 +187,7 @@ export function useScanSession(): UseScanSession {
       setAnalysisError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
     } finally {
       setIsAnalyzing(false);
+      setAnalysisStatus('');
     }
   }, [session]);
 
@@ -206,6 +211,7 @@ export function useScanSession(): UseScanSession {
     session,
     isAnalyzing,
     analysisError,
+    analysisStatus,
     startNewSession,
     resumeSession,
     abandonSession,

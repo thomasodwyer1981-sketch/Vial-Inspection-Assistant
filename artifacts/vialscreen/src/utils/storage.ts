@@ -48,7 +48,18 @@ export function getScanHistory(): HistoryItem[] {
   try {
     const raw = localStorage.getItem(KEYS.SCAN_HISTORY);
     if (!raw) return [];
-    return JSON.parse(raw) as HistoryItem[];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Filter out malformed/corrupted entries so the rest of the app never sees partial data
+    return parsed.filter(
+      (item): item is HistoryItem =>
+        item !== null &&
+        typeof item === 'object' &&
+        typeof item.id === 'string' &&
+        typeof item.createdAt === 'string' &&
+        typeof item.triageResult === 'string' &&
+        typeof item.overallConfidence === 'number',
+    );
   } catch {
     return [];
   }
@@ -94,12 +105,14 @@ function sessionKey(id: string): string {
   return `vialscreen:session:${id}`;
 }
 
-export function saveSession(session: ScanSession): void {
+/** Returns true if saved successfully, false if storage quota was exceeded. */
+export function saveSession(session: ScanSession): boolean {
   try {
     localStorage.setItem(sessionKey(session.id), JSON.stringify(session));
+    return true;
   } catch (e) {
-    // localStorage quota exceeded — silently handle
-    console.warn('[VialScreen] Could not save session to localStorage:', e);
+    console.warn('[VialScreen] Could not save session — storage quota may be full:', e);
+    return false;
   }
 }
 
@@ -107,7 +120,17 @@ export function loadSession(id: string): ScanSession | null {
   try {
     const raw = localStorage.getItem(sessionKey(id));
     if (!raw) return null;
-    return JSON.parse(raw) as ScanSession;
+    const parsed = JSON.parse(raw);
+    // Basic shape validation — guard against corrupted or migrated data
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      typeof parsed.id !== 'string' ||
+      !Array.isArray(parsed.captures)
+    ) {
+      return null;
+    }
+    return parsed as ScanSession;
   } catch {
     return null;
   }

@@ -123,7 +123,7 @@ function PrepareStep() {
         <p className="text-muted-foreground text-sm">{SCAN_COPY.prepare.instruction}</p>
       </div>
 
-      <div className="space-y-3 flex-1">
+      <div className="flex-1 overflow-y-auto space-y-3 -mx-1 px-1">
         {SCAN_COPY.prepare.checklist.map((item, i) => (
           <ChecklistItem 
             key={i} 
@@ -321,6 +321,31 @@ function ReviewStep() {
     await runHeuristicAnalysis();
   };
 
+  const captures = session?.captures ?? [];
+
+  // Guard: no captures at all — user somehow reached review without capturing anything
+  if (captures.length === 0) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center text-center space-y-6 px-6">
+        <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center">
+          <AlertTriangle className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold mb-2">No Captures Found</h2>
+          <p className="text-sm text-muted-foreground">
+            At least a white and black background capture are needed before analysis can run.
+          </p>
+        </div>
+        <button
+          onClick={() => goToStep('white-capture')}
+          className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold"
+        >
+          Go Back to Capture
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div>
@@ -329,7 +354,7 @@ function ReviewStep() {
       </div>
 
       <div className="flex-1 grid grid-cols-2 gap-4 auto-rows-max overflow-y-auto pb-4">
-        {session?.captures.map((c) => (
+        {captures.map((c) => (
           <MediaPreview 
             key={c.id} 
             capture={c} 
@@ -358,10 +383,10 @@ function ReviewStep() {
 }
 
 function AnalysisStep() {
-  const { analysisError, runHeuristicAnalysis } = useScanSession();
+  const { analysisError, analysisStatus, runHeuristicAnalysis } = useScanSession();
 
   return (
-    <div className="flex flex-col h-full items-center justify-center text-center space-y-8">
+    <div className="flex flex-col h-full items-center justify-center text-center space-y-8 px-6">
       {analysisError ? (
         <>
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -380,13 +405,22 @@ function AnalysisStep() {
         </>
       ) : (
         <>
-          <div className="relative">
-            <div className="w-24 h-24 border-4 border-muted rounded-full absolute inset-0"></div>
+          <div className="relative w-24 h-24 shrink-0">
+            <div className="absolute inset-0 w-24 h-24 border-4 border-muted rounded-full"></div>
             <div className="w-24 h-24 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
           <div>
-            <h2 className="text-xl font-bold mb-2">{SCAN_COPY.analysis.title}</h2>
-            <p className="text-sm text-muted-foreground">{SCAN_COPY.analysis.instruction}</p>
+            <h2 className="text-xl font-bold mb-3">{SCAN_COPY.analysis.title}</h2>
+            {/* Live status — updates as engine progresses; OCR phase shown here */}
+            <p className="text-sm text-muted-foreground min-h-[40px] leading-relaxed transition-opacity">
+              {analysisStatus || SCAN_COPY.analysis.instruction}
+            </p>
+            {/* Surfaced when OCR engine is loading so users don't think it's frozen */}
+            {analysisStatus.toLowerCase().includes('ocr') || analysisStatus.toLowerCase().includes('label') ? (
+              <p className="mt-3 text-xs text-muted-foreground/70 italic">
+                First-run OCR may take 10–30 s while the engine loads.
+              </p>
+            ) : null}
           </div>
           <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
             {SCAN_COPY.analysis.note}

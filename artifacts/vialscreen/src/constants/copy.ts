@@ -192,20 +192,23 @@ export const RESULT_COPY = {
   pass: {
     label: 'No Obvious Issues Detected',
     summary: 'No significant visual red flags were detected under these capture conditions.',
-    caveat: 'A pass result does not confirm safety, identity, purity, potency, or freedom from contamination.',
-    action: 'Continue with your standard inspection and handling practices.',
+    caveat: 'A pass does not confirm safety, identity, purity, potency, or freedom from contamination.',
+    action:
+      'Physically inspect the vial directly before any use — examine under good lighting for particles, cloudiness, or damage. This result is a negative screen only and does not replace direct examination.',
   },
   review: {
     label: 'Review Recommended',
     summary: 'One or more findings require closer manual inspection before any use.',
     caveat: 'Suspicious findings or poor capture quality were detected. Do not rely on this result alone.',
-    action: 'Retake captures with improved lighting, or inspect the vial carefully under magnification.',
+    action:
+      'Inspect the vial directly under good lighting. Consider retaking with improved lighting and focus. If in doubt, do not use.',
   },
   'do-not-use': {
     label: 'Visible Issues Flagged',
-    summary: 'Multiple concerning visual findings were detected.',
-    caveat: 'This result indicates multiple red flags. Do not proceed without further investigation.',
-    action: 'Do not use until properly investigated. Contact your source or discard according to your protocols.',
+    summary: 'Multiple concerning visual findings were detected in these captures.',
+    caveat: 'Multiple red flags detected. Do not proceed without thorough investigation.',
+    action:
+      'Do not use this vial until the concerns are resolved. Contact your supplier, review your documentation, or discard according to your protocols.',
   },
 };
 

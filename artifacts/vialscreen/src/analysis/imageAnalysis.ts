@@ -77,7 +77,8 @@ export function drawToCanvas(
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable — cannot analyze image.');
   ctx.drawImage(img, 0, 0, width, height);
   return { ctx, width, height };
 }
