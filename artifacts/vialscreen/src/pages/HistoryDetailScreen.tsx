@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import MediaPreview from '@/components/MediaPreview';
+import DisclaimerBanner from '@/components/DisclaimerBanner';
 
 export default function HistoryDetailScreen() {
   const { id } = useParams();
@@ -33,9 +34,16 @@ export default function HistoryDetailScreen() {
 
   const result = session.analysisResult;
   const { metadata } = session;
+  const resultCopy = RESULT_COPY[result.triageResult];
+
+  // Only show the metadata section if at least one field has a value
+  const hasMetadata = !!(
+    metadata.peptideName || metadata.vendor || metadata.batchLot ||
+    metadata.concentration || metadata.purchaseDate || metadata.notes
+  );
 
   return (
-    <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative pb-10">
+    <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/history" className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors">
@@ -55,44 +63,54 @@ export default function HistoryDetailScreen() {
         </button>
       </header>
 
-      <div className="p-6 space-y-8">
+      <div className="p-6 space-y-8 pb-6">
         {/* Triage Header */}
         <div className="bg-card border rounded-2xl p-6 text-center shadow-sm">
           <TriageBadge result={result.triageResult} size="lg" className="mb-4" />
           <p className="text-sm text-foreground font-medium mb-3 leading-relaxed">
-            {RESULT_COPY[result.triageResult].summary}
+            {resultCopy.summary}
           </p>
-          <div className="inline-block bg-secondary px-3 py-1.5 rounded-lg text-xs font-bold text-secondary-foreground">
+          <div className="inline-block bg-secondary px-3 py-1.5 rounded-lg text-xs font-bold text-secondary-foreground mb-4">
             Overall Confidence: {result.overallConfidence}%
+          </div>
+
+          {/* Recommended action */}
+          <div className="mt-2 bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">
+            <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">Recommended Action</p>
+            <p className="leading-relaxed">{resultCopy.action}</p>
           </div>
         </div>
 
-        {/* Metadata */}
-        <section>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Vial Information</h2>
-          <div className="bg-card border rounded-xl overflow-hidden text-sm">
-            <MetaRow icon={<FlaskConical className="w-4 h-4"/>} label="Name" value={metadata.peptideName} />
-            <MetaRow icon={<Building2 className="w-4 h-4"/>} label="Vendor" value={metadata.vendor} />
-            <MetaRow icon={<Tag className="w-4 h-4"/>} label="Batch/Lot" value={metadata.batchLot} />
-            <MetaRow icon={<Beaker className="w-4 h-4"/>} label="Concentration" value={metadata.concentration} />
-            <MetaRow icon={<Calendar className="w-4 h-4"/>} label="Date" value={metadata.purchaseDate} border={false} />
-          </div>
-          {metadata.notes && (
-            <div className="mt-3 bg-secondary/50 p-4 rounded-xl border text-sm text-foreground italic">
-              "{metadata.notes}"
+        {/* Metadata — only if at least one field has a value */}
+        {hasMetadata && (
+          <section>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Vial Information</h2>
+            <div className="bg-card border rounded-xl overflow-hidden text-sm">
+              <MetaRow icon={<FlaskConical className="w-4 h-4"/>} label="Name" value={metadata.peptideName} />
+              <MetaRow icon={<Building2 className="w-4 h-4"/>} label="Vendor" value={metadata.vendor} />
+              <MetaRow icon={<Tag className="w-4 h-4"/>} label="Batch/Lot" value={metadata.batchLot} />
+              <MetaRow icon={<Beaker className="w-4 h-4"/>} label="Concentration" value={metadata.concentration} />
+              <MetaRow icon={<Calendar className="w-4 h-4"/>} label="Purchase Date" value={metadata.purchaseDate} border={false} />
             </div>
-          )}
-        </section>
+            {metadata.notes && (
+              <div className="mt-3 bg-secondary/50 p-4 rounded-xl border text-sm text-foreground italic">
+                "{metadata.notes}"
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Captures */}
-        <section>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Captures</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {session.captures.map((c) => (
-              <MediaPreview key={c.id} capture={c} />
-            ))}
-          </div>
-        </section>
+        {session.captures.length > 0 && (
+          <section>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Captures</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {session.captures.map((c) => (
+                <MediaPreview key={c.id} capture={c} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Primary Reasons */}
         <section>
@@ -107,6 +125,16 @@ export default function HistoryDetailScreen() {
           </ul>
         </section>
 
+        {/* OCR text */}
+        {result.ocrText && (
+          <section>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Extracted Label Text</h2>
+            <div className="bg-muted p-4 rounded-xl font-mono text-xs text-muted-foreground break-words border">
+              {result.ocrText}
+            </div>
+          </section>
+        )}
+
         {/* Category Breakdown */}
         <section>
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Detailed Breakdown</h2>
@@ -117,6 +145,8 @@ export default function HistoryDetailScreen() {
           </div>
         </section>
       </div>
+
+      <DisclaimerBanner />
     </div>
   );
 }
@@ -129,7 +159,7 @@ function MetaRow({ icon, label, value, border = true }: { icon: React.ReactNode,
         {icon}
         <span className="font-medium">{label}</span>
       </div>
-      <span className="font-bold text-foreground text-right">{value}</span>
+      <span className="font-bold text-foreground text-right max-w-[55%] break-words">{value}</span>
     </div>
   );
 }

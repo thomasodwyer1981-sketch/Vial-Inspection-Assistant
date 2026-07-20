@@ -60,7 +60,9 @@ export default function SetupScreen() {
         </section>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-background border-t p-4 flex gap-3">
+      <DisclaimerBanner />
+
+      <div className="sticky bottom-0 bg-background border-t p-4 flex gap-3">
         <Link href="/scan" className="flex-1 bg-primary text-primary-foreground py-3.5 px-4 rounded-lg font-semibold text-center shadow-sm active:scale-[0.98] transition-transform">
           Start Scan Now
         </Link>

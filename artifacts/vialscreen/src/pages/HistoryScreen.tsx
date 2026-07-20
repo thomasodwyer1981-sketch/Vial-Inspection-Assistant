@@ -1,8 +1,9 @@
 import { Link } from 'wouter';
 import { ArrowLeft, Trash2 } from 'lucide-react';
-import { getScanHistory, clearHistory, removeFromHistory } from '@/utils/storage';
+import { getScanHistory, clearHistory, deleteSession } from '@/utils/storage';
 import { useState } from 'react';
 import TriageBadge from '@/components/TriageBadge';
+import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { format } from 'date-fns';
 
 export default function HistoryScreen() {
@@ -19,13 +20,13 @@ export default function HistoryScreen() {
     e.preventDefault();
     e.stopPropagation();
     if (confirm('Delete this scan?')) {
-      removeFromHistory(id);
+      deleteSession(id); // removes full session blob + history entry
       setHistory(getScanHistory());
     }
   };
 
   return (
-    <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative pb-10">
+    <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/home" className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors">
@@ -55,52 +56,57 @@ export default function HistoryScreen() {
         ) : (
           <div className="space-y-3">
             {history.map((item) => (
-              <Link 
-                key={item.id} 
-                href={`/history/${item.id}`}
-                className="block bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform relative group"
-              >
-                <div className="flex gap-4">
-                  {item.thumbnailDataUrl ? (
-                    <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0 border">
-                      <img src={item.thumbnailDataUrl} alt="" className="w-full h-full object-cover opacity-80" />
-                    </div>
-                  ) : (
-                    <div className="w-16 h-16 bg-secondary rounded-lg shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
-                      No Image
-                    </div>
-                  )}
-                  
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-bold text-sm truncate pr-2">
-                          {item.peptideName || 'Unnamed Vial'}
-                        </h3>
-                        <TriageBadge result={item.triageResult} size="sm" className="shrink-0" />
+              <div key={item.id} className="relative">
+                <Link 
+                  href={`/history/${item.id}`}
+                  className="block bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform"
+                >
+                  <div className="flex gap-4">
+                    {item.thumbnailDataUrl ? (
+                      <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0 border">
+                        <img src={item.thumbnailDataUrl} alt="" className="w-full h-full object-cover opacity-80" />
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {item.vendor || 'No vendor'}
-                      </p>
-                    </div>
-                    <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex justify-between items-center mt-2">
-                      <span>{format(new Date(item.createdAt), 'MMM d, yyyy • HH:mm')}</span>
-                      <span>{item.overallConfidence}% Conf</span>
+                    ) : (
+                      <div className="w-16 h-16 bg-secondary rounded-lg shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
+                        No Image
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="font-bold text-sm truncate pr-2">
+                            {item.peptideName || 'Unnamed Vial'}
+                          </h3>
+                          <TriageBadge result={item.triageResult} size="sm" className="shrink-0" />
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {item.vendor || 'No vendor'}
+                        </p>
+                      </div>
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex justify-between items-center mt-2">
+                        <span>{format(new Date(item.createdAt), 'MMM d, yyyy • HH:mm')}</span>
+                        <span>{item.overallConfidence}% Conf</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
+                </Link>
+
+                {/* Delete button — always visible on mobile, no hover dependency */}
                 <button 
                   onClick={(e) => handleDelete(item.id, e)}
-                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-1.5 rounded-lg transition-colors shadow-sm"
+                  aria-label="Delete scan"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
-              </Link>
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      <DisclaimerBanner />
     </div>
   );
 }

@@ -8,8 +8,10 @@ import MediaPreview from '@/components/MediaPreview';
 import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
+import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { ScanStep } from '@/types';
+import { loadActiveSession } from '@/utils/storage';
 
 export default function ScanScreen() {
   const [, setLocation] = useLocation();
@@ -18,6 +20,7 @@ export default function ScanScreen() {
     isAnalyzing,
     analysisError,
     startNewSession,
+    resumeSession,
     updateMetadata,
     addCapture,
     getCaptureForBackground,
@@ -29,12 +32,17 @@ export default function ScanScreen() {
     abandonSession
   } = useScanSession();
 
-  // If we arrive and no session, start one
+  // If we arrive and no session, resume active one from storage or start fresh
   useEffect(() => {
     if (!session) {
-      startNewSession();
+      const activeSession = loadActiveSession();
+      if (activeSession && !activeSession.finalized) {
+        resumeSession(activeSession);
+      } else {
+        startNewSession();
+      }
     }
-  }, [session, startNewSession]);
+  }, [session, startNewSession, resumeSession]);
 
   // Handle analysis completion
   useEffect(() => {
@@ -55,9 +63,11 @@ export default function ScanScreen() {
     setLocation('/history');
   };
 
+  const isResults = currentStep === 'results';
+
   return (
-    <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col">
-      {currentStep !== 'results' && (
+    <div className={`${isResults ? 'h-[100dvh]' : 'min-h-[100dvh]'} bg-background max-w-md mx-auto flex flex-col`}>
+      {!isResults && (
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md">
           <div className="flex items-center px-4 py-3 border-b">
             <button 
@@ -72,7 +82,7 @@ export default function ScanScreen() {
         </header>
       )}
 
-      <main className="flex-1 flex flex-col p-6">
+      <main className={`flex-1 flex flex-col ${isResults ? 'overflow-hidden' : 'p-6'}`}>
         {currentStep === 'prepare' && <PrepareStep />}
         {currentStep === 'white-capture' && <CaptureStep background="white" />}
         {currentStep === 'black-capture' && <CaptureStep background="black" />}
@@ -139,6 +149,36 @@ function PrepareStep() {
               className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={session?.metadata.vendor || ''}
               onChange={(e) => updateMetadata({ vendor: e.target.value })}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <input 
+                type="text" 
+                placeholder="Batch / Lot #"
+                className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={session?.metadata.batchLot || ''}
+                onChange={(e) => updateMetadata({ batchLot: e.target.value })}
+              />
+              <input 
+                type="text" 
+                placeholder="Concentration"
+                className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={session?.metadata.concentration || ''}
+                onChange={(e) => updateMetadata({ concentration: e.target.value })}
+              />
+            </div>
+            <input 
+              type="date" 
+              placeholder="Purchase Date"
+              className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+              value={session?.metadata.purchaseDate || ''}
+              onChange={(e) => updateMetadata({ purchaseDate: e.target.value })}
+            />
+            <textarea 
+              placeholder="Notes (optional)"
+              rows={2}
+              className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              value={session?.metadata.notes || ''}
+              onChange={(e) => updateMetadata({ notes: e.target.value })}
             />
           </div>
         </div>
@@ -364,58 +404,73 @@ function ResultsStep({ onFinish, onRetake }: { onFinish: () => void, onRetake: (
 
   if (!result) return null;
 
+  const resultCopy = RESULT_COPY[result.triageResult];
+
   return (
-    <div className="absolute inset-0 bg-background overflow-y-auto pb-24 z-20">
-      <div className="bg-card border-b px-6 py-12 text-center">
-        <TriageBadge result={result.triageResult} size="lg" className="mb-6" />
-        <h1 className="text-2xl font-bold tracking-tight mb-3">
-          {RESULT_COPY[result.triageResult].summary}
-        </h1>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-          {RESULT_COPY[result.triageResult].caveat}
-        </p>
+    <div className="flex flex-col h-full">
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Result header */}
+        <div className="bg-card border-b px-6 py-10 text-center">
+          <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
+          <h1 className="text-2xl font-bold tracking-tight mb-3">
+            {resultCopy.summary}
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed mb-4">
+            {resultCopy.caveat}
+          </p>
 
-        {result.overallConfidence < 50 && (
-          <div className="mt-6 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
-            <AlertTriangle className="w-4 h-4" />
-            Low Confidence Score ({result.overallConfidence}%)
+          {/* Recommended action for this result */}
+          <div className="mt-4 bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">
+            <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">Recommended Action</p>
+            <p className="leading-relaxed">{resultCopy.action}</p>
           </div>
-        )}
-      </div>
 
-      <div className="p-6 space-y-8">
-        <section>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Primary Findings</h2>
-          <ul className="space-y-3">
-            {result.primaryReasons.map((reason, i) => (
-              <li key={i} className="flex gap-3 text-sm text-foreground bg-secondary/50 p-4 rounded-xl border">
-                <div className="w-1.5 h-1.5 rounded-full bg-foreground mt-1.5 shrink-0" />
-                <span className="leading-relaxed">{reason}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+          {result.overallConfidence < 50 && (
+            <div className="mt-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
+              <AlertTriangle className="w-4 h-4" />
+              Low Confidence Score ({result.overallConfidence}%)
+            </div>
+          )}
+        </div>
 
-        {result.ocrText && (
+        <div className="p-6 space-y-8">
           <section>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Extracted Label Text</h2>
-            <div className="bg-muted p-4 rounded-xl font-mono text-xs text-muted-foreground break-words border">
-              {result.ocrText}
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Primary Findings</h2>
+            <ul className="space-y-3">
+              {result.primaryReasons.map((reason, i) => (
+                <li key={i} className="flex gap-3 text-sm text-foreground bg-secondary/50 p-4 rounded-xl border">
+                  <div className="w-1.5 h-1.5 rounded-full bg-foreground mt-1.5 shrink-0" />
+                  <span className="leading-relaxed">{reason}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {result.ocrText && (
+            <section>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Extracted Label Text</h2>
+              <div className="bg-muted p-4 rounded-xl font-mono text-xs text-muted-foreground break-words border">
+                {result.ocrText}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Category Breakdown</h2>
+            <div className="space-y-3">
+              {result.categories.map((cat) => (
+                <CategoryScoreCard key={cat.category} category={cat} />
+              ))}
             </div>
           </section>
-        )}
+        </div>
 
-        <section>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Category Breakdown</h2>
-          <div className="space-y-3">
-            {result.categories.map((cat) => (
-              <CategoryScoreCard key={cat.category} category={cat} />
-            ))}
-          </div>
-        </section>
+        <DisclaimerBanner />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur border-t space-y-3">
+      {/* Sticky footer — stays at bottom inside flex column, no viewport-fixed positioning */}
+      <div className="shrink-0 p-4 bg-background/95 backdrop-blur border-t space-y-3">
         <button
           onClick={onFinish}
           className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold shadow-md active:scale-[0.98]"
@@ -433,7 +488,7 @@ function ResultsStep({ onFinish, onRetake }: { onFinish: () => void, onRetake: (
             onClick={() => setLocation('/limitations')}
             className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98]"
           >
-            Limitations
+            View Limitations
           </button>
         </div>
       </div>

@@ -8,7 +8,7 @@ import {
   Play
 } from 'lucide-react';
 import { APP_NAME, APP_TAGLINE, PREPARATION } from '@/constants/copy';
-import { loadActiveSession } from '@/utils/storage';
+import { loadActiveSession, clearActiveSession } from '@/utils/storage';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 
 export default function HomeScreen() {
@@ -42,7 +42,7 @@ export default function HomeScreen() {
           )}
 
           <button
-            onClick={() => setLocation('/scan')}
+            onClick={() => { clearActiveSession(); setLocation('/scan'); }}
             className="w-full text-left bg-primary text-primary-foreground rounded-xl p-5 flex items-center justify-between shadow-md active:scale-[0.98] transition-transform"
           >
             <div className="flex items-center gap-4">
