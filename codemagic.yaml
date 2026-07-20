@@ -1,0 +1,173 @@
+workflows:
+  # ─────────────────────────────────────────────────────────────────
+  # Android — builds a release AAB for Google Play + a debug APK
+  # for sideload testing.
+  #
+  # Required Codemagic env vars:
+  #   VITE_API_BASE_URL   — your deployed PepScan URL, e.g. https://pepscan.replit.app
+  #   CM_KEYSTORE         — base64-encoded keystore for signing (upload via Codemagic UI)
+  #   CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
+  # ─────────────────────────────────────────────────────────────────
+  android-release:
+    name: Android — Play Store (AAB)
+    instance_type: linux_x2
+    max_build_duration: 60
+
+    environment:
+      node: 20.17.0
+      java: 17
+      vars:
+        VITE_API_BASE_URL: $VITE_API_BASE_URL
+        PACKAGE_NAME: com.pepscan.app
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+
+    scripts:
+      - name: Install pnpm + workspace deps
+        script: |
+          npm install -g pnpm
+          pnpm install
+
+      - name: Build web assets
+        script: |
+          BASE_PATH=/ pnpm --filter @workspace/vialscreen run build
+
+      - name: Capacitor — add & sync Android
+        script: |
+          cd artifacts/vialscreen
+          npx cap add android 2>/dev/null || true
+          npx cap sync android
+
+      - name: Sign & build AAB (release)
+        script: |
+          cd artifacts/vialscreen/android
+          # Decode keystore from env
+          echo "$CM_KEYSTORE" | base64 --decode > app/pepscan-release.keystore
+          # Build signed AAB
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$(pwd)/app/pepscan-release.keystore" \
+            -Pandroid.injected.signing.store.password="$CM_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD"
+
+    artifacts:
+      - artifacts/vialscreen/android/app/build/outputs/bundle/release/*.aab
+      - artifacts/vialscreen/android/app/build/outputs/apk/**/*.apk
+
+  # ─────────────────────────────────────────────────────────────────
+  # Android debug APK — quick sideload build, no signing needed.
+  # ─────────────────────────────────────────────────────────────────
+  android-debug:
+    name: Android — Debug APK (sideload testing)
+    instance_type: linux_x2
+    max_build_duration: 45
+
+    environment:
+      node: 20.17.0
+      java: 17
+      vars:
+        VITE_API_BASE_URL: $VITE_API_BASE_URL
+
+    scripts:
+      - name: Install pnpm + workspace deps
+        script: |
+          npm install -g pnpm
+          pnpm install
+
+      - name: Build web assets
+        script: |
+          BASE_PATH=/ pnpm --filter @workspace/vialscreen run build
+
+      - name: Capacitor — add & sync Android
+        script: |
+          cd artifacts/vialscreen
+          npx cap add android 2>/dev/null || true
+          npx cap sync android
+
+      - name: Build debug APK
+        script: |
+          cd artifacts/vialscreen/android
+          ./gradlew assembleDebug
+
+    artifacts:
+      - artifacts/vialscreen/android/app/build/outputs/apk/debug/*.apk
+
+  # ─────────────────────────────────────────────────────────────────
+  # iOS — builds an IPA for TestFlight / App Store submission.
+  #
+  # Required Codemagic env vars:
+  #   VITE_API_BASE_URL              — your deployed PepScan URL
+  #   APP_STORE_CONNECT_ISSUER_ID    — from App Store Connect → Keys
+  #   APP_STORE_CONNECT_KEY_IDENTIFIER
+  #   APP_STORE_CONNECT_PRIVATE_KEY  — .p8 key content
+  #   CERTIFICATE_PRIVATE_KEY        — your distribution certificate key
+  # ─────────────────────────────────────────────────────────────────
+  ios-release:
+    name: iOS — App Store (IPA)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+
+    environment:
+      node: 20.17.0
+      xcode: 16.2
+      cocoapods: default
+      vars:
+        VITE_API_BASE_URL: $VITE_API_BASE_URL
+        BUNDLE_ID: com.pepscan.app
+        XCODE_WORKSPACE: App.xcworkspace
+        XCODE_SCHEME: App
+
+    integrations:
+      app_store_connect: PepScan_ASC
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+
+    scripts:
+      - name: Install pnpm + workspace deps
+        script: |
+          npm install -g pnpm
+          pnpm install
+
+      - name: Build web assets
+        script: |
+          BASE_PATH=/ pnpm --filter @workspace/vialscreen run build
+
+      - name: Capacitor — add, patch & sync iOS
+        script: |
+          cd artifacts/vialscreen
+          npx cap add ios 2>/dev/null || true
+          npx cap sync ios
+          bash ../../scripts/ios-post-add.sh
+
+      - name: Install CocoaPods
+        script: |
+          cd artifacts/vialscreen/ios/App
+          pod install
+
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+
+      - name: Build IPA
+        script: |
+          cd artifacts/vialscreen/ios/App
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

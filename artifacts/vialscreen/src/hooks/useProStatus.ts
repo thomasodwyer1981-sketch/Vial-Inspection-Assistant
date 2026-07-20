@@ -6,6 +6,7 @@ import {
   clearProStatus,
   storeProUnlock,
 } from '@/utils/pro';
+import { getApiBase } from '@/utils/api';
 
 interface ProStatus {
   isPro: boolean;
@@ -15,11 +16,9 @@ interface ProStatus {
   recheck: () => Promise<void>;
 }
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
-
 async function verifyWithServer(membershipId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/api/whop/verify`, {
+    const res = await fetch(`${getApiBase()}/api/whop/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ membershipId }),

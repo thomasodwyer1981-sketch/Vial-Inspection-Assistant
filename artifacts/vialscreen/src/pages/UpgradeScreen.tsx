@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield } from 'lucide-react';
 import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl } from '@/utils/pro';
-
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+import { getApiBase } from '@/utils/api';
 
 export default function UpgradeScreen() {
   const [loading, setLoading] = useState(false);
@@ -14,7 +13,7 @@ export default function UpgradeScreen() {
     setError(null);
     try {
       const redirectUrl = buildUpgradeCompleteUrl();
-      const res = await fetch(`${API_BASE}/api/whop/checkout`, {
+      const res = await fetch(`${getApiBase()}/api/whop/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ redirectUrl }),

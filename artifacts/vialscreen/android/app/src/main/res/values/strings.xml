@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PepScan</string>
+    <string name="title_activity_main">PepScan</string>
+    <string name="package_name">com.pepscan.app</string>
+    <string name="custom_url_scheme">com.pepscan.app</string>
+</resources>
