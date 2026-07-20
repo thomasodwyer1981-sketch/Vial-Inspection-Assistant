@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { ArrowLeft, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Trash2, AlertTriangle, Lock, Zap } from 'lucide-react';
 import { getScanHistory, clearHistory, deleteSession } from '@/utils/storage';
 import { useState } from 'react';
 import TriageBadge from '@/components/TriageBadge';
@@ -7,12 +7,14 @@ import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { APPEARANCE_PROFILES } from '@/types';
 import type { AppearanceProfile } from '@/types';
 import { format } from 'date-fns';
+import { useProStatus } from '@/hooks/useProStatus';
+import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY } from '@/utils/pro';
 
 const PROFILE_BADGE: Record<
   AppearanceProfile,
   { label: string; className: string } | null
 > = {
-  'clear-standard': null, // default — no badge needed
+  'clear-standard': null,
   'ghk-cu': {
     label: 'GHK-Cu',
     className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
@@ -25,6 +27,12 @@ const PROFILE_BADGE: Record<
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState(getScanHistory());
+  const { isPro, isLoading: proLoading } = useProStatus();
+
+  // Free tier: show first FREE_HISTORY_LIMIT scans; locked = the rest
+  const visibleHistory = isPro ? history : history.slice(0, FREE_HISTORY_LIMIT);
+  const lockedCount = isPro ? 0 : Math.max(0, history.length - FREE_HISTORY_LIMIT);
+  const atLimit = !isPro && history.length >= FREE_HISTORY_LIMIT;
 
   const handleClearAll = () => {
     if (confirm('Are you sure you want to clear all scan history? This cannot be undone.')) {
@@ -56,7 +64,7 @@ export default function HistoryScreen() {
             Scan History
             {history.length > 0 && (
               <span className="text-muted-foreground font-normal text-sm ml-1.5">
-                ({history.length})
+                ({isPro ? history.length : `${visibleHistory.length}/${history.length}`})
               </span>
             )}
           </h1>
@@ -72,7 +80,29 @@ export default function HistoryScreen() {
       </header>
 
       <div className="p-4 flex-1">
-        {history.length > 15 && (
+        {/* Free tier: at-limit banner */}
+        {!proLoading && atLimit && (
+          <Link href="/upgrade" className="block mb-4">
+            <div className="bg-primary/8 border border-primary/25 rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 bg-primary/15 rounded-xl flex items-center justify-center shrink-0">
+                <Lock className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight">
+                  {FREE_HISTORY_LIMIT} scan limit reached
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Upgrade for unlimited history — {PRO_PRICE_DISPLAY} one-time
+                </p>
+              </div>
+              <div className="bg-primary text-primary-foreground text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Pro
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {history.length > 15 && isPro && (
           <div className="mb-3 bg-warning/10 border border-warning/30 rounded-xl p-3 flex gap-3 items-start">
             <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
             <p className="text-xs text-warning leading-relaxed">
@@ -100,7 +130,7 @@ export default function HistoryScreen() {
           </div>
         ) : (
           <div className="space-y-3">
-            {history.map((item) => {
+            {visibleHistory.map((item) => {
               const profileBadge =
                 item.appearanceProfile
                   ? PROFILE_BADGE[item.appearanceProfile]
@@ -145,7 +175,6 @@ export default function HistoryScreen() {
                             <p className="text-xs text-muted-foreground truncate">
                               {item.vendor || 'No vendor'}
                             </p>
-                            {/* Profile badge — only for non-standard profiles */}
                             {profileBadge && (
                               <span
                                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 ${profileBadge.className}`}
@@ -165,7 +194,6 @@ export default function HistoryScreen() {
                     </div>
                   </Link>
 
-                  {/* Delete — min 44px touch target */}
                   <button
                     onClick={(e) => handleDelete(item.id, e)}
                     className="absolute top-1.5 right-1.5 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-2.5 rounded-lg transition-colors shadow-sm"
@@ -176,6 +204,28 @@ export default function HistoryScreen() {
                 </div>
               );
             })}
+
+            {/* Locked scans (free tier only) */}
+            {lockedCount > 0 && (
+              <Link href="/upgrade" className="block">
+                <div className="border-2 border-dashed border-primary/25 rounded-xl p-5 flex flex-col items-center text-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Lock className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-foreground">
+                      {lockedCount} older {lockedCount === 1 ? 'scan' : 'scans'} locked
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Upgrade to Pro to see your full history — {PRO_PRICE_DISPLAY} one-time
+                    </p>
+                  </div>
+                  <span className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                    <Zap className="w-3 h-3" /> Unlock for {PRO_PRICE_DISPLAY}
+                  </span>
+                </div>
+              </Link>
+            )}
           </div>
         )}
       </div>

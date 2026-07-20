@@ -12,6 +12,8 @@ import ScanScreen from '@/pages/ScanScreen';
 import HistoryScreen from '@/pages/HistoryScreen';
 import HistoryDetailScreen from '@/pages/HistoryDetailScreen';
 import LimitationsScreen from '@/pages/LimitationsScreen';
+import UpgradeScreen from '@/pages/UpgradeScreen';
+import UpgradeCompleteScreen from '@/pages/UpgradeCompleteScreen';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -27,6 +29,8 @@ function Router() {
       <Route path="/history" component={HistoryScreen} />
       <Route path="/history/:id" component={HistoryDetailScreen} />
       <Route path="/limitations" component={LimitationsScreen} />
+      <Route path="/upgrade" component={UpgradeScreen} />
+      <Route path="/upgrade-complete" component={UpgradeCompleteScreen} />
       <Route component={NotFound} />
     </Switch>
   );

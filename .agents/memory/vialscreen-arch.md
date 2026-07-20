@@ -47,6 +47,16 @@ description: Stack, key files, and non-obvious decisions for the VialScreen MVP
 - `scoreVisibleParticles` — now passes ROI from `estimateVialROI` to `computeParticleAnalysis`, restricting scan to vial body only. Eliminates false positives from label text, cap, background edges.
 - `scoreCrackDamage` — threshold raised from std dev >90 to >115. Rounded glass vials inherently produce std dev >90 from glass-wall refraction; old threshold misfired on every normal vial.
 
+## Whop payment integration (July 2026)
+- Product: `prod_jdqgC3DWWQLEO` (VialScreen Pro), Plan: `plan_CYV6n06EK7y0Z` ($4.99 one-time), Company: `biz_AkaNOYEhAyYo0V`
+- Server proxy helper: `artifacts/api-server/src/lib/whopProxy.ts` — uses Replit connector proxy, no hardcoded credentials
+- API routes: `POST /api/whop/checkout` (creates checkout config, returns purchaseUrl) and `POST /api/whop/verify` (verifies membership_id against Whop API)
+- Frontend pro utils: `artifacts/vialscreen/src/utils/pro.ts` — stores membershipId in localStorage, 1-hour verification cache
+- Pro hook: `artifacts/vialscreen/src/hooks/useProStatus.ts` — re-verifies on mount, fails open on network error (don't revoke access if server unreachable)
+- Free tier: 10 scans visible in HistoryScreen; all scans still SAVED (up to 100) — upgrade reveals existing history
+- Vite dev proxy: `/api` → `http://localhost:8080` (added to vite.config.ts server.proxy)
+- Upgrade flow: UpgradeScreen → Whop hosted checkout → UpgradeCompleteScreen (reads `?membership_id=mem_xxx` from URL, verifies server-side, stores unlock)
+
 ## Non-obvious decisions
 - `ScanSession.pendingSave?: boolean` — set when finalize fails due to quota; preserves active session so user can free storage and resume to results without data loss.
 - `APPEARANCE_PROFILES` constant lives in `types/index.ts` (co-located with the type, not copy.ts) because engine.ts imports it directly.
