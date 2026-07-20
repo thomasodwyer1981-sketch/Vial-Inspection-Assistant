@@ -1,9 +1,18 @@
-import { Link } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { ArrowLeft, CheckCircle2, Info } from 'lucide-react';
 import { PREPARATION } from '@/constants/copy';
+import { clearActiveSession } from '@/utils/storage';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 
 export default function SetupScreen() {
+  const [, setLocation] = useLocation();
+
+  // Clear any in-progress session so "Start Scan Now" always starts fresh
+  const handleStartScan = () => {
+    clearActiveSession();
+    setLocation('/scan');
+  };
+
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative pb-20">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-4 flex items-center gap-4">
@@ -63,9 +72,12 @@ export default function SetupScreen() {
       <DisclaimerBanner />
 
       <div className="sticky bottom-0 bg-background border-t p-4 flex gap-3">
-        <Link href="/scan" className="flex-1 bg-primary text-primary-foreground py-3.5 px-4 rounded-lg font-semibold text-center shadow-sm active:scale-[0.98] transition-transform">
+        <button
+          onClick={handleStartScan}
+          className="flex-1 bg-primary text-primary-foreground py-3.5 px-4 rounded-lg font-semibold text-center shadow-sm active:scale-[0.98] transition-transform"
+        >
           Start Scan Now
-        </Link>
+        </button>
       </div>
     </div>
   );

@@ -310,7 +310,7 @@ async function scoreFillLevel(captures: MediaCapture[]): Promise<CategoryScore> 
     return {
       category,
       label,
-      score: 50,
+      score: 0,
       status: 'unable',
       explanation: 'Fill level could not be assessed — no white-background capture available.',
       method: 'Requires white background capture.',
@@ -327,7 +327,7 @@ async function scoreFillLevel(captures: MediaCapture[]): Promise<CategoryScore> 
       return {
         category,
         label,
-        score: 50,
+        score: 0,
         status: 'unable',
         explanation:
           'Unable to estimate fill level from this capture. ' +
@@ -369,7 +369,7 @@ async function scoreFillLevel(captures: MediaCapture[]): Promise<CategoryScore> 
     return {
       category,
       label,
-      score: 50,
+      score: 0,
       status: 'unable',
       explanation: 'Fill level analysis encountered an error.',
       method: 'Analysis failed.',
@@ -392,7 +392,7 @@ async function scoreCapIntegrity(captures: MediaCapture[]): Promise<CategoryScor
     return {
       category,
       label,
-      score: 50,
+      score: 0,
       status: 'unable',
       explanation: 'No capture available for cap assessment.',
       method: 'No image data.',
@@ -432,7 +432,7 @@ async function scoreCapIntegrity(captures: MediaCapture[]): Promise<CategoryScor
     return {
       category,
       label,
-      score: 50,
+      score: 0,
       status: 'unable',
       explanation: 'Cap assessment encountered an error.',
       method: 'Analysis failed.',
@@ -627,7 +627,7 @@ async function scoreGlareInterference(captures: MediaCapture[]): Promise<Categor
     return {
       category,
       label,
-      score: 50,
+      score: 0,
       status: 'unable',
       explanation: 'No captures available for glare assessment.',
       method: 'No image data.',

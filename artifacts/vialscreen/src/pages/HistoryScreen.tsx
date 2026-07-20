@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, AlertTriangle } from 'lucide-react';
 import { getScanHistory, clearHistory, deleteSession } from '@/utils/storage';
 import { useState } from 'react';
 import TriageBadge from '@/components/TriageBadge';
@@ -32,7 +32,9 @@ export default function HistoryScreen() {
           <Link href="/home" className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-lg font-bold">Scan History</h1>
+          <h1 className="text-lg font-bold">
+            Scan History{history.length > 0 && <span className="text-muted-foreground font-normal text-sm ml-1.5">({history.length})</span>}
+          </h1>
         </div>
         {history.length > 0 && (
           <button onClick={handleClearAll} className="text-xs font-semibold text-destructive uppercase tracking-wider p-2">
@@ -42,6 +44,14 @@ export default function HistoryScreen() {
       </header>
 
       <div className="p-4 flex-1">
+        {history.length > 15 && (
+          <div className="mb-3 bg-warning/10 border border-warning/30 rounded-xl p-3 flex gap-3 items-start">
+            <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
+            <p className="text-xs text-warning leading-relaxed">
+              {history.length} scans saved. Each scan stores images locally — delete older scans to free device storage.
+            </p>
+          </div>
+        )}
         {history.length === 0 ? (
           <div className="h-[60vh] flex flex-col items-center justify-center text-center px-6">
             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4">
@@ -92,13 +102,13 @@ export default function HistoryScreen() {
                   </div>
                 </Link>
 
-                {/* Delete button — always visible on mobile, no hover dependency */}
+                {/* Delete button — min 44px touch target for mobile */}
                 <button 
                   onClick={(e) => handleDelete(item.id, e)}
-                  className="absolute top-2 right-2 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-1.5 rounded-lg transition-colors shadow-sm"
+                  className="absolute top-1.5 right-1.5 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-2.5 rounded-lg transition-colors shadow-sm"
                   aria-label="Delete scan"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             ))}

@@ -41,7 +41,21 @@ export interface UseScanSession {
   stepIndex: number;
 
   runHeuristicAnalysis(): Promise<void>;
-  finalizeSession(): void;
+
+  /**
+   * Finalize the session — persists to localStorage and history.
+   * Returns true if saved successfully, false if storage quota was exceeded.
+   * When false is returned, the session is marked finalized in memory but
+   * NOT persisted to storage. The caller must surface a save-failure UI.
+   */
+  finalizeSession(): boolean;
+
+  /**
+   * Retry saving an already-finalized session.
+   * Call this after the user frees up storage space.
+   * Returns true on success, false on failure.
+   */
+  retrySave(): boolean;
 }
 
 export function useScanSession(): UseScanSession {
@@ -49,6 +63,8 @@ export function useScanSession(): UseScanSession {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analysisStatus, setAnalysisStatus] = useState('');
+  // sessionRef always holds the latest session for synchronous reads
+  // (avoids stale-closure issues in callbacks)
   const sessionRef = useRef<ScanSession | null>(null);
 
   const persistSession = useCallback((s: ScanSession) => {
@@ -191,21 +207,42 @@ export function useScanSession(): UseScanSession {
     }
   }, [session]);
 
-  const finalizeSession = useCallback(() => {
-    setSession((prev) => {
-      if (!prev) return prev;
-      const finalized = {
-        ...prev,
-        finalized: true,
-        updatedAt: new Date().toISOString(),
-      };
-      // Persist to session store and history
-      saveSession(finalized);
+  const finalizeSession = useCallback((): boolean => {
+    // Use sessionRef for synchronous access (avoids stale closure in setSession updater)
+    const current = sessionRef.current ?? session;
+    if (!current) return false;
+
+    const finalized = {
+      ...current,
+      finalized: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Attempt to persist to localStorage — returns false if quota exceeded
+    const saved = saveSession(finalized);
+    if (saved) {
+      // Only write the history index entry if the full session blob was saved
       addToHistory(finalized);
-      clearActiveSession();
-      return finalized;
-    });
-  }, []);
+    }
+    clearActiveSession();
+
+    // Update React state regardless of save success
+    sessionRef.current = finalized;
+    setSession(finalized);
+
+    return saved;
+  }, [session]);
+
+  const retrySave = useCallback((): boolean => {
+    // Re-attempt saving an already-finalized session (e.g., after user freed storage)
+    const current = sessionRef.current ?? session;
+    if (!current || !current.finalized) return false;
+    const saved = saveSession(current);
+    if (saved) {
+      addToHistory(current);
+    }
+    return saved;
+  }, [session]);
 
   return {
     session,
@@ -225,5 +262,6 @@ export function useScanSession(): UseScanSession {
     stepIndex,
     runHeuristicAnalysis,
     finalizeSession,
+    retrySave,
   };
 }

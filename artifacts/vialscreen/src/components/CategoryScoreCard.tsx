@@ -13,28 +13,38 @@ export default function CategoryScoreCard({ category }: CategoryScoreCardProps) 
   let statusIcon;
   let statusColor;
   let barColor;
+  let statusLabel: string;
 
   switch (category.status) {
     case 'pass':
       statusIcon = <CheckCircle2 className="w-5 h-5 text-success" />;
       statusColor = 'text-success';
       barColor = 'bg-success';
+      statusLabel = 'Pass';
       break;
     case 'review':
       statusIcon = <AlertCircle className="w-5 h-5 text-warning" />;
       statusColor = 'text-warning';
       barColor = 'bg-warning';
+      statusLabel = 'Review';
       break;
     case 'flag':
       statusIcon = <AlertCircle className="w-5 h-5 text-destructive" />;
       statusColor = 'text-destructive';
       barColor = 'bg-destructive';
+      statusLabel = 'Concern Flagged';
       break;
     case 'unable':
       statusIcon = <HelpCircle className="w-5 h-5 text-muted-foreground" />;
       statusColor = 'text-muted-foreground';
       barColor = 'bg-muted';
+      statusLabel = 'Unable to Assess';
       break;
+    default:
+      statusIcon = <HelpCircle className="w-5 h-5 text-muted-foreground" />;
+      statusColor = 'text-muted-foreground';
+      barColor = 'bg-muted';
+      statusLabel = 'Unknown';
   }
 
   return (
@@ -48,7 +58,7 @@ export default function CategoryScoreCard({ category }: CategoryScoreCardProps) 
           <div>
             <h3 className="font-semibold text-sm">{category.label}</h3>
             <span className={`text-[10px] font-bold uppercase tracking-wider ${statusColor}`}>
-              {category.status}
+              {statusLabel}
             </span>
           </div>
         </div>

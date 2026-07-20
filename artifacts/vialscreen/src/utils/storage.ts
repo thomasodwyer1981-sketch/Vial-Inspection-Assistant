@@ -33,7 +33,12 @@ export function setOnboardingComplete(): void {
     completed: true,
     disclaimerAcknowledgedAt: new Date().toISOString(),
   };
-  localStorage.setItem(KEYS.ONBOARDING, JSON.stringify(state));
+  try {
+    localStorage.setItem(KEYS.ONBOARDING, JSON.stringify(state));
+  } catch {
+    // quota exceeded — onboarding state could not be persisted
+    // the user will see onboarding again on next visit, which is acceptable
+  }
 }
 
 export function resetOnboarding(): void {
@@ -66,24 +71,29 @@ export function getScanHistory(): HistoryItem[] {
 }
 
 export function addToHistory(session: ScanSession): void {
-  const history = getScanHistory();
+  try {
+    const history = getScanHistory();
 
-  // Build a thumbnail from first capture
-  const thumb = session.captures[0]?.dataUrl ?? null;
+    // Build a thumbnail from first capture
+    const thumb = session.captures[0]?.dataUrl ?? null;
 
-  const item: HistoryItem = {
-    id: session.id,
-    createdAt: session.createdAt,
-    triageResult: session.analysisResult?.triageResult ?? 'review',
-    peptideName: session.metadata.peptideName || 'Unnamed Vial',
-    vendor: session.metadata.vendor || '',
-    overallConfidence: session.analysisResult?.overallConfidence ?? 0,
-    thumbnailDataUrl: thumb,
-  };
+    const item: HistoryItem = {
+      id: session.id,
+      createdAt: session.createdAt,
+      triageResult: session.analysisResult?.triageResult ?? 'review',
+      peptideName: session.metadata.peptideName || 'Unnamed Vial',
+      vendor: session.metadata.vendor || '',
+      overallConfidence: session.analysisResult?.overallConfidence ?? 0,
+      thumbnailDataUrl: thumb,
+    };
 
-  // Prepend (newest first), keep max 100 items
-  const updated = [item, ...history.filter((h) => h.id !== session.id)].slice(0, 100);
-  localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(updated));
+    // Prepend (newest first), keep max 100 items
+    const updated = [item, ...history.filter((h) => h.id !== session.id)].slice(0, 100);
+    localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(updated));
+  } catch {
+    // quota exceeded or serialization error — history entry could not be written
+    console.warn('[VialScreen] Could not write history entry — storage may be full.');
+  }
 }
 
 export function removeFromHistory(id: string): void {
@@ -157,7 +167,17 @@ export function loadActiveSession(): ScanSession | null {
   try {
     const raw = localStorage.getItem(KEYS.ACTIVE_SESSION);
     if (!raw) return null;
-    return JSON.parse(raw) as ScanSession;
+    const parsed = JSON.parse(raw);
+    // Same shape validation as loadSession — guard against corrupted data
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      typeof parsed.id !== 'string' ||
+      !Array.isArray(parsed.captures)
+    ) {
+      return null;
+    }
+    return parsed as ScanSession;
   } catch {
     return null;
   }

@@ -1,5 +1,5 @@
 import { Link, useLocation, useParams } from 'wouter';
-import { ArrowLeft, Trash2, Calendar, FlaskConical, Building2, Beaker, Tag } from 'lucide-react';
+import { ArrowLeft, Trash2, Calendar, FlaskConical, Building2, Beaker, Tag, AlertTriangle } from 'lucide-react';
 import { loadSession, deleteSession } from '@/utils/storage';
 import { RESULT_COPY } from '@/constants/copy';
 import { format } from 'date-fns';
@@ -70,9 +70,16 @@ export default function HistoryDetailScreen() {
           <p className="text-sm text-foreground font-medium mb-3 leading-relaxed">
             {resultCopy.summary}
           </p>
-          <div className="inline-block bg-secondary px-3 py-1.5 rounded-lg text-xs font-bold text-secondary-foreground mb-4">
+          <div className="inline-block bg-secondary px-3 py-1.5 rounded-lg text-xs font-bold text-secondary-foreground mb-2">
             Overall Confidence: {result.overallConfidence}%
           </div>
+
+          {result.overallConfidence < 50 && (
+            <div className="mb-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Low Confidence — results less reliable
+            </div>
+          )}
 
           {/* Recommended action */}
           <div className="mt-2 bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">

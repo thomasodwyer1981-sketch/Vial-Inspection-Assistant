@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { 
   Camera, 
@@ -14,6 +15,12 @@ import DisclaimerBanner from '@/components/DisclaimerBanner';
 export default function HomeScreen() {
   const [, setLocation] = useLocation();
   const activeSession = loadActiveSession();
+
+  // Silently pre-warm Tesseract.js in the background so first-run OCR is faster.
+  // This is best-effort only — errors are intentionally ignored.
+  useEffect(() => {
+    import('tesseract.js').catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative">

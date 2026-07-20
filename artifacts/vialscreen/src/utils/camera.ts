@@ -58,7 +58,8 @@ export function captureFrameFromVideo(
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable — cannot capture frame.');
   ctx.drawImage(video, 0, 0, width, height);
 
   return {
@@ -95,7 +96,8 @@ export function fileToDataUrl(file: File): Promise<CaptureResult> {
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
-          const ctx = canvas.getContext('2d')!;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('Canvas 2D context unavailable')); return; }
           ctx.drawImage(img, 0, 0, width, height);
           resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), width, height });
         } else {
@@ -185,7 +187,8 @@ export function generateThumbnail(dataUrl: string, maxDim = 120): Promise<string
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Canvas 2D context unavailable')); return; }
       ctx.drawImage(img, 0, 0, w, h);
       resolve(canvas.toDataURL('image/jpeg', 0.7));
     };
