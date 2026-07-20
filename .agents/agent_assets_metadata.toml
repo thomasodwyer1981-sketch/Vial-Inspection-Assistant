@@ -6,3 +6,9 @@ id = "ghRjgoBPj_LKafTiwd8Zy"
 uri = "file://vialscreen-completion-report.md"
 type = "text"
 title = "VialScreen Completion Report"
+
+[[outputs]]
+id = "erabdfBrLyfmFFriOREYg"
+uri = "file://vialscreen-completion-report.docx"
+type = "word_document"
+title = "VialScreen Completion Report (.docx)"
