@@ -2,38 +2,70 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { activateProUnlock } from '@/hooks/useProStatus';
+import { getApiBase } from '@/utils/api';
 
 /**
  * Landing page after Whop checkout redirects the user back.
- * Reads the membership_id from the URL, verifies it server-side,
- * stores the unlock, and redirects to history.
  *
- * Whop appends ?membership_id=mem_xxx to the redirect URL.
+ * Whop may redirect with any of:
+ *   ?membership_id=mem_xxx          (ideal — direct activation)
+ *   ?receipt_id=pay_xxx&...         (one-time purchase — resolve via API first)
+ *   ?payment_id=pay_xxx&...         (alias for receipt_id)
  */
+
+async function resolveReceiptToMembership(receiptId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/whop/resolve-receipt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receiptId }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { membershipId: string | null };
+    return data.membershipId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function UpgradeCompleteScreen() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const membershipId = params.get('membership_id');
+    async function activate() {
+      const params = new URLSearchParams(window.location.search);
 
-    if (!membershipId || !membershipId.startsWith('mem_')) {
-      setStatus('failed');
-      return;
-    }
+      // Case 1: Whop gave us a membership_id directly
+      let membershipId = params.get('membership_id');
 
-    activateProUnlock(membershipId)
-      .then((verified) => {
+      // Case 2: Whop gave us a receipt_id / payment_id — resolve to membership_id
+      if (!membershipId || !membershipId.startsWith('mem_')) {
+        const receiptId = params.get('receipt_id') ?? params.get('payment_id');
+        if (receiptId) {
+          membershipId = await resolveReceiptToMembership(receiptId);
+        }
+      }
+
+      if (!membershipId || !membershipId.startsWith('mem_')) {
+        setStatus('failed');
+        return;
+      }
+
+      try {
+        const verified = await activateProUnlock(membershipId);
         if (verified) {
           setStatus('success');
-          // Give the user a moment to see the success state, then redirect
           setTimeout(() => navigate('/history'), 2000);
         } else {
           setStatus('failed');
         }
-      })
-      .catch(() => setStatus('failed'));
+      } catch {
+        setStatus('failed');
+      }
+    }
+
+    void activate();
   }, [navigate]);
 
   return (
@@ -65,15 +97,24 @@ export default function UpgradeCompleteScreen() {
             <XCircle className="w-10 h-10 text-destructive" />
           </div>
           <h1 className="text-xl font-bold mb-2">Couldn't verify purchase</h1>
-          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-            If you completed payment, your purchase is saved with Whop — try
-            restoring it below. Otherwise, contact support.
+          <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+            Your payment was received. To activate Pro, find your membership ID
+            in your Whop confirmation email (it starts with <span className="font-mono">mem_</span>),
+            then tap Restore below and paste it in.
           </p>
+          <a
+            href="https://whop.com/purchases"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary underline underline-offset-2 mb-6"
+          >
+            View purchases on Whop →
+          </a>
           <button
             onClick={() => navigate('/upgrade')}
             className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold shadow-sm"
           >
-            Back to Upgrade
+            Restore Purchase
           </button>
           <button
             onClick={() => navigate('/home')}

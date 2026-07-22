@@ -92,4 +92,36 @@ router.post('/verify', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/whop/resolve-receipt
+ * Resolves a Whop receipt/payment ID (pay_xxx) into a membership ID (mem_xxx).
+ * Whop redirects after one-time purchase with receipt_id/payment_id rather than
+ * membership_id, so we need this lookup to activate Pro automatically.
+ * Body: { receiptId: string }
+ * Returns: { membershipId: string | null }
+ */
+router.post('/resolve-receipt', async (req, res) => {
+  try {
+    const { receiptId } = req.body as { receiptId?: string };
+
+    if (!receiptId || typeof receiptId !== 'string') {
+      return res.status(400).json({ membershipId: null, error: 'receiptId is required' });
+    }
+
+    // Whop v2 receipts endpoint returns receipt object with membership_id
+    const receipt = (await whopFetch('GET', `/v2/receipts/${receiptId}`)) as {
+      membership_id?: string;
+      [key: string]: unknown;
+    };
+
+    const membershipId = receipt.membership_id ?? null;
+    logger.info({ receiptId, membershipId }, 'Whop receipt resolved');
+    return res.json({ membershipId });
+  } catch (err) {
+    logger.error({ err }, 'Whop resolve-receipt error');
+    // Return null gracefully — frontend will show manual recovery UI
+    return res.json({ membershipId: null });
+  }
+});
+
 export default router;
