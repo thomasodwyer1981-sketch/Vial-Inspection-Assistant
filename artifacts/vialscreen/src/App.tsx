@@ -15,6 +15,7 @@ import LimitationsScreen from '@/pages/LimitationsScreen';
 import UpgradeScreen from '@/pages/UpgradeScreen';
 import UpgradeCompleteScreen from '@/pages/UpgradeCompleteScreen';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import DeleteData from '@/pages/DeleteData';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/upgrade" component={UpgradeScreen} />
       <Route path="/upgrade-complete" component={UpgradeCompleteScreen} />
       <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/delete-data" component={DeleteData} />
       <Route component={NotFound} />
     </Switch>
   );
