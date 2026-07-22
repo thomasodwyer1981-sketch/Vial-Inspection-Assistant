@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { ScanSessionProvider, useScanSessionContext } from '@/context/ScanSessionContext';
 import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
-import { APPEARANCE_PROFILES, type AppearanceProfile } from '@/types';
+import { APPEARANCE_PROFILES, type AppearanceProfile, type CaptureBackground } from '@/types';
 import StepProgress from '@/components/StepProgress';
 import CaptureButton from '@/components/CaptureButton';
 import MediaPreview from '@/components/MediaPreview';
@@ -129,8 +129,7 @@ function ScanScreenInner() {
 
       <main className={`flex-1 flex flex-col ${isResults ? 'overflow-hidden' : 'p-6'}`}>
         {currentStep === 'prepare' && <PrepareStep />}
-        {currentStep === 'white-capture' && <CaptureStep background="white" />}
-        {currentStep === 'black-capture' && <CaptureStep background="black" />}
+        {(currentStep === 'white-capture' || currentStep === 'black-capture') && <DualCaptureStep />}
         {currentStep === 'label-capture' && <LabelCaptureStep />}
         {currentStep === 'review' && <ReviewStep />}
         {currentStep === 'analysis' && <AnalysisStep />}
@@ -331,29 +330,98 @@ function PrepareStep() {
   );
 }
 
-function CaptureStep({ background }: { background: 'white' | 'black' }) {
-  const { addCapture, getCaptureForBackground, advanceStep } = useScanSessionContext();
-  const copy = background === 'white' ? SCAN_COPY.whiteCapture : SCAN_COPY.blackCapture;
-  const existing = getCaptureForBackground(background);
+function DualCaptureStep() {
+  const { addCapture, getCaptureForBackground, advanceStep, currentStep } = useScanSessionContext();
+  const [transitioning, setTransitioning] = useState(false);
+  const prevStepRef = useRef(currentStep);
+
+  const isBlackPhase = currentStep === 'black-capture';
+  const activeBackground: CaptureBackground = isBlackPhase ? 'black' : 'white';
+  const whiteCap = getCaptureForBackground('white');
+  const blackCap = getCaptureForBackground('black');
+  const existing = getCaptureForBackground(activeBackground);
+  const copy = isBlackPhase ? SCAN_COPY.blackCapture : SCAN_COPY.whiteCapture;
+
+  // Trigger slide-in animation when background phase changes
+  useEffect(() => {
+    if (prevStepRef.current !== currentStep) {
+      prevStepRef.current = currentStep;
+      setTransitioning(false); // fade in the new content
+    }
+  }, [currentStep]);
+
+  const handleSwitchToBlack = () => {
+    setTransitioning(true); // fade out current content
+    setTimeout(() => {
+      advanceStep(); // white-capture → black-capture
+      // Give React two frames to commit the new currentStep before fading in
+      requestAnimationFrame(() => requestAnimationFrame(() => setTransitioning(false)));
+    }, 180);
+  };
 
   return (
-    <div className="flex flex-col h-full space-y-5">
-      <div>
-        <h2 className="text-2xl font-bold mb-2">{copy.title}</h2>
-        <p className="text-muted-foreground text-sm">{copy.instruction}</p>
+    <div className="flex flex-col h-full space-y-4">
+      {/* ── Dual progress pills ── */}
+      <div className="flex gap-2.5">
+        {(['white', 'black'] as const).map((bg, i) => {
+          const cap = bg === 'white' ? whiteCap : blackCap;
+          const isActive = bg === activeBackground;
+          const isDone = !!cap;
+          return (
+            <div
+              key={bg}
+              className={`flex items-center gap-2 flex-1 rounded-xl px-3 py-2.5 border transition-all duration-300 ${
+                isDone
+                  ? 'border-green-500/40 bg-green-500/5'
+                  : isActive
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border bg-card opacity-40'
+              }`}
+            >
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                isDone
+                  ? 'bg-green-500 text-white'
+                  : isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}>
+                {isDone ? '✓' : i + 1}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={`text-xs font-semibold leading-none ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {bg === 'white' ? 'White' : 'Black'}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">
+                  {isDone ? 'Captured ✓' : isActive ? 'In progress' : 'Next'}
+                </p>
+              </div>
+              {isDone && cap && (
+                <img
+                  src={cap.dataUrl}
+                  alt={`${bg} capture thumbnail`}
+                  className="w-8 h-10 object-cover rounded-md shrink-0"
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      <div className="flex-1 flex flex-col gap-4">
-        {existing ? (
-          <MediaPreview capture={existing} />
-        ) : (
-          <div className="bg-secondary/50 border-2 border-dashed rounded-xl p-8 text-center aspect-[3/4] flex flex-col items-center justify-center relative overflow-hidden">
-            {/* Framing guide overlay */}
-            <div className="absolute inset-4 border-2 border-primary/30 rounded-lg pointer-events-none" />
-            <div className="absolute inset-[20%] border border-primary/20 rounded pointer-events-none" />
-            <p className="text-sm font-medium text-muted-foreground z-10">
-              Align vial within the guide marks
-            </p>
+      {/* ── Active step content (fades/slides on transition) ── */}
+      <div
+        className={`flex-1 flex flex-col gap-4 transition-all duration-200 ease-out ${
+          transitioning ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'
+        }`}
+      >
+        <div>
+          <h2 className="text-xl font-bold mb-1.5">{copy.title}</h2>
+          <p className="text-muted-foreground text-sm">{copy.instruction}</p>
+        </div>
+
+        {/* Captured preview */}
+        {existing && (
+          <div className="rounded-xl overflow-hidden border aspect-[16/9]">
+            <img src={existing.dataUrl} alt="Captured" className="w-full h-full object-cover" />
           </div>
         )}
 
@@ -367,10 +435,10 @@ function CaptureStep({ background }: { background: 'white' | 'black' }) {
           ))}
         </ul>
 
-        {/* Capture quality tips — always visible */}
+        {/* Quality tips */}
         <div className="bg-secondary/40 rounded-xl p-3 border border-secondary">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-            Quality Tips
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+            For best results
           </p>
           <ul className="space-y-1">
             {CAPTURE_TIPS.map((tip, i) => (
@@ -383,18 +451,19 @@ function CaptureStep({ background }: { background: 'white' | 'black' }) {
         </div>
       </div>
 
+      {/* ── Controls ── */}
       <div className="space-y-3 pt-4 border-t">
         <CaptureButton
-          onCapture={(res) => addCapture({ background, ...res })}
+          onCapture={(res) => addCapture({ background: activeBackground, ...res })}
           captured={!!existing}
-          background={background}
+          background={activeBackground}
         />
         {existing && (
           <button
-            onClick={advanceStep}
+            onClick={isBlackPhase ? advanceStep : handleSwitchToBlack}
             className="w-full bg-foreground text-background py-4 px-4 rounded-xl font-bold active:scale-[0.98] transition-transform"
           >
-            Continue
+            {isBlackPhase ? 'Continue →' : 'Switch to Black Background →'}
           </button>
         )}
       </div>

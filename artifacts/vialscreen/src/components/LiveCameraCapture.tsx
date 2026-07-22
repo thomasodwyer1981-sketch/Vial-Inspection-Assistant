@@ -5,6 +5,8 @@
  * - Live getUserMedia video feed
  * - Framing guide overlay
  * - Best-of-3 burst capture (auto-selects sharpest frame)
+ * - 1.5 s countdown ring after shutter tap (lets tap-shake settle)
+ * - DeviceMotion stability ring — auto-fires when phone held steady for 1.5 s
  * - Immediate quality feedback (blur + exposure check)
  * - Torch/flashlight toggle (where supported)
  * - Graceful fallback to file picker if camera unavailable
@@ -49,7 +51,7 @@ interface LiveCameraCaptureProps {
   background?: CaptureBackground;
 }
 
-type InternalState = 'requesting' | 'streaming' | 'capturing' | 'preview' | 'error';
+type InternalState = 'requesting' | 'streaming' | 'countdown' | 'capturing' | 'preview' | 'error';
 
 const BG_LABELS: Record<CaptureBackground, string> = {
   white: 'White Background',
@@ -57,6 +59,15 @@ const BG_LABELS: Record<CaptureBackground, string> = {
   label: 'Label Capture',
   label2: 'Label Detail',
 };
+
+// SVG ring constants — 96×96 viewBox, r=44
+const RING_R = 44;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R; // ≈ 276.5
+
+// Motion stability thresholds
+const STABLE_VARIANCE_THRESHOLD = 0.12; // (m/s²)² — variance below this = steady
+const STABLE_DURATION_MS = 1500;        // ms held steady before auto-fire
+const MOTION_HISTORY_SIZE = 12;         // samples used for rolling variance
 
 export default function LiveCameraCapture({
   isOpen,
@@ -66,14 +77,28 @@ export default function LiveCameraCapture({
 }: LiveCameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const countdownRingRef = useRef<SVGCircleElement>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stableStartRef = useRef<number | null>(null);
+  const motionHistoryRef = useRef<number[]>([]);
+  const stateRef = useRef<InternalState>('requesting');
 
   const [state, setState] = useState<InternalState>('requesting');
   const [capturedResult, setCapturedResult] = useState<CaptureResult | null>(null);
   const [quality, setQuality] = useState<QualityFeedback | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+  const [stableProgress, setStableProgress] = useState(0); // 0–100
+  const [isStable, setIsStable] = useState(false);
+  const [motionAvailable, setMotionAvailable] = useState(false);
 
-  // ── File picker fallback ────────────────────────────────────
+  // Keep stateRef in sync so motion/timer callbacks can read it without stale closure
+  const setStateSync = useCallback((s: InternalState) => {
+    stateRef.current = s;
+    setState(s);
+  }, []);
+
+  // ── File picker fallback ─────────────────────────────────────
   const handleFileFallback = useCallback(async () => {
     try {
       const files = await openFilePicker({ accept: 'image/*', capture: 'environment' });
@@ -87,9 +112,9 @@ export default function LiveCameraCapture({
     onClose();
   }, [onCapture, onClose]);
 
-  // ── Camera stream lifecycle ─────────────────────────────────
+  // ── Camera stream lifecycle ──────────────────────────────────
   const startStream = useCallback(async () => {
-    setState('requesting');
+    setStateSync('requesting');
     if (!isCameraApiAvailable()) {
       await handleFileFallback();
       return;
@@ -116,12 +141,11 @@ export default function LiveCameraCapture({
         }
       }
 
-      setState('streaming');
+      setStateSync('streaming');
     } catch {
-      // Permission denied or no camera — fall back silently to file picker
       await handleFileFallback();
     }
-  }, [handleFileFallback]);
+  }, [handleFileFallback, setStateSync]);
 
   // Mount / open / close
   useEffect(() => {
@@ -130,10 +154,15 @@ export default function LiveCameraCapture({
         stopStream(streamRef.current);
         streamRef.current = null;
       }
-      setState('requesting');
+      if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+      setStateSync('requesting');
       setCapturedResult(null);
       setQuality(null);
       setTorchOn(false);
+      setStableProgress(0);
+      setIsStable(false);
+      stableStartRef.current = null;
+      motionHistoryRef.current = [];
       return;
     }
     startStream();
@@ -146,11 +175,11 @@ export default function LiveCameraCapture({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // ── Capture ────────────────────────────────────────────────
-  const handleCapture = async () => {
+  // ── Burst capture (shared by tap and auto-fire) ─────────────
+  const runBurst = useCallback(async () => {
     const video = videoRef.current;
-    if (!video || state !== 'streaming') return;
-    setState('capturing');
+    if (!video || stateRef.current === 'capturing' || stateRef.current === 'preview') return;
+    setStateSync('capturing');
 
     try {
       // 400 ms AF settle before grabbing first frame
@@ -161,7 +190,6 @@ export default function LiveCameraCapture({
       for (let i = 0; i < 3; i++) {
         if (i > 0) await new Promise<void>((r) => setTimeout(r, 280));
         const frame = captureFrameFromVideo(video, 1280);
-        // Quick sharpness check on downsampled version
         const img = await loadImage(frame.dataUrl);
         const { ctx, width, height } = drawToCanvas(img, 512);
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -203,17 +231,119 @@ export default function LiveCameraCapture({
 
       setQuality({ label, detail, level });
       setCapturedResult(best);
-      setState('preview');
+      setStateSync('preview');
     } catch {
-      // Capture failed — go back to streaming so user can try again
-      setState('streaming');
+      setStateSync('streaming');
     }
-  };
+  }, [setStateSync]);
+
+  // Keep runBurst accessible to motion effect without triggering re-subscribe
+  const runBurstRef = useRef(runBurst);
+  runBurstRef.current = runBurst;
+
+  // ── DeviceMotion stability detection ────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const hasMotion = typeof DeviceMotionEvent !== 'undefined';
+    if (!hasMotion) return;
+
+    setMotionAvailable(true);
+
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const handleMotion = (e: DeviceMotionEvent) => {
+      if (stateRef.current !== 'streaming') {
+        stableStartRef.current = null;
+        return;
+      }
+
+      const acc = e.accelerationIncludingGravity;
+      if (!acc) return;
+      const mag = Math.sqrt((acc.x ?? 0) ** 2 + (acc.y ?? 0) ** 2 + (acc.z ?? 0) ** 2);
+
+      const history = motionHistoryRef.current;
+      history.push(mag);
+      if (history.length > MOTION_HISTORY_SIZE) history.shift();
+      if (history.length < 5) return;
+
+      const mean = history.reduce((a, b) => a + b, 0) / history.length;
+      const variance = history.reduce((a, b) => a + (b - mean) ** 2, 0) / history.length;
+
+      const stable = variance < STABLE_VARIANCE_THRESHOLD;
+      setIsStable(stable);
+
+      if (!stable) {
+        stableStartRef.current = null;
+        setStableProgress(0);
+      } else if (stableStartRef.current === null) {
+        stableStartRef.current = Date.now();
+      }
+    };
+
+    // Separate interval to update stableProgress (avoids flooding setState in motion handler)
+    intervalId = setInterval(() => {
+      if (stateRef.current !== 'streaming' || stableStartRef.current === null) return;
+      const elapsed = Date.now() - stableStartRef.current;
+      const progress = Math.min(100, (elapsed / STABLE_DURATION_MS) * 100);
+      setStableProgress(progress);
+      if (progress >= 100) {
+        stableStartRef.current = null;
+        setStableProgress(0);
+        runBurstRef.current();
+      }
+    }, 50);
+
+    window.addEventListener('devicemotion', handleMotion);
+    return () => {
+      window.removeEventListener('devicemotion', handleMotion);
+      clearInterval(intervalId);
+    };
+  }, [isOpen]);
+
+  // ── Countdown ring animation trigger ────────────────────────
+  useEffect(() => {
+    if (state !== 'countdown') return;
+
+    const ring = countdownRingRef.current;
+    if (ring) {
+      // Start with full offset (empty ring), then animate to 0 (full ring)
+      ring.style.transition = 'none';
+      ring.style.strokeDashoffset = String(RING_CIRCUMFERENCE);
+      // Next frame: start the transition
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          ring.style.transition = `stroke-dashoffset ${STABLE_DURATION_MS}ms linear`;
+          ring.style.strokeDashoffset = '0';
+        });
+      });
+    }
+
+    countdownTimerRef.current = setTimeout(() => {
+      runBurstRef.current();
+    }, STABLE_DURATION_MS);
+
+    return () => {
+      if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+    };
+  }, [state]);
+
+  // ── Shutter tap handler ──────────────────────────────────────
+  const handleShutterTap = useCallback(() => {
+    if (stateRef.current !== 'streaming') return;
+    stableStartRef.current = null;
+    setStableProgress(0);
+    setStateSync('countdown');
+  }, [setStateSync]);
 
   const handleRetake = () => {
     setCapturedResult(null);
     setQuality(null);
-    setState('streaming');
+    stableStartRef.current = null;
+    setStableProgress(0);
+    setIsStable(false);
+    motionHistoryRef.current = [];
+    setStateSync('streaming');
   };
 
   const handleAccept = () => {
@@ -240,6 +370,8 @@ export default function LiveCameraCapture({
   if (!isOpen) return null;
 
   const isLabelBackground = background === 'label' || background === 'label2';
+  const isStreaming = state === 'streaming';
+  const isCountingDown = state === 'countdown';
 
   const qualityColors = {
     good: 'bg-green-500/90',
@@ -247,9 +379,13 @@ export default function LiveCameraCapture({
     poor: 'bg-red-500/90',
   };
 
+  // Stability ring stroke offset (streaming state only)
+  const stabilityOffset = RING_CIRCUMFERENCE - (RING_CIRCUMFERENCE * stableProgress) / 100;
+  const stabilityColor = isStable ? '#34d399' : 'rgba(255,255,255,0.25)';
+
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* ── Video / Preview area ────────────────────────────── */}
+      {/* ── Video / Preview area ─────────────────────────────── */}
       <div className="relative flex-1 overflow-hidden">
         {/* Live camera feed */}
         <video
@@ -273,17 +409,17 @@ export default function LiveCameraCapture({
           />
         )}
 
-        {/* ── Guide overlay (streaming only) ──────────────── */}
-        {state === 'streaming' && (
+        {/* ── Guide overlay ────────────────────────────────── */}
+        {(isStreaming || isCountingDown) && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div
               className={`relative ${
                 isLabelBackground ? 'w-[78%] aspect-[5/3]' : 'w-[58%] aspect-[1/2.6]'
               }`}
             >
-              {/* Semi-transparent surround using box-shadow trick */}
-              <div className="absolute inset-0 rounded-xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.42)]" />
-              {/* Corner marks */}
+              <div className={`absolute inset-0 rounded-xl border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.42)] transition-colors duration-300 ${
+                isCountingDown ? 'border-white/90' : 'border-white/70'
+              }`} />
               {[
                 'top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-xl',
                 'top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-xl',
@@ -296,16 +432,24 @@ export default function LiveCameraCapture({
           </div>
         )}
 
-        {/* Guide hint text */}
-        {state === 'streaming' && (
+        {/* Guide hint / countdown hint */}
+        {(isStreaming || isCountingDown) && (
           <div className="absolute bottom-[24%] left-0 right-0 flex justify-center pointer-events-none">
-            <span className="text-white/80 text-xs font-medium bg-black/40 px-3 py-1 rounded-full">
-              {isLabelBackground ? 'Center label in frame' : 'Center vial in frame'}
+            <span className={`text-white/90 text-xs font-semibold bg-black/50 px-3 py-1 rounded-full transition-all duration-200 ${
+              isCountingDown ? 'scale-105' : ''
+            }`}>
+              {isCountingDown
+                ? 'Hold steady…'
+                : motionAvailable && stableProgress > 10
+                  ? 'Keep holding…'
+                  : isLabelBackground
+                    ? 'Center label in frame'
+                    : 'Center vial in frame'}
             </span>
           </div>
         )}
 
-        {/* ── Capturing spinner ───────────────────────────── */}
+        {/* ── Capturing spinner ────────────────────────────── */}
         {state === 'capturing' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55">
             <div className="w-14 h-14 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
@@ -314,7 +458,7 @@ export default function LiveCameraCapture({
           </div>
         )}
 
-        {/* ── Quality feedback badge (preview) ────────────── */}
+        {/* ── Quality feedback badge (preview) ─────────────── */}
         {state === 'preview' && quality && (
           <div className="absolute top-16 left-4 right-4">
             <div className={`rounded-xl px-4 py-3 flex items-start gap-3 ${qualityColors[quality.level]}`}>
@@ -331,7 +475,7 @@ export default function LiveCameraCapture({
           </div>
         )}
 
-        {/* ── Top bar ─────────────────────────────────────── */}
+        {/* ── Top bar ──────────────────────────────────────── */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 pt-12">
           <button
             onClick={onClose}
@@ -344,7 +488,7 @@ export default function LiveCameraCapture({
             {BG_LABELS[background]}
           </span>
 
-          {torchSupported && state === 'streaming' ? (
+          {torchSupported && isStreaming ? (
             <button
               onClick={handleTorchToggle}
               className="w-11 h-11 rounded-full bg-black/50 flex items-center justify-center active:scale-95"
@@ -359,21 +503,97 @@ export default function LiveCameraCapture({
             <div className="w-11 h-11" />
           )}
         </div>
+
+        {/* ── Auto-fire hint (streaming, motion available) ─── */}
+        {isStreaming && motionAvailable && (
+          <div className="absolute bottom-[30%] left-0 right-0 flex justify-center pointer-events-none">
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-all duration-300 ${
+              isStable
+                ? 'text-emerald-300 bg-black/40'
+                : 'text-white/40 bg-transparent'
+            }`}>
+              {isStable ? '● Steady' : '● Move less to auto-fire'}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* ── Bottom controls ─────────────────────────────────── */}
+      {/* ── Bottom controls ──────────────────────────────────── */}
       <div className="bg-black px-6 pt-5 pb-10 flex items-center justify-center min-h-[130px]">
-        {/* Shutter button */}
-        {state === 'streaming' && (
-          <button
-            onClick={handleCapture}
-            className="w-20 h-20 rounded-full border-4 border-white/40 bg-white/10 flex items-center justify-center active:scale-95 transition-transform shadow-lg"
-          >
-            <div className="w-14 h-14 rounded-full bg-white" />
-          </button>
+
+        {/* Streaming — shutter button with stability ring */}
+        {isStreaming && (
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            {/* Stability / auto-fire ring */}
+            <svg
+              className="absolute inset-0 -rotate-90"
+              viewBox="0 0 96 96"
+              aria-hidden="true"
+            >
+              {/* Track */}
+              <circle
+                cx="48" cy="48" r={RING_R}
+                fill="none"
+                stroke="rgba(255,255,255,0.12)"
+                strokeWidth="3"
+              />
+              {/* Progress */}
+              <circle
+                cx="48" cy="48" r={RING_R}
+                fill="none"
+                stroke={stabilityColor}
+                strokeWidth="3"
+                strokeDasharray={RING_CIRCUMFERENCE}
+                strokeDashoffset={stabilityOffset}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 80ms linear, stroke 300ms ease' }}
+              />
+            </svg>
+            <button
+              onClick={handleShutterTap}
+              className="w-20 h-20 rounded-full border-4 border-white/40 bg-white/10 flex items-center justify-center active:scale-95 transition-transform shadow-lg"
+              aria-label="Capture photo"
+            >
+              <div className="w-14 h-14 rounded-full bg-white" />
+            </button>
+          </div>
         )}
 
-        {/* Capturing — disabled shutter */}
+        {/* Countdown — animated ring, frozen button */}
+        {isCountingDown && (
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            <svg
+              className="absolute inset-0 -rotate-90"
+              viewBox="0 0 96 96"
+              aria-hidden="true"
+            >
+              {/* Track */}
+              <circle
+                cx="48" cy="48" r={RING_R}
+                fill="none"
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="3.5"
+              />
+              {/* Countdown fill */}
+              <circle
+                ref={countdownRingRef}
+                cx="48" cy="48" r={RING_R}
+                fill="none"
+                stroke="white"
+                strokeWidth="3.5"
+                strokeDasharray={RING_CIRCUMFERENCE}
+                strokeDashoffset={RING_CIRCUMFERENCE}
+                strokeLinecap="round"
+              />
+            </svg>
+            {/* Frozen shutter disc */}
+            <div className="w-20 h-20 rounded-full border-4 border-white/20 bg-white/5 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-white/30" />
+            </div>
+          </div>
+        )}
+
+        {/* Capturing — disabled spinner */}
         {state === 'capturing' && (
           <div className="w-20 h-20 rounded-full border-4 border-white/20 bg-white/5 flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-white/40 border-t-white rounded-full animate-spin" />
