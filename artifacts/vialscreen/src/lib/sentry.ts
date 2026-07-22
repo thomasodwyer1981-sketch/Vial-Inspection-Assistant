@@ -37,7 +37,8 @@ export function initSentry() {
         return event;
       },
     },
-    SentryReact.init,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    SentryReact.init as any,
   );
 }
 

@@ -6,7 +6,7 @@ import { getApiBase } from '@/utils/api';
 import { useProStatus } from '@/hooks/useProStatus';
 
 export default function UpgradeScreen() {
-  const { isPro, proLoading } = useProStatus();
+  const { isPro, isLoading: proLoading } = useProStatus();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export default function UpgradeScreen() {
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-4 flex items-center gap-4">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 pb-4 pt-safe-4 flex items-center gap-4">
         <Link
           href="/home"
           className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors"
@@ -62,7 +62,7 @@ export default function UpgradeScreen() {
             <ul className="space-y-2.5">
               <FeatureRow ok text="Full analysis on every scan" />
               <FeatureRow ok text="All appearance profiles" />
-              <FeatureRow ok text="Differential turbidity engine" />
+              <FeatureRow ok text="Advanced clarity detection" />
               <FeatureRow ok={false} text={`Last ${FREE_HISTORY_LIMIT} scans only`} />
               <FeatureRow ok={false} text="Export / share reports" />
             </ul>
@@ -77,7 +77,7 @@ export default function UpgradeScreen() {
             <ul className="space-y-2.5">
               <FeatureRow ok text="Full analysis on every scan" pro />
               <FeatureRow ok text="All appearance profiles" pro />
-              <FeatureRow ok text="Differential turbidity engine" pro />
+              <FeatureRow ok text="Advanced clarity detection" pro />
               <FeatureRow ok text="Unlimited scan history" pro />
               <FeatureRow ok text="Export / share reports" pro />
             </ul>

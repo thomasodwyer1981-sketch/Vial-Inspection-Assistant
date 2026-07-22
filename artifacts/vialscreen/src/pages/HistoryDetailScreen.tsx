@@ -62,7 +62,7 @@ export default function HistoryDetailScreen() {
 
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 pb-4 pt-safe-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/history" className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors">
             <ArrowLeft className="w-5 h-5" />

@@ -5,7 +5,7 @@ import { LIMITATIONS_COPY, PRIMARY_DISCLAIMER } from '@/constants/copy';
 export default function LimitationsScreen() {
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative pb-20">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-4 flex items-center gap-4">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 pb-4 pt-safe-4 flex items-center gap-4">
         <Link href="/home" className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
