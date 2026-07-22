@@ -1,0 +1,251 @@
+Run chmod +x gradlew
+Downloading https://services.gradle.org/distributions/gradle-8.14.3-all.zip
+.....................10%.....................20%......................30%.....................40%......................50%.....................60%.....................70%......................80%.....................90%......................100%
+
+Welcome to Gradle 8.14.3!
+
+Here are the highlights of this release:
+ - Java 24 support
+ - GraalVM Native Image toolchain selection
+ - Enhancements to test reporting
+ - Build Authoring improvements
+
+For more details see https://docs.gradle.org/8.14.3/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :capacitor-cordova-android-plugins
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :sentry-capacitor
+Sentry Capacitor: Applying defaults for Capacitor 8 or higher
+Sentry Capacitor: Applying defaults for Capacitor 8 or higher
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :capacitor-android:preBuild UP-TO-DATE
+> Task :capacitor-android:preReleaseBuild UP-TO-DATE
+> Task :capacitor-android:processReleaseNavigationResources
+> Task :capacitor-cordova-android-plugins:preBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preReleaseBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:processReleaseNavigationResources
+> Task :sentry-capacitor:preBuild UP-TO-DATE
+> Task :sentry-capacitor:preReleaseBuild UP-TO-DATE
+> Task :sentry-capacitor:processReleaseNavigationResources
+> Task :app:processReleaseNavigationResources
+> Task :app:generateReleaseResValues
+> Task :capacitor-android:generateReleaseResValues
+> Task :capacitor-android:generateReleaseResources
+> Task :app:compileReleaseNavigationResources
+> Task :capacitor-cordova-android-plugins:generateReleaseResValues
+> Task :capacitor-android:packageReleaseResources
+> Task :capacitor-cordova-android-plugins:generateReleaseResources
+> Task :capacitor-cordova-android-plugins:packageReleaseResources
+> Task :sentry-capacitor:generateReleaseResValues
+> Task :sentry-capacitor:generateReleaseResources
+> Task :sentry-capacitor:packageReleaseResources
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :capacitor-android:extractDeepLinksRelease
+> Task :capacitor-android:processReleaseManifest
+> Task :capacitor-cordova-android-plugins:extractDeepLinksRelease
+> Task :capacitor-cordova-android-plugins:processReleaseManifest
+> Task :sentry-capacitor:extractDeepLinksRelease
+> Task :sentry-capacitor:processReleaseManifest
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processApplicationManifestReleaseForBundle
+> Task :capacitor-android:writeReleaseAarMetadata
+> Task :capacitor-cordova-android-plugins:writeReleaseAarMetadata
+> Task :sentry-capacitor:writeReleaseAarMetadata
+> Task :app:checkReleaseAarMetadata
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:parseReleaseLocalResources
+> Task :capacitor-android:parseReleaseLocalResources
+> Task :capacitor-android:compileReleaseLibraryResources
+> Task :capacitor-cordova-android-plugins:compileReleaseLibraryResources
+> Task :capacitor-cordova-android-plugins:parseReleaseLocalResources
+> Task :capacitor-android:generateReleaseRFile
+> Task :capacitor-cordova-android-plugins:generateReleaseRFile
+> Task :sentry-capacitor:compileReleaseLibraryResources
+> Task :sentry-capacitor:parseReleaseLocalResources
+> Task :app:extractReleaseVersionControlInfo
+> Task :sentry-capacitor:generateReleaseRFile
+> Task :capacitor-android:javaPreCompileRelease
+> Task :app:processReleaseResources
+Note: Some input files use unchecked or unsafe operations.
+
+Note: Recompile with -Xlint:unchecked for details.
+> Task :capacitor-android:compileReleaseJavaWithJavac
+
+> Task :capacitor-android:bundleLibCompileToJarRelease
+> Task :sentry-capacitor:javaPreCompileRelease
+> Task :app:bundleReleaseResources
+Note: /home/runner/work/Vial-Inspection-Assistant/Vial-Inspection-Assistant/node_modules/.pnpm/@sentry+capacitor@4.2.0_@capacitor+core@8.4.2_@sentry+react@10.67.0_react@19.1.0_/node_modules/@sentry/capacitor/android/src/main/java/io/sentry/capacitor/SentryCapacitor.java uses or overrides a deprecated API.
+
+Note: Recompile with -Xlint:deprecation for details.
+> Task :sentry-capacitor:compileReleaseJavaWithJavac
+
+> Task :sentry-capacitor:bundleLibRuntimeToDirRelease
+> Task :capacitor-android:bundleLibRuntimeToDirRelease
+> Task :capacitor-cordova-android-plugins:javaPreCompileRelease
+> Task :capacitor-cordova-android-plugins:compileReleaseJavaWithJavac NO-SOURCE
+> Task :capacitor-cordova-android-plugins:bundleLibRuntimeToDirRelease
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:javaPreCompileRelease
+> Task :capacitor-cordova-android-plugins:bundleLibCompileToJarRelease
+> Task :sentry-capacitor:bundleLibCompileToJarRelease
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:dexBuilderRelease
+> Task :app:desugarReleaseFileDependencies
+> Task :app:mergeReleaseStartupProfile
+> Task :app:mergeExtDexRelease
+> Task :app:mergeReleaseShaders
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :capacitor-android:mergeReleaseShaders
+> Task :capacitor-android:compileReleaseShaders NO-SOURCE
+> Task :capacitor-android:generateReleaseAssets UP-TO-DATE
+> Task :capacitor-android:mergeReleaseAssets
+> Task :capacitor-cordova-android-plugins:mergeReleaseShaders
+> Task :capacitor-cordova-android-plugins:compileReleaseShaders NO-SOURCE
+> Task :capacitor-cordova-android-plugins:generateReleaseAssets UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:mergeReleaseAssets
+> Task :sentry-capacitor:mergeReleaseShaders
+> Task :sentry-capacitor:compileReleaseShaders NO-SOURCE
+> Task :sentry-capacitor:generateReleaseAssets UP-TO-DATE
+> Task :sentry-capacitor:mergeReleaseAssets
+> Task :app:mergeReleaseAssets
+> Task :sentry-capacitor:bundleLibRuntimeToJarRelease
+> Task :capacitor-android:bundleLibRuntimeToJarRelease
+> Task :app:mergeDexRelease
+> Task :capacitor-cordova-android-plugins:bundleLibRuntimeToJarRelease
+> Task :app:processReleaseJavaRes NO-SOURCE
+> Task :capacitor-android:processReleaseJavaRes NO-SOURCE
+> Task :capacitor-cordova-android-plugins:processReleaseJavaRes NO-SOURCE
+> Task :sentry-capacitor:processReleaseJavaRes NO-SOURCE
+> Task :app:mergeReleaseJavaResource
+> Task :app:mergeReleaseJniLibFolders
+> Task :capacitor-android:mergeReleaseJniLibFolders
+> Task :capacitor-android:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-android:copyReleaseJniLibsProjectOnly
+> Task :capacitor-cordova-android-plugins:mergeReleaseJniLibFolders
+> Task :app:mergeReleaseGlobalSynthetics
+> Task :capacitor-cordova-android-plugins:mergeReleaseNativeLibs NO-SOURCE
+> Task :capacitor-cordova-android-plugins:copyReleaseJniLibsProjectOnly
+> Task :sentry-capacitor:mergeReleaseJniLibFolders
+> Task :sentry-capacitor:mergeReleaseNativeLibs NO-SOURCE
+> Task :sentry-capacitor:copyReleaseJniLibsProjectOnly
+> Task :app:writeReleaseAppMetadata
+> Task :capacitor-android:prepareReleaseArtProfile
+> Task :capacitor-cordova-android-plugins:prepareReleaseArtProfile
+> Task :sentry-capacitor:prepareReleaseArtProfile
+> Task :app:mergeReleaseNativeLibs
+> Task :app:mergeReleaseArtProfile
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libsentry-android.so, libsentry.so. Run with --info option to learn more.
+
+> Task :app:buildReleasePreBundle
+> Task :app:collectReleaseDependencies
+> Task :app:configureReleaseDependencies
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:extractProguardFiles
+> Task :capacitor-android:createFullJarRelease
+> Task :capacitor-android:extractProguardFiles
+> Task :app:compileReleaseArtProfile
+> Task :capacitor-android:generateReleaseLintModel
+> Task :capacitor-android:prepareLintJarForPublish
+> Task :capacitor-cordova-android-plugins:createFullJarRelease
+> Task :capacitor-cordova-android-plugins:extractProguardFiles
+> Task :capacitor-cordova-android-plugins:generateReleaseLintModel
+> Task :capacitor-cordova-android-plugins:prepareLintJarForPublish
+> Task :sentry-capacitor:createFullJarRelease
+> Task :sentry-capacitor:extractProguardFiles
+> Task :sentry-capacitor:generateReleaseLintModel
+> Task :sentry-capacitor:prepareLintJarForPublish
+> Task :sentry-capacitor:checkReleaseAarMetadata
+> Task :app:generateReleaseLintVitalReportModel
+> Task :sentry-capacitor:stripReleaseDebugSymbols NO-SOURCE
+> Task :sentry-capacitor:copyReleaseJniLibsProjectAndLocalJars
+> Task :sentry-capacitor:extractDeepLinksForAarRelease
+> Task :sentry-capacitor:extractReleaseAnnotations
+> Task :sentry-capacitor:mergeReleaseGeneratedProguardFiles
+> Task :sentry-capacitor:mergeReleaseConsumerProguardFiles
+> Task :sentry-capacitor:mergeReleaseJavaResource
+> Task :capacitor-android:checkReleaseAarMetadata
+> Task :sentry-capacitor:syncReleaseLibJars
+> Task :sentry-capacitor:bundleReleaseLocalLintAar
+> Task :capacitor-android:stripReleaseDebugSymbols NO-SOURCE
+> Task :capacitor-android:copyReleaseJniLibsProjectAndLocalJars
+> Task :capacitor-android:extractDeepLinksForAarRelease
+> Task :capacitor-android:extractReleaseAnnotations
+> Task :capacitor-android:mergeReleaseGeneratedProguardFiles
+> Task :capacitor-android:mergeReleaseConsumerProguardFiles
+> Task :capacitor-android:mergeReleaseJavaResource
+> Task :capacitor-cordova-android-plugins:checkReleaseAarMetadata
+> Task :capacitor-android:syncReleaseLibJars
+> Task :capacitor-android:bundleReleaseLocalLintAar
+> Task :capacitor-cordova-android-plugins:stripReleaseDebugSymbols NO-SOURCE
+> Task :capacitor-cordova-android-plugins:copyReleaseJniLibsProjectAndLocalJars
+> Task :capacitor-cordova-android-plugins:extractDeepLinksForAarRelease
+> Task :capacitor-cordova-android-plugins:extractReleaseAnnotations
+> Task :capacitor-cordova-android-plugins:mergeReleaseGeneratedProguardFiles
+> Task :capacitor-cordova-android-plugins:mergeReleaseConsumerProguardFiles
+> Task :capacitor-cordova-android-plugins:mergeReleaseJavaResource
+> Task :capacitor-cordova-android-plugins:syncReleaseLibJars
+> Task :capacitor-cordova-android-plugins:bundleReleaseLocalLintAar
+> Task :capacitor-android:writeReleaseLintModelMetadata
+> Task :capacitor-cordova-android-plugins:lintVitalAnalyzeRelease
+> Task :capacitor-cordova-android-plugins:writeReleaseLintModelMetadata
+> Task :sentry-capacitor:lintVitalAnalyzeRelease
+> Task :sentry-capacitor:writeReleaseLintModelMetadata
+> Task :capacitor-android:generateReleaseLintVitalModel
+> Task :capacitor-cordova-android-plugins:generateReleaseLintVitalModel
+> Task :sentry-capacitor:generateReleaseLintVitalModel
+> Task :app:parseReleaseIntegrityConfig
+> Task :app:validateSigningRelease
+> Task :capacitor-android:lintVitalAnalyzeRelease
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:packageReleaseBundle
+> Task :app:signReleaseBundle FAILED
+
+
+FAILURE: Build failed with an exception.
+[Incubating] Problems report is available at: file:///home/runner/work/Vial-Inspection-Assistant/Vial-Inspection-Assistant/artifacts/vialscreen/android/build/reports/problems/problems-report.html
+
+
+* What went wrong:
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+A problem was found with the configuration of task ':app:signReleaseBundle' (type 'FinalizeBundleTask').
+
+  - In plugin 'com.android.internal.version-check' type 'com.android.build.gradle.internal.tasks.FinalizeBundleTask' property 'signingConfigData.signingConfigData.storeFile' specifies file '/home/runner/work/Vial-Inspection-Assistant/Vial-Inspection-Assistant/artifacts/vialscreen/android/app/app/***-key.jks' which doesn't exist.
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+    
+
+    Reason: An input file was expected to be present but it doesn't exist.
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+    
+156 actionable tasks: 156 executed
+    Possible solutions:
+      1. Make sure the file exists before the task is called.
+      2. Make sure that the task which produces the file is declared as an input.
+    
+    For more information, please refer to https://docs.gradle.org/8.14.3/userguide/validation_problems.html#input_file_does_not_exist in the Gradle documentation.
+
+* Try:
+> Make sure the file exists before the task is called
+> Make sure that the task which produces the file is declared as an input
+> Run with --scan to get full insights.
+
+BUILD FAILED in 2m 31s
+Error: Process completed with exit code 1.
