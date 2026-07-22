@@ -24,3 +24,57 @@ id = "V9HmP5QPheeSkhEM9waHg"
 uri = "file://attached_assets/pepscan-icon-512.png"
 type = "image"
 title = "PepScan App Icon (512×512)"
+
+[[outputs]]
+id = "Sz8xpjLrfkMIqNSPGEQkW"
+uri = "file://attached_assets/pepscan-feature-graphic.png"
+type = "image"
+title = "Feature Graphic (1024×500)"
+
+[[outputs]]
+id = "qZLfzskl49Z96V928jiw3"
+uri = "file://attached_assets/screenshots/phone-home.jpg"
+type = "image"
+title = "Phone — Home screen"
+
+[[outputs]]
+id = "_YPLh1FlIz3z5-PD8h3CO"
+uri = "file://attached_assets/screenshots/phone-scan.jpg"
+type = "image"
+title = "Phone — Scan screen"
+
+[[outputs]]
+id = "PeEIDI3ARapj6aOliTlEN"
+uri = "file://attached_assets/screenshots/phone-history.jpg"
+type = "image"
+title = "Phone — History"
+
+[[outputs]]
+id = "JX5mTDiJLPeD2-N2Fff9h"
+uri = "file://attached_assets/screenshots/phone-upgrade.jpg"
+type = "image"
+title = "Phone — Pro upgrade"
+
+[[outputs]]
+id = "s2X1hVj4CIArqcwU5a4uo"
+uri = "file://attached_assets/screenshots/tablet7-home.jpg"
+type = "image"
+title = "7\" Tablet — Home"
+
+[[outputs]]
+id = "44Rdgxh3svj6n0mXGvcfa"
+uri = "file://attached_assets/screenshots/tablet7-scan.jpg"
+type = "image"
+title = "7\" Tablet — Scan"
+
+[[outputs]]
+id = "PiqQHpoYufQha3c4O8u-5"
+uri = "file://attached_assets/screenshots/tablet10-home.jpg"
+type = "image"
+title = "10\" Tablet — Home"
+
+[[outputs]]
+id = "sIybb-9ci_I8zzCAGh-yk"
+uri = "file://attached_assets/screenshots/tablet10-scan.jpg"
+type = "image"
+title = "10\" Tablet — Scan"
