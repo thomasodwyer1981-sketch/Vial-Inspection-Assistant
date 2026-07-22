@@ -1,14 +1,21 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
-import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield, Sparkles } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
+import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield, Sparkles, RotateCcw, Loader2 } from 'lucide-react';
 import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
-import { useProStatus } from '@/hooks/useProStatus';
+import { useProStatus, activateProUnlock } from '@/hooks/useProStatus';
 
 export default function UpgradeScreen() {
-  const { isPro, isLoading: proLoading } = useProStatus();
+  const [, navigate] = useLocation();
+  const { isPro, isLoading: proLoading, recheck } = useProStatus();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Restore flow state
+  const [showRestore, setShowRestore] = useState(false);
+  const [restoreId, setRestoreId] = useState('');
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   const handleUpgrade = async () => {
     setLoading(true);
@@ -26,6 +33,34 @@ export default function UpgradeScreen() {
     } catch {
       setError('Could not start checkout. Please try again.');
       setLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    const id = restoreId.trim();
+    if (!id) {
+      setRestoreError('Please paste your membership ID.');
+      return;
+    }
+    if (!id.startsWith('mem_')) {
+      setRestoreError('Membership IDs start with mem_ — check your Whop account.');
+      return;
+    }
+
+    setRestoreLoading(true);
+    setRestoreError(null);
+    try {
+      const verified = await activateProUnlock(id);
+      if (verified) {
+        await recheck();
+        navigate('/history');
+      } else {
+        setRestoreError('That membership ID could not be verified. Make sure it matches your Whop account for PepScan Pro.');
+      }
+    } catch {
+      setRestoreError('Verification failed. Please try again.');
+    } finally {
+      setRestoreLoading(false);
     }
   };
 
@@ -132,6 +167,71 @@ export default function UpgradeScreen() {
               <p className="text-center text-xs text-muted-foreground">
                 Secure checkout powered by Whop. No recurring charges.
               </p>
+
+              {/* Restore Purchase */}
+              <div className="pt-2 border-t">
+                {!showRestore ? (
+                  <button
+                    onClick={() => setShowRestore(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Already purchased? Restore access
+                  </button>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <p className="text-sm font-semibold mb-1">Restore your purchase</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                        Find your membership ID at{' '}
+                        <a
+                          href="https://whop.com/purchases"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary underline underline-offset-2"
+                        >
+                          whop.com/purchases
+                        </a>{' '}
+                        — tap your PepScan Pro order and copy the ID starting with <span className="font-mono">mem_</span>
+                      </p>
+                      <input
+                        type="text"
+                        value={restoreId}
+                        onChange={(e) => setRestoreId(e.target.value)}
+                        placeholder="mem_xxxxxxxxxxxxxxxx"
+                        className="w-full border rounded-xl px-4 py-3 text-sm font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                      />
+                    </div>
+                    {restoreError && (
+                      <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+                        {restoreError}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setShowRestore(false); setRestoreId(''); setRestoreError(null); }}
+                        className="flex-1 py-3 rounded-xl border text-sm font-medium text-muted-foreground"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleRestore}
+                        disabled={restoreLoading}
+                        className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                        {restoreLoading ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" /> Verifying…</>
+                        ) : (
+                          'Activate Pro'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
