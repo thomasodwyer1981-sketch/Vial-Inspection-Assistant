@@ -173,15 +173,15 @@ function PrepareStep() {
     : SCAN_COPY.prepare.checklist;
 
   const [checkedItems, setCheckedItems] = useState<boolean[]>(
-    new Array(activeChecklist.length).fill(false),
+    new Array(activeChecklist.length).fill(true),
   );
 
-  // Reset checklist when scan mode changes
+  // Reset checklist (pre-ticked) when scan mode changes
   const prevScanModeRef = useRef<ScanMode>(scanMode);
   useEffect(() => {
     if (prevScanModeRef.current !== scanMode) {
       prevScanModeRef.current = scanMode;
-      setCheckedItems(new Array(activeChecklist.length).fill(false));
+      setCheckedItems(new Array(activeChecklist.length).fill(true));
     }
   }, [scanMode, activeChecklist.length]);
 
@@ -469,6 +469,22 @@ function DualCaptureStep() {
       setTransitioning(false); // fade in the new content
     }
   }, [currentStep]);
+
+  // Auto-advance after white capture → black phase
+  useEffect(() => {
+    if (!isBlackPhase && existing) {
+      const timer = setTimeout(() => handleSwitchToBlack(), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [existing?.dataUrl, isBlackPhase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-advance after black capture → label step
+  useEffect(() => {
+    if (isBlackPhase && existing) {
+      const timer = setTimeout(() => advanceStep(), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [existing?.dataUrl, isBlackPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSwitchToBlack = () => {
     setTransitioning(true); // fade out current content

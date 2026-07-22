@@ -8,7 +8,10 @@ import {
   ChevronRight,
   Play,
   Microscope,
+  Moon,
+  Sun,
 } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
 import { APP_NAME } from '@/constants/copy';
 import { getScanHistory, loadActiveSession, clearActiveSession } from '@/utils/storage';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
@@ -52,6 +55,7 @@ export default function HomeScreen() {
   const [, setLocation] = useLocation();
   const activeSession = loadActiveSession();
   const scanCount = getScanHistory().length;
+  const { theme, toggleTheme } = useTheme();
 
   // Pre-warm Tesseract.js so first-run OCR is faster
   useEffect(() => {
@@ -64,6 +68,15 @@ export default function HomeScreen() {
       {/* ── Dark molecular hero ──────────────────────────── */}
       <div className="relative bg-[#0d1117] overflow-hidden pt-safe">
         <MolecularPattern color="#14C9A0" opacity={0.09} />
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="absolute top-safe right-4 mt-3 z-20 p-2.5 rounded-full bg-white/8 border border-white/12 text-white/60 hover:text-white/90 hover:bg-white/14 active:scale-95 transition-all"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
 
         {/* Subtle radial glow behind the icon */}
         <div
