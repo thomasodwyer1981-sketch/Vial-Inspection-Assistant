@@ -78,3 +78,9 @@ id = "sIybb-9ci_I8zzCAGh-yk"
 uri = "file://attached_assets/screenshots/tablet10-scan.jpg"
 type = "image"
 title = "10\" Tablet — Scan"
+
+[[outputs]]
+id = "bhjieXkRj6bMeE4fFidr8"
+uri = "file://attached_assets/pepscan-icon-final.png"
+type = "image"
+title = "PepScan Icon — teal background (512×512)"
