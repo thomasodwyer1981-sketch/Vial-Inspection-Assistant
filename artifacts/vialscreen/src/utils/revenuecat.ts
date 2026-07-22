@@ -50,7 +50,7 @@ export async function checkRCEntitlement(): Promise<boolean> {
 export async function purchaseRCPro(): Promise<boolean> {
   await initRevenueCat();
 
-  const { offerings } = await Purchases.getOfferings();
+  const offerings = await Purchases.getOfferings();
   const current = offerings?.current;
 
   // Prefer the lifetime package; fall back to the first available package
