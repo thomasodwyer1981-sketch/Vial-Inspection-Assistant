@@ -62,7 +62,7 @@ export default function HomeScreen() {
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col">
 
       {/* ── Dark molecular hero ──────────────────────────── */}
-      <div className="relative bg-[#0d1117] overflow-hidden">
+      <div className="relative bg-[#0d1117] overflow-hidden pt-safe">
         <MolecularPattern color="#14C9A0" opacity={0.09} />
 
         {/* Subtle radial glow behind the icon */}
@@ -96,7 +96,7 @@ export default function HomeScreen() {
       </div>
 
       {/* ── Actions ─────────────────────────────────────── */}
-      <div className="px-5 -mt-5 relative z-10 space-y-3 pb-6 flex-1">
+      <div className="px-5 -mt-5 relative z-10 space-y-3 pb-safe-6 flex-1">
 
         {/* Resume in-progress scan */}
         {activeSession && !activeSession.finalized && (

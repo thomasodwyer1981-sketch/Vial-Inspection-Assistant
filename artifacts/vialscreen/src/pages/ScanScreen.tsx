@@ -103,9 +103,9 @@ export default function ScanScreen() {
   const isResults = currentStep === 'results';
 
   return (
-    <div className={`${isResults ? 'h-[100dvh]' : 'min-h-[100dvh]'} bg-background max-w-md mx-auto flex flex-col`}>
+    <div className="h-[100dvh] bg-background max-w-md mx-auto flex flex-col">
       {!isResults && (
-        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md">
+        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md pt-safe">
           <div className="flex items-center px-4 py-3 border-b">
             <button
               onClick={() => setLocation('/home')}
@@ -282,8 +282,8 @@ function PrepareStep() {
               />
             </div>
             <input
-              type="date"
-              placeholder="Purchase Date"
+              type="text"
+              placeholder="Purchase Date (e.g. 12/07/2026)"
               className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
               value={session?.metadata.purchaseDate || ''}
               onChange={(e) => updateMetadata({ purchaseDate: e.target.value })}
@@ -821,7 +821,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       </div>
 
       {/* Sticky footer */}
-      <div className="shrink-0 p-4 bg-background/95 backdrop-blur border-t space-y-3">
+      <div className="shrink-0 pt-4 px-4 pb-safe-4 bg-background/95 backdrop-blur border-t space-y-3">
         <button
           onClick={onFinish}
           disabled={saveFailed}

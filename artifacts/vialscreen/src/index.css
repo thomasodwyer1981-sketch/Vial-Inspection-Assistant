@@ -180,3 +180,15 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* ── Safe-area utilities (Capacitor / iOS / Android edge-to-edge) ── */
+@layer utilities {
+  .pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
+  .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe  { padding-left:   env(safe-area-inset-left,   0px); }
+  .pr-safe  { padding-right:  env(safe-area-inset-right,  0px); }
+  /* Additive variants — keeps existing padding + safe inset */
+  .pt-safe-4 { padding-top:    calc(env(safe-area-inset-top,    0px) + 1rem); }
+  .pb-safe-4 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); }
+  .pb-safe-6 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
+}
