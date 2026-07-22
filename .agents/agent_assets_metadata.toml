@@ -12,3 +12,9 @@ id = "erabdfBrLyfmFFriOREYg"
 uri = "file://vialscreen-completion-report.docx"
 type = "word_document"
 title = "VialScreen Completion Report (.docx)"
+
+[[outputs]]
+id = "IJ82vHbEsSY49Tu7xvTuY"
+uri = "file://app-release.aab"
+type = "unspecified"
+title = "PepScan signed AAB (app-release.aab)"
