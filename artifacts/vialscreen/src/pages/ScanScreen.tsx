@@ -12,6 +12,7 @@ import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers } from 'lucide-react';
 import { shareOrDownloadCard } from '@/utils/shareCard';
+import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { ScanStep } from '@/types';
 import { loadActiveSession } from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
@@ -895,6 +896,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [copied, setCopied] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const result = session?.analysisResult;
 
   // Text share — plain summary for any platform
@@ -940,6 +942,27 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       });
     } catch { /* silently fail */ } finally {
       setGeneratingCard(false);
+    }
+  };
+
+  // PDF report — includes vial photos
+  const handleSharePdf = async () => {
+    if (!result) return;
+    setShowShareSheet(false);
+    setGeneratingPdf(true);
+    try {
+      await shareOrDownloadPdf({
+        triageResult: result.triageResult,
+        overallConfidence: result.overallConfidence,
+        peptideName: session?.metadata.peptideName,
+        vendor: session?.metadata.vendor,
+        primaryReasons: result.primaryReasons,
+        ocrText: result.ocrText,
+        captures: session?.captures,
+        scannedAt: session?.metadata.scannedAt,
+      });
+    } catch { /* silently fail */ } finally {
+      setGeneratingPdf(false);
     }
   };
 
@@ -1082,11 +1105,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           </button>
           <button
             onClick={() => setShowShareSheet(true)}
-            disabled={generatingCard}
+            disabled={generatingCard || generatingPdf}
             className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <Share2 className="w-4 h-4" />
-            {generatingCard ? 'Creating…' : copied ? 'Copied!' : 'Share'}
+            {generatingCard ? 'Creating…' : generatingPdf ? 'PDF…' : copied ? 'Copied!' : 'Share'}
           </button>
         </div>
         <button onClick={() => setLocation('/limitations')} className="w-full text-center text-xs text-muted-foreground py-1">
@@ -1125,11 +1148,24 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                 </button>
 
                 <button
-                  onClick={handleShareText}
+                  onClick={handleSharePdf}
                   className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
                 >
                   <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
                     <FileText className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm text-foreground">PDF Report</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Branded report with vial photos included</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handleShareText}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
+                    <Share2 className="w-5 h-5 text-foreground" />
                   </div>
                   <div className="text-left flex-1">
                     <p className="font-bold text-sm text-foreground">Share Text Summary</p>

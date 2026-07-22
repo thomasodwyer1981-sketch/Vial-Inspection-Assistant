@@ -84,6 +84,7 @@
     "@revenuecat/purchases-capacitor": "^13.2.3",
     "@sentry/capacitor": "^4.2.0",
     "@sentry/react": "^10.67.0",
+    "jspdf": "^4.2.1",
     "tesseract.js": "^7.0.0"
   }
 }
