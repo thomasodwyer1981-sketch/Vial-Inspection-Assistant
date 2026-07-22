@@ -10,7 +10,8 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2 } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon } from 'lucide-react';
+import { shareOrDownloadCard } from '@/utils/shareCard';
 import { ScanStep } from '@/types';
 import { loadActiveSession } from '@/utils/storage';
 
@@ -700,6 +701,48 @@ function AnalysisStep() {
   );
 }
 
+// ── Finding context lookup ──────────────────────────────────────────────────
+
+const FINDING_CONTEXT_MAP: Array<{ test: RegExp; context: string }> = [
+  {
+    test: /visible.*particle|particle.*detected|detected.*particle/i,
+    context: 'Particles in a normally clear solution can indicate contamination, precipitation, or chemical degradation — always investigate before any use.',
+  },
+  {
+    test: /no.*(?:significant.*)?particle/i,
+    context: 'No visible particles is a positive sign, though submicron particles (< 0.1 mm) are too small to detect visually.',
+  },
+  {
+    test: /turbid|turbidity|haze|hazy|cloudy|cloudiness/i,
+    context: 'Cloudiness in a normally clear peptide may indicate bacterial contamination, degradation, or chemical precipitation.',
+  },
+  {
+    test: /unexpected.*colou?r|colou?r.*detected|discolou?r/i,
+    context: 'Unexpected colour change can signal oxidation, contamination, or chemical breakdown of the compound.',
+  },
+  {
+    test: /fill level|underfill|overfill/i,
+    context: 'Unusual fill level may indicate evaporation, vial damage, or an error during compounding.',
+  },
+  {
+    test: /differential.*(?:within|normal|range)|(?:within|normal|range).*differential/i,
+    context: 'The light-scatter difference between backgrounds was as expected — supporting a clear solution assessment.',
+  },
+  {
+    test: /quality.*degrad|image.*quality|blur|exposure/i,
+    context: 'Poor capture quality limits analysis accuracy. Retaking with better lighting and a steady hold will improve confidence.',
+  },
+];
+
+function getFindingContext(finding: string): string | null {
+  for (const { test, context } of FINDING_CONTEXT_MAP) {
+    if (test.test(finding)) return context;
+  }
+  return null;
+}
+
+// ── Results Step ────────────────────────────────────────────────────────────
+
 interface ResultsStepProps {
   onFinish: () => void;
   onRetake: () => void;
@@ -712,10 +755,14 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const { session } = useScanSessionContext();
   const [, setLocation] = useLocation();
   const [copied, setCopied] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [generatingCard, setGeneratingCard] = useState(false);
   const result = session?.analysisResult;
 
-  const handleShare = async () => {
+  // Text share — plain summary for any platform
+  const handleShareText = async () => {
     if (!result) return;
+    setShowShareSheet(false);
     const name = session?.metadata.peptideName;
     const lines = [
       'PepScan Screening Result',
@@ -730,26 +777,35 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       '⚠️ Visual screening only. Does not confirm safety, identity, purity, or potency.',
     ].filter((l): l is string => l !== null);
     const text = lines.join('\n');
-
     if ('share' in navigator) {
-      try {
-        await navigator.share({ title: 'PepScan Result', text });
-        return;
-      } catch {
-        // User cancelled — fall through to clipboard
-      }
+      try { await navigator.share({ title: 'PepScan Result', text }); return; } catch { /* fall through */ }
     }
-    // Clipboard fallback
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // Clipboard unavailable — silently ignore
+    } catch { /* unavailable */ }
+  };
+
+  // Image card — PNG designed for social sharing
+  const handleShareImageCard = async () => {
+    if (!result) return;
+    setShowShareSheet(false);
+    setGeneratingCard(true);
+    try {
+      await shareOrDownloadCard({
+        triageResult: result.triageResult,
+        overallConfidence: result.overallConfidence,
+        peptideName: session?.metadata.peptideName,
+        vendor: session?.metadata.vendor,
+        primaryReasons: result.primaryReasons,
+      });
+    } catch { /* silently fail */ } finally {
+      setGeneratingCard(false);
     }
   };
 
-  // Null guard — if results step renders without a result, show recovery state
+  // Null guard
   if (!result) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-center space-y-6 px-6">
@@ -758,23 +814,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         </div>
         <div>
           <h2 className="text-xl font-bold mb-2">Result Not Available</h2>
-          <p className="text-sm text-muted-foreground">
-            The analysis result could not be loaded. You can retake the scan or return home.
-          </p>
+          <p className="text-sm text-muted-foreground">The analysis result could not be loaded. You can retake the scan or return home.</p>
         </div>
         <div className="flex flex-col gap-3 w-full max-w-xs">
-          <button
-            onClick={onRetake}
-            className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold"
-          >
-            Start New Scan
-          </button>
-          <button
-            onClick={() => setLocation('/home')}
-            className="w-full bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm"
-          >
-            Back to Home
-          </button>
+          <button onClick={onRetake} className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold">Start New Scan</button>
+          <button onClick={() => setLocation('/home')} className="w-full bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm">Back to Home</button>
         </div>
       </div>
     );
@@ -793,25 +837,12 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             <HardDrive className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-destructive mb-0.5">Scan could not be saved</p>
-              <p className="text-xs text-destructive/80 leading-relaxed">
-                Device storage may be full. Free space by deleting older scans, then try again.
-                Your result is still visible and available to retry.
-              </p>
+              <p className="text-xs text-destructive/80 leading-relaxed">Device storage may be full. Free space by deleting older scans, then try again.</p>
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button
-              onClick={() => { onClearSaveFailure(); setLocation('/history'); }}
-              className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg"
-            >
-              Free Space →
-            </button>
-            <button
-              onClick={onRetrySave}
-              className="flex-1 bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 rounded-lg"
-            >
-              Try Again
-            </button>
+            <button onClick={() => { onClearSaveFailure(); setLocation('/history'); }} className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg">Free Space →</button>
+            <button onClick={onRetrySave} className="flex-1 bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 rounded-lg">Try Again</button>
           </div>
         </div>
       )}
@@ -821,26 +852,20 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         {/* Result header */}
         <div className="bg-card border-b px-6 py-10 text-center">
           <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
-          <h1 className="text-2xl font-bold tracking-tight mb-3">
-            {resultCopy.summary}
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed mb-4">
-            {resultCopy.caveat}
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight mb-3">{resultCopy.summary}</h1>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed mb-4">{resultCopy.caveat}</p>
 
           {/* Recommended action */}
           <div className="mt-4 bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">
-            <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">
-              Recommended Action
-            </p>
+            <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">Recommended Action</p>
             <p className="leading-relaxed">{resultCopy.action}</p>
           </div>
 
-          {/* Low confidence badge */}
+          {/* Low confidence */}
           {result.overallConfidence < 50 && (
             <div className="mt-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
               <AlertTriangle className="w-4 h-4" />
-              Low Confidence Score ({result.overallConfidence}%)
+              Low Confidence ({result.overallConfidence}%) — results less reliable
             </div>
           )}
 
@@ -854,38 +879,45 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         </div>
 
         <div className="p-6 space-y-8">
+          {/* ── What We Found ── */}
           <section>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
-              Primary Findings
-            </h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">What We Found</h2>
             <ul className="space-y-3">
-              {result.primaryReasons.map((reason, i) => (
-                <li
-                  key={i}
-                  className="flex gap-3 text-sm text-foreground bg-secondary/50 p-4 rounded-xl border"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full bg-foreground mt-1.5 shrink-0" />
-                  <span className="leading-relaxed">{reason}</span>
-                </li>
-              ))}
+              {result.primaryReasons.map((reason, i) => {
+                const context = getFindingContext(reason);
+                const isFlag =
+                  /particle.*detected|detected.*particle|haze|turbid|cloudy|unexpected.*colou?r/i.test(reason) &&
+                  !/no.*particle|within.*range|normal.*range/i.test(reason);
+                return (
+                  <li key={i} className={`rounded-xl border p-4 ${isFlag ? 'border-destructive/25 bg-destructive/5' : 'border-border bg-secondary/50'}`}>
+                    <div className="flex gap-3 items-start">
+                      <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isFlag ? 'bg-destructive' : 'bg-foreground/60'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground leading-relaxed font-medium">{reason}</p>
+                        {context && (
+                          <p className="text-xs text-muted-foreground leading-relaxed mt-2 italic border-t border-border/50 pt-2">
+                            {context}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </section>
 
           {result.ocrText && (
             <section>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
-                Extracted Label Text
-              </h2>
-              <div className="bg-muted p-4 rounded-xl font-mono text-xs text-muted-foreground break-words border">
-                {result.ocrText}
-              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Extracted Label Text</h2>
+              <div className="bg-muted p-4 rounded-xl font-mono text-xs text-muted-foreground break-words border">{result.ocrText}</div>
             </section>
           )}
 
+          {/* ── Category Breakdown ── */}
           <section>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
-              Category Breakdown
-            </h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-1">Category Breakdown</h2>
+            <p className="text-xs text-muted-foreground mb-4">Tap any category for full explanation and technical details.</p>
             <div className="space-y-3">
               {result.categories.map((cat) => (
                 <CategoryScoreCard key={cat.category} category={cat} />
@@ -904,30 +936,73 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           disabled={saveFailed}
           className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold shadow-md active:scale-[0.98] disabled:opacity-50"
         >
-          {saveFailed ? 'Save Failed — See Above' : 'Save & Finish'}
+          {saveFailed ? 'Save Failed — See Above' : 'Save Vial Record'}
         </button>
         <div className="flex gap-3">
-          <button
-            onClick={onRetake}
-            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98]"
-          >
+          <button onClick={onRetake} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98]">
             Retake
           </button>
           <button
-            onClick={handleShare}
-            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2"
+            onClick={() => setShowShareSheet(true)}
+            disabled={generatingCard}
+            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <Share2 className="w-4 h-4" />
-            {copied ? 'Copied!' : 'Share'}
+            {generatingCard ? 'Creating…' : copied ? 'Copied!' : 'Share'}
           </button>
         </div>
-        <button
-          onClick={() => setLocation('/limitations')}
-          className="w-full text-center text-xs text-muted-foreground py-1"
-        >
+        <button onClick={() => setLocation('/limitations')} className="w-full text-center text-xs text-muted-foreground py-1">
           View Limitations →
         </button>
       </div>
+
+      {/* ── Share Sheet ── */}
+      {showShareSheet && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowShareSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto bg-background rounded-t-2xl border-t shadow-2xl">
+            <div className="px-6 pt-5 pb-10">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="font-bold text-lg">Share Result</h3>
+                  <p className="text-muted-foreground text-xs mt-0.5">Choose how to share this screening result</p>
+                </div>
+                <button onClick={() => setShowShareSheet(false)} className="p-2 rounded-full hover:bg-muted active:bg-muted">
+                  <XIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleShareImageCard}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary text-primary-foreground active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-11 h-11 bg-primary-foreground/15 rounded-xl flex items-center justify-center shrink-0">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm">Share Image Card</p>
+                    <p className="text-xs opacity-70 mt-0.5">Designed for Instagram, Twitter &amp; WhatsApp</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handleShareText}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm text-foreground">Share Text Summary</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Plain text — works on any platform</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

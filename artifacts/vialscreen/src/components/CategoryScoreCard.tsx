@@ -7,7 +7,8 @@ interface CategoryScoreCardProps {
 }
 
 export default function CategoryScoreCard({ category }: CategoryScoreCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  // Non-pass categories start expanded so users immediately see the explanation
+  const [expanded, setExpanded] = useState(category.status !== 'pass');
   const [methodExpanded, setMethodExpanded] = useState(false);
 
   let statusIcon;

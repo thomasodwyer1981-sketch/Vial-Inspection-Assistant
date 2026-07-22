@@ -1,7 +1,7 @@
 import { Link } from 'wouter';
 import { ArrowLeft, Trash2, AlertTriangle, Lock, Zap } from 'lucide-react';
 import { getScanHistory, clearHistory, deleteSession } from '@/utils/storage';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import TriageBadge from '@/components/TriageBadge';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { APPEARANCE_PROFILES } from '@/types';
@@ -28,6 +28,16 @@ const PROFILE_BADGE: Record<
 export default function HistoryScreen() {
   const [history, setHistory] = useState(getScanHistory());
   const { isPro, isLoading: proLoading } = useProStatus();
+  const [view, setView] = useState<'all' | 'profiles'>('all');
+
+  // Group scans by peptide name for the "By Vial" profiles view
+  const vialProfiles = useMemo(
+    () =>
+      buildVialProfiles(history).sort(
+        (a, b) => new Date(b.latest.createdAt).getTime() - new Date(a.latest.createdAt).getTime(),
+      ),
+    [history],
+  );
 
   // Free tier: show first FREE_HISTORY_LIMIT scans; locked = the rest
   const visibleHistory = isPro ? history : history.slice(0, FREE_HISTORY_LIMIT);
@@ -79,6 +89,28 @@ export default function HistoryScreen() {
         )}
       </header>
 
+      {/* View tabs — only when there's history */}
+      {history.length > 0 && (
+        <div className="px-4 pt-4 pb-0 flex gap-2">
+          <button
+            onClick={() => setView('all')}
+            className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-colors ${
+              view === 'all' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-muted-foreground'
+            }`}
+          >
+            All Scans
+          </button>
+          <button
+            onClick={() => setView('profiles')}
+            className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-colors ${
+              view === 'profiles' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-muted-foreground'
+            }`}
+          >
+            By Vial
+          </button>
+        </div>
+      )}
+
       <div className="p-4 flex-1">
         {/* Free tier: at-limit banner */}
         {!proLoading && atLimit && (
@@ -127,6 +159,13 @@ export default function HistoryScreen() {
             >
               Start a Scan
             </Link>
+          </div>
+        ) : view === 'profiles' ? (
+          /* ── By Vial profiles view ── */
+          <div className="space-y-3">
+            {vialProfiles.map((profile) => (
+              <VialProfileCard key={profile.name} profile={profile} />
+            ))}
           </div>
         ) : (
           <div className="space-y-3">
@@ -232,6 +271,90 @@ export default function HistoryScreen() {
 
       <DisclaimerBanner />
     </div>
+  );
+}
+
+// ── Vial Profile Card ─────────────────────────────────────────────────────────
+
+type VialProfile = ReturnType<typeof buildVialProfiles>[0];
+
+function buildVialProfiles(
+  history: ReturnType<typeof getScanHistory>,
+) {
+  const map = new Map<string, typeof history>();
+  for (const item of history) {
+    const key = item.peptideName?.trim() || '(Unnamed)';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(item);
+  }
+  return Array.from(map.entries()).map(([name, items]) => {
+    const sorted = [...items].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    return {
+      name,
+      items: sorted,
+      latest: sorted[0],
+      passCount: items.filter((i) => i.triageResult === 'pass').length,
+      reviewCount: items.filter((i) => i.triageResult === 'review').length,
+      doNotUseCount: items.filter((i) => i.triageResult === 'do-not-use').length,
+    };
+  });
+}
+
+function VialProfileCard({ profile }: { profile: VialProfile }) {
+  const total = profile.items.length;
+  const thumbItems = profile.items.filter((i) => i.thumbnailDataUrl).slice(0, 4);
+
+  return (
+    <Link href={`/history/${profile.latest.id}`} className="block">
+      <div className="bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0 mr-3">
+            <h3 className="font-bold text-base truncate">{profile.name}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {total} {total === 1 ? 'scan' : 'scans'} · Last: {format(new Date(profile.latest.createdAt), 'MMM d, yyyy')}
+            </p>
+          </div>
+          <TriageBadge result={profile.latest.triageResult} size="sm" className="shrink-0" />
+        </div>
+
+        {/* Thumbnails */}
+        {thumbItems.length > 0 && (
+          <div className="flex gap-1.5 mb-3">
+            {thumbItems.map((item) => (
+              <div key={item.id} className="w-12 h-12 bg-black rounded-lg overflow-hidden border shrink-0">
+                <img src={item.thumbnailDataUrl!} alt="" className="w-full h-full object-cover opacity-80" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Verdict breakdown */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          {profile.passCount > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+              {profile.passCount} pass
+            </span>
+          )}
+          {profile.reviewCount > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              {profile.reviewCount} review
+            </span>
+          )}
+          {profile.doNotUseCount > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+              {profile.doNotUseCount} fail
+            </span>
+          )}
+          <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-primary">View latest →</span>
+        </div>
+      </div>
+    </Link>
   );
 }
 
