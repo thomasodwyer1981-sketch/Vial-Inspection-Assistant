@@ -483,7 +483,7 @@ function DualCaptureStep() {
     <div className="flex flex-col h-full space-y-4">
       {/* ── Dual progress pills ── */}
       <div className="flex gap-2.5">
-        {(['white', 'black'] as const).map((bg, i) => {
+        {(['white', 'black'] as const).filter(bg => !isPowderMode || bg === 'white').map((bg, i) => {
           const cap = bg === 'white' ? whiteCap : blackCap;
           const isActive = bg === activeBackground;
           const isDone = !!cap;

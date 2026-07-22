@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield, Sparkles } from 'lucide-react';
 import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
+import { useProStatus } from '@/hooks/useProStatus';
 
 export default function UpgradeScreen() {
+  const { isPro, proLoading } = useProStatus();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,23 +99,41 @@ export default function UpgradeScreen() {
 
         {/* CTA */}
         <div className="mt-auto space-y-3">
-          {error && (
-            <p className="text-sm text-destructive text-center bg-destructive/10 rounded-xl py-2 px-4">
-              {error}
-            </p>
+          {isPro ? (
+            <div className="rounded-2xl bg-primary/10 border border-primary/25 p-5 text-center">
+              <div className="w-10 h-10 bg-primary/15 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Sparkles className="w-5 h-5 text-primary" />
+              </div>
+              <p className="font-bold text-base mb-1">You're already on Pro</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Unlimited history, export / share, and powder scanning are all active on your account.
+              </p>
+              <Link
+                href="/home"
+                className="mt-4 inline-block text-sm font-bold text-primary hover:underline"
+              >
+                Back to Home →
+              </Link>
+            </div>
+          ) : (
+            <>
+              {error && (
+                <p className="text-sm text-destructive text-center bg-destructive/10 rounded-xl py-2 px-4">
+                  {error}
+                </p>
+              )}
+              <button
+                onClick={handleUpgrade}
+                disabled={loading || proLoading}
+                className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
+              >
+                {loading ? 'Starting checkout…' : `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`}
+              </button>
+              <p className="text-center text-xs text-muted-foreground">
+                Secure checkout powered by Whop. No recurring charges.
+              </p>
+            </>
           )}
-
-          <button
-            onClick={handleUpgrade}
-            disabled={loading}
-            className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
-          >
-            {loading ? 'Starting checkout…' : `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`}
-          </button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            Secure checkout powered by Whop. No recurring charges.
-          </p>
         </div>
       </div>
     </div>
