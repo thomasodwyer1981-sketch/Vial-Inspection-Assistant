@@ -60,6 +60,9 @@ export function refreshVerificationCache(): void {
 
 /** Build the full redirect URL for after Whop checkout completes. */
 export function buildUpgradeCompleteUrl(): string {
-  const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
-  return `${base}/upgrade-complete`;
+  // Use Vite's BASE_URL (the app's configured base path, e.g. /vialscreen/)
+  // rather than window.location.pathname, which includes the current page
+  // and would produce paths like /vialscreen/upgrade/upgrade-complete (wrong).
+  const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
+  return `${window.location.origin}${base}/upgrade-complete`;
 }

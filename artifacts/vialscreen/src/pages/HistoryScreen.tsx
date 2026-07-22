@@ -19,6 +19,10 @@ const PROFILE_BADGE: Record<
     label: 'GHK-Cu',
     className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   },
+  'glp1-clear': {
+    label: 'GLP-1',
+    className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  },
   'unknown-custom': {
     label: 'Custom',
     className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',

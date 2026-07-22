@@ -24,7 +24,7 @@ const CAPTURE_TIPS = [
 ];
 
 // Appearance profile options in display order
-const PROFILE_OPTIONS: AppearanceProfile[] = ['clear-standard', 'ghk-cu', 'unknown-custom'];
+const PROFILE_OPTIONS: AppearanceProfile[] = ['clear-standard', 'glp1-clear', 'ghk-cu', 'unknown-custom'];
 
 export default function ScanScreen() {
   return (
@@ -221,6 +221,11 @@ function PrepareStep() {
                       {isSelected && profile === 'ghk-cu' && (
                         <p className="text-xs text-primary/80 mt-1.5 font-medium">
                           Blue coloration will not be treated as a concern.
+                        </p>
+                      )}
+                      {isSelected && profile === 'glp1-clear' && (
+                        <p className="text-xs text-primary/80 mt-1.5 font-medium">
+                          Slight yellow or warm tint will not be penalized.
                         </p>
                       )}
                       {isSelected && profile === 'unknown-custom' && (
@@ -589,6 +594,9 @@ function ReviewStep() {
           <span>Profile: <span className="font-semibold text-foreground">{APPEARANCE_PROFILES[profile].label}</span></span>
           {profile === 'ghk-cu' && (
             <span className="ml-auto text-primary/80 font-medium">Blue tint expected</span>
+          )}
+          {profile === 'glp1-clear' && (
+            <span className="ml-auto text-primary/80 font-medium">Slight yellow OK</span>
           )}
           {profile === 'unknown-custom' && (
             <span className="ml-auto text-warning font-medium">Conservative mode</span>

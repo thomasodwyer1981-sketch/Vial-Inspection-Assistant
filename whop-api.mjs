@@ -5,8 +5,6 @@ const token = process.env.REPL_IDENTITY ? "repl " + process.env.REPL_IDENTITY
 const [method, path, bodyJson] = process.argv.slice(2);
 if (!method || !path) {
   console.log("Usage: node whop-api.mjs <METHOD> <path> ['{...}']");
-  console.log("  node whop-api.mjs GET  '/api/v1/products?company_id=biz_xxx'");
-  console.log("  node whop-api.mjs POST /api/v1/plans '{\"company_id\":\"biz_xxx\",...}'");
   process.exit(0);
 }
 

@@ -62,6 +62,7 @@ export type CategoryKey =
 export type AppearanceProfile =
   | 'clear-standard'   // Standard clear/colorless peptide after mixing
   | 'ghk-cu'           // GHK-Cu or similar blue-tinted compound
+  | 'glp1-clear'       // GLP-1 peptide hormones (semaglutide, tirzepatide) — slight yellow normal
   | 'unknown-custom';  // Unknown or non-standard appearance — conservative mode
 
 export const APPEARANCE_PROFILES: Record<
@@ -76,6 +77,11 @@ export const APPEARANCE_PROFILES: Record<
     label: 'GHK-Cu / Blue Peptide',
     description:
       'Blue coloration may be expected. Screens for haze, particles, or poor mixing.',
+  },
+  'glp1-clear': {
+    label: 'GLP-1 / Peptide Hormone',
+    description:
+      'Semaglutide, tirzepatide, and similar. Colorless to slight yellow is normal — deeper yellow, cloudiness, or particles are concerns.',
   },
   'unknown-custom': {
     label: 'Unknown / Custom Appearance',

@@ -284,6 +284,40 @@ async function scoreClarityHaze(
       }
     }
 
+    // ── GLP-1 / Peptide Hormone (semaglutide, tirzepatide) ────
+    // Colorless to slight yellow is physiologically normal for these compounds.
+    // Reduce the oxidation penalty for a light warm/yellow tint.
+    // Cloudiness, particles, and deeper amber are still flagged normally.
+    if (profile === 'glp1-clear') {
+      // Half the oxidation penalty: light tint is expected, heavy tint is still a concern.
+      const glp1AmberPenalty = oxidationSuspected ? 5 : 0;
+      const tintNote = oxidationSuspected
+        ? ' Slight yellow/warm tint detected. A very light tint is common in compounded GLP-1 preparations — deeper amber or golden coloration should be verified with your supplier or prescriber.'
+        : '';
+      const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+      const score = Math.round(Math.min(100, Math.max(0, blendScore(stdDevScore) - glp1AmberPenalty)));
+      const status = scoreToStatus(score);
+      const explanation =
+        score >= 70
+          ? `No significant cloudiness or haze detected.` +
+            (differential
+              ? ` Two-background brightness delta of ${Math.round(differential.brightnessDelta)} is consistent with a clear solution.`
+              : '') +
+            sedimentNote + tintNote
+          : score >= 40
+          ? `Possible cloudiness or haze detected.` +
+            (differential
+              ? ` Two-background brightness delta of ${Math.round(differential.brightnessDelta)} suggests some light scattering.`
+              : '') +
+            sedimentNote + tintNote
+          : `Significant turbidity detected. Compounded GLP-1 solutions should appear mostly clear.` +
+            sedimentNote + tintNote;
+      return {
+        category, label, score, status, explanation,
+        method: `GLP-1 profile: differential turbidity 65% + std dev 35%. Amber penalty=${glp1AmberPenalty} (reduced vs clear-standard). Delta=${differential ? Math.round(differential.brightnessDelta) : 'n/a'}. Sediment: ${differential?.sedimentSuspected ? 'POSITIVE' : 'clear'}.`,
+      };
+    }
+
     // ── Unknown / Custom Appearance ───────────────────────────
     if (profile === 'unknown-custom') {
       const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);

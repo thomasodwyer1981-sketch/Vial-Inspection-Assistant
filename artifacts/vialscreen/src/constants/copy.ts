@@ -55,6 +55,13 @@ export const APPEARANCE_PROFILE_COPY: Record<
     analysisNote:
       'Blue coloration is not treated as a flag. Analysis focuses on turbidity, particles, and mixing quality.',
   },
+  'glp1-clear': {
+    label: 'GLP-1 / Peptide Hormone',
+    description:
+      'Semaglutide, tirzepatide, and similar. Colorless to slight yellow is normal — deeper yellow, cloudiness, or particles are concerns.',
+    analysisNote:
+      'A slight yellow/warm tint is not penalized. Analysis focuses on turbidity, particles, and fill level.',
+  },
   'unknown-custom': {
     label: 'Unknown / Custom Appearance',
     description:
