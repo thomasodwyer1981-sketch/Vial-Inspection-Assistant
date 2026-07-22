@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { useScanSession } from '@/hooks/useScanSession';
+import { ScanSessionProvider, useScanSessionContext } from '@/context/ScanSessionContext';
 import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
 import { APPEARANCE_PROFILES, type AppearanceProfile } from '@/types';
 import StepProgress from '@/components/StepProgress';
@@ -26,6 +26,14 @@ const CAPTURE_TIPS = [
 const PROFILE_OPTIONS: AppearanceProfile[] = ['clear-standard', 'ghk-cu', 'unknown-custom'];
 
 export default function ScanScreen() {
+  return (
+    <ScanSessionProvider>
+      <ScanScreenInner />
+    </ScanSessionProvider>
+  );
+}
+
+function ScanScreenInner() {
   const [, setLocation] = useLocation();
   const [saveFailed, setSaveFailed] = useState(false);
 
@@ -45,7 +53,7 @@ export default function ScanScreen() {
     finalizeSession,
     retrySave,
     abandonSession,
-  } = useScanSession();
+  } = useScanSessionContext();
 
   // On mount: resume active session from storage or start fresh
   // Handles three cases:
@@ -143,7 +151,7 @@ export default function ScanScreen() {
 // ─── Step Components ───────────────────────────────────────────
 
 function PrepareStep() {
-  const { session, updateMetadata, advanceStep } = useScanSession();
+  const { session, updateMetadata, advanceStep } = useScanSessionContext();
   const [checkedItems, setCheckedItems] = useState<boolean[]>(
     new Array(SCAN_COPY.prepare.checklist.length).fill(false),
   );
@@ -324,7 +332,7 @@ function PrepareStep() {
 }
 
 function CaptureStep({ background }: { background: 'white' | 'black' }) {
-  const { addCapture, getCaptureForBackground, advanceStep } = useScanSession();
+  const { addCapture, getCaptureForBackground, advanceStep } = useScanSessionContext();
   const copy = background === 'white' ? SCAN_COPY.whiteCapture : SCAN_COPY.blackCapture;
   const existing = getCaptureForBackground(background);
 
@@ -395,7 +403,7 @@ function CaptureStep({ background }: { background: 'white' | 'black' }) {
 }
 
 function LabelCaptureStep() {
-  const { addCapture, getCaptureForBackground, advanceStep } = useScanSession();
+  const { addCapture, getCaptureForBackground, advanceStep } = useScanSessionContext();
   const copy = SCAN_COPY.labelCapture;
 
   const label1 = getCaptureForBackground('label');
@@ -459,7 +467,7 @@ function LabelCaptureStep() {
 }
 
 function ReviewStep() {
-  const { session, goToStep, runHeuristicAnalysis, advanceStep } = useScanSession();
+  const { session, goToStep, runHeuristicAnalysis, advanceStep } = useScanSessionContext();
 
   const handleAnalyze = async () => {
     advanceStep(); // Advance to analysis step UI immediately
@@ -562,7 +570,7 @@ function ReviewStep() {
 }
 
 function AnalysisStep() {
-  const { session, analysisError, analysisStatus, isAnalyzing, runHeuristicAnalysis } = useScanSession();
+  const { session, analysisError, analysisStatus, isAnalyzing, runHeuristicAnalysis } = useScanSessionContext();
 
   // Safety-net: if this step renders without analysis running (e.g., session was
   // resumed with currentStep stuck at 'analysis'), auto-trigger once on mount.
@@ -632,7 +640,7 @@ interface ResultsStepProps {
 }
 
 function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
-  const { session } = useScanSession();
+  const { session } = useScanSessionContext();
   const [, setLocation] = useLocation();
   const [copied, setCopied] = useState(false);
   const result = session?.analysisResult;
