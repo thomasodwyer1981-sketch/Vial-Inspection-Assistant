@@ -36,6 +36,7 @@ jobs:
         run: BASE_PATH=/ PORT=3000 pnpm --filter @workspace/vialscreen run build
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
 
       - name: Sync Capacitor → Android
         run: |

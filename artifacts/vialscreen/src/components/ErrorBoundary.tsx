@@ -25,8 +25,11 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Best-effort logging only — no crash reporting service
-    console.error('[VialScreen] Unhandled render error:', error, info.componentStack);
+    console.error('[PepScan] Unhandled render error:', error, info.componentStack);
+    // Send to Sentry when DSN is configured
+    import('../lib/sentry').then(({ captureError }) => {
+      captureError(error, { componentStack: info.componentStack ?? '' });
+    });
   }
 
   handleReset = () => {

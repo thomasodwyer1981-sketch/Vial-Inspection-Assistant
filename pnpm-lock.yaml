@@ -417,6 +417,12 @@ importers:
       '@capacitor/ios':
         specifier: ^8.4.2
         version: 8.4.2(@capacitor/core@8.4.2)
+      '@sentry/capacitor':
+        specifier: ^4.2.0
+        version: 4.2.0(@capacitor/core@8.4.2)(@sentry/react@10.67.0(react@19.1.0))
+      '@sentry/react':
+        specifier: ^10.67.0
+        version: 10.67.0(react@19.1.0)
       tesseract.js:
         specifier: ^7.0.0
         version: 7.0.0
@@ -1589,6 +1595,83 @@ packages:
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
+
+  '@sentry/browser-utils@10.60.0':
+    resolution: {integrity: sha512-YhdPeMJnMaKVi5NQ2tD9RJ2AxU7cav5khmiMHFppmbP3I3Os2EHVaQjAVb6/ePAINr/d5mj5SxpnWmFX17iXsg==}
+    engines: {node: '>=18'}
+
+  '@sentry/browser-utils@10.67.0':
+    resolution: {integrity: sha512-HUzaf0xAnPAB+OHBkD7N1Py+CTbD5InHulQ/pdhX4JctWtxuwD8odMD1LzdPnW8J6gVHlDVvcVBR8mXMZYSLSw==}
+    engines: {node: '>=18'}
+
+  '@sentry/browser@10.60.0':
+    resolution: {integrity: sha512-20vzPKGrmupJPCaWd+soCOLkZRwKZxt0AVF4XGPNoGp7D7wVPRlHf+FWwVMx+rRRkahKupFefM2D9YoiUiBeag==}
+    engines: {node: '>=18'}
+
+  '@sentry/browser@10.67.0':
+    resolution: {integrity: sha512-/ZhsAvte4rYhg0A0RtSFFgAgXhyMOfQIeOAfMfptN+X6IVSYOfkA9jtrP+Ej4+6vlaUFWRir1HweF56y63dEEA==}
+    engines: {node: '>=18'}
+
+  '@sentry/capacitor@4.2.0':
+    resolution: {integrity: sha512-ygK4EY0nwf+Uxm86kwvA231GM13yal0om5NbF9Ay+TxijK9NvyhMC571LDyWe5cS+Wxcbba1w++rUc0YumxJQA==}
+    peerDependencies:
+      '@capacitor/core': '>=3.0.0'
+      '@sentry/angular': 10.60.0
+      '@sentry/react': 10.60.0
+      '@sentry/vue': 10.60.0
+    peerDependenciesMeta:
+      '@sentry/angular':
+        optional: true
+      '@sentry/react':
+        optional: true
+      '@sentry/vue':
+        optional: true
+
+  '@sentry/conventions@0.16.0':
+    resolution: {integrity: sha512-fO9PLmHdVURcSPUpWCItWAtgKiMwGdJHbovoSEyLplX5sxs2ugvI4CBPTrkkgqhObnZOD0CnWBKDzSVQYBKEyQ==}
+    engines: {node: '>=14'}
+
+  '@sentry/core@10.60.0':
+    resolution: {integrity: sha512-szN7ccOJAEaLb1BBQzCQhABGMTJmKNUk0G2sc7rWhajeXoZoMKIbNkI9RvJrFuV69cbad/d/BKGBjbpJhySAzw==}
+    engines: {node: '>=18'}
+
+  '@sentry/core@10.67.0':
+    resolution: {integrity: sha512-b6U3pJ8AUvN9aouq0vl+VZI8KT8RslBsfGMFuNwRr313zOmdmFJBZqTiUw9VGgJ2jGKxLO9alm9rlxBfX4hf+w==}
+    engines: {node: '>=18'}
+
+  '@sentry/feedback@10.60.0':
+    resolution: {integrity: sha512-RcGUgaI8yrIXunhNLpdNLsBUJIDvnEGDRmFhC5v0oMltoGtovrIqrEhPXEiSWQvNB0x4q33ejkLeJRJoSDOp2w==}
+    engines: {node: '>=18'}
+
+  '@sentry/feedback@10.67.0':
+    resolution: {integrity: sha512-I4ML2/SF3enwikb6ZSoRiqolQrx0zSzTSnUgwCmugICF/jpHW0th1pCray9R+t1Zzibw/Dpj4t/DNXaSDRa2MA==}
+    engines: {node: '>=18'}
+
+  '@sentry/react@10.67.0':
+    resolution: {integrity: sha512-fS0DplcP9eMxBIRurPC/uxa4NrFK+l9ZsnvQo7wZvNutc7DpTAH0hgFt6laVNCe57s1pFo+OZuKsYBA6JDvH4Q==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: ^16.14.0 || 17.x || 18.x || 19.x
+
+  '@sentry/replay-canvas@10.60.0':
+    resolution: {integrity: sha512-mYyQRJbhRRaqUkRvkJZyqt9AWdomh4108LOAph1YJvV1jW7tKYPPFNAUveJd7YkYCyhUOtekN0DKNJveK802qA==}
+    engines: {node: '>=18'}
+
+  '@sentry/replay-canvas@10.67.0':
+    resolution: {integrity: sha512-neNA4T6MFtZzMdKYetiR+LZd9BNSd0q2szMn0wk+A15PqHE/IN7a34V6JZc9rCtmzB0wldh0eWGOBb49MSNKjA==}
+    engines: {node: '>=18'}
+
+  '@sentry/replay@10.60.0':
+    resolution: {integrity: sha512-j+w774BP1p+v/ga1hJAJSn0cXgTiB2VWwQCAxukF7AEXscny/OCXzTTsaPxdovw9kDHI641vKV+/yixLV2nKIQ==}
+    engines: {node: '>=18'}
+
+  '@sentry/replay@10.67.0':
+    resolution: {integrity: sha512-nkEUgPCR82EcyJkCf3XCE9H0R5KisCqyCAaSGxe7NpAoQbvASHx4MUNgXVAn+D0M494gvPZh6lFH7JgzqTcSqQ==}
+    engines: {node: '>=18'}
+
+  '@sentry/types@10.60.0':
+    resolution: {integrity: sha512-ZGBls8tft/yCLWf72ZG+/J0v1vOrX2k5Bb+Z62q0IwohwZJgE1HB+x695wiGSu0C6bf8WKgPNyVJO7Wq1Bylaw==}
+    engines: {node: '>=18'}
 
   '@shikijs/engine-oniguruma@3.23.0':
     resolution: {integrity: sha512-1nWINwKXxKKLqPibT5f4pAFLej9oZzQTsby8942OTlsJzOBZ0MWKiwzMsd+jhzu8YPCHAswGnnN1YtQfirL35g==}
@@ -4598,6 +4681,88 @@ snapshots:
       '@scalar/openapi-types': 0.9.1
 
   '@sec-ant/readable-stream@0.4.1': {}
+
+  '@sentry/browser-utils@10.60.0':
+    dependencies:
+      '@sentry/core': 10.60.0
+
+  '@sentry/browser-utils@10.67.0':
+    dependencies:
+      '@sentry/conventions': 0.16.0
+      '@sentry/core': 10.67.0
+
+  '@sentry/browser@10.60.0':
+    dependencies:
+      '@sentry/browser-utils': 10.60.0
+      '@sentry/core': 10.60.0
+      '@sentry/feedback': 10.60.0
+      '@sentry/replay': 10.60.0
+      '@sentry/replay-canvas': 10.60.0
+
+  '@sentry/browser@10.67.0':
+    dependencies:
+      '@sentry/browser-utils': 10.67.0
+      '@sentry/conventions': 0.16.0
+      '@sentry/core': 10.67.0
+      '@sentry/feedback': 10.67.0
+      '@sentry/replay': 10.67.0
+      '@sentry/replay-canvas': 10.67.0
+
+  '@sentry/capacitor@4.2.0(@capacitor/core@8.4.2)(@sentry/react@10.67.0(react@19.1.0))':
+    dependencies:
+      '@capacitor/core': 8.4.2
+      '@sentry/browser': 10.60.0
+      '@sentry/core': 10.60.0
+      '@sentry/types': 10.60.0
+    optionalDependencies:
+      '@sentry/react': 10.67.0(react@19.1.0)
+
+  '@sentry/conventions@0.16.0': {}
+
+  '@sentry/core@10.60.0': {}
+
+  '@sentry/core@10.67.0':
+    dependencies:
+      '@sentry/conventions': 0.16.0
+
+  '@sentry/feedback@10.60.0':
+    dependencies:
+      '@sentry/core': 10.60.0
+
+  '@sentry/feedback@10.67.0':
+    dependencies:
+      '@sentry/core': 10.67.0
+
+  '@sentry/react@10.67.0(react@19.1.0)':
+    dependencies:
+      '@sentry/browser': 10.67.0
+      '@sentry/conventions': 0.16.0
+      '@sentry/core': 10.67.0
+      react: 19.1.0
+
+  '@sentry/replay-canvas@10.60.0':
+    dependencies:
+      '@sentry/core': 10.60.0
+      '@sentry/replay': 10.60.0
+
+  '@sentry/replay-canvas@10.67.0':
+    dependencies:
+      '@sentry/core': 10.67.0
+      '@sentry/replay': 10.67.0
+
+  '@sentry/replay@10.60.0':
+    dependencies:
+      '@sentry/browser-utils': 10.60.0
+      '@sentry/core': 10.60.0
+
+  '@sentry/replay@10.67.0':
+    dependencies:
+      '@sentry/browser-utils': 10.67.0
+      '@sentry/core': 10.67.0
+
+  '@sentry/types@10.60.0':
+    dependencies:
+      '@sentry/core': 10.60.0
 
   '@shikijs/engine-oniguruma@3.23.0':
     dependencies:
