@@ -1,0 +1,108 @@
+Run chmod +x gradlew
+Downloading https://services.gradle.org/distributions/gradle-8.14.3-all.zip
+.....................10%.....................20%......................30%.....................40%......................50%.....................60%.....................70%......................80%.....................90%......................100%
+
+Welcome to Gradle 8.14.3!
+
+Here are the highlights of this release:
+ - Java 24 support
+ - GraalVM Native Image toolchain selection
+ - Enhancements to test reporting
+ - Build Authoring improvements
+
+For more details see https://docs.gradle.org/8.14.3/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :capacitor-cordova-android-plugins
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :sentry-capacitor
+Sentry Capacitor: Applying defaults for Capacitor 8 or higher
+Sentry Capacitor: Applying defaults for Capacitor 8 or higher
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :capacitor-android:preBuild UP-TO-DATE
+> Task :capacitor-android:preReleaseBuild UP-TO-DATE
+> Task :capacitor-android:processReleaseNavigationResources
+> Task :capacitor-cordova-android-plugins:preBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preReleaseBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:processReleaseNavigationResources
+> Task :sentry-capacitor:preBuild UP-TO-DATE
+> Task :sentry-capacitor:preReleaseBuild UP-TO-DATE
+> Task :sentry-capacitor:processReleaseNavigationResources
+> Task :app:processReleaseNavigationResources
+> Task :app:generateReleaseResValues
+> Task :app:compileReleaseNavigationResources
+> Task :capacitor-android:generateReleaseResValues
+> Task :capacitor-android:generateReleaseResources
+> Task :capacitor-android:packageReleaseResources
+> Task :capacitor-cordova-android-plugins:generateReleaseResValues
+> Task :capacitor-cordova-android-plugins:generateReleaseResources
+> Task :capacitor-cordova-android-plugins:packageReleaseResources
+> Task :sentry-capacitor:generateReleaseResValues
+> Task :sentry-capacitor:generateReleaseResources
+> Task :sentry-capacitor:packageReleaseResources
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :capacitor-android:extractDeepLinksRelease
+> Task :capacitor-android:processReleaseManifest
+> Task :capacitor-cordova-android-plugins:extractDeepLinksRelease
+> Task :capacitor-cordova-android-plugins:processReleaseManifest
+> Task :sentry-capacitor:extractDeepLinksRelease
+> Task :sentry-capacitor:processReleaseManifest
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processApplicationManifestReleaseForBundle
+> Task :capacitor-android:writeReleaseAarMetadata
+> Task :capacitor-cordova-android-plugins:writeReleaseAarMetadata
+> Task :sentry-capacitor:writeReleaseAarMetadata
+> Task :app:checkReleaseAarMetadata
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeReleaseResources
+> Task :app:packageReleaseResources
+> Task :capacitor-android:parseReleaseLocalResources
+> Task :app:parseReleaseLocalResources
+> Task :capacitor-android:compileReleaseLibraryResources
+> Task :capacitor-cordova-android-plugins:compileReleaseLibraryResources
+> Task :capacitor-cordova-android-plugins:parseReleaseLocalResources
+> Task :capacitor-android:generateReleaseRFile
+> Task :sentry-capacitor:compileReleaseLibraryResources
+> Task :capacitor-cordova-android-plugins:generateReleaseRFile
+> Task :sentry-capacitor:parseReleaseLocalResources
+> Task :app:extractReleaseVersionControlInfo
+> Task :sentry-capacitor:generateReleaseRFile
+> Task :capacitor-android:javaPreCompileRelease
+> Task :app:processReleaseResources
+> Task :capacitor-android:compileReleaseJavaWithJavac FAILED
+
+
+[Incubating] Problems report is available at: file:///home/runner/work/Vial-Inspection-Assistant/Vial-Inspection-Assistant/artifacts/vialscreen/android/build/reports/problems/problems-report.html
+FAILURE: Build failed with an exception.
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+* What went wrong:
+
+Execution failed for task ':capacitor-android:compileReleaseJavaWithJavac'.
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+> Java compilation initialization error
+
+    error: invalid source release: 21
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+49 actionable tasks: 49 executed
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 9s
+Error: Process completed with exit code 1.
