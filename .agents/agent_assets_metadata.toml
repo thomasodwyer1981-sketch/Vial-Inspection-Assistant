@@ -18,3 +18,9 @@ id = "IJ82vHbEsSY49Tu7xvTuY"
 uri = "file://app-release.aab"
 type = "unspecified"
 title = "PepScan signed AAB (app-release.aab)"
+
+[[outputs]]
+id = "V9HmP5QPheeSkhEM9waHg"
+uri = "file://attached_assets/pepscan-icon-512.png"
+type = "image"
+title = "PepScan App Icon (512×512)"
