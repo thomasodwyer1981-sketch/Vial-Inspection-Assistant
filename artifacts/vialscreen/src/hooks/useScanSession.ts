@@ -189,7 +189,8 @@ export function useScanSession(): UseScanSession {
         current.captures,
         current.metadata.peptideName || undefined,
         (phase) => setAnalysisStatus(phase),
-        current.metadata.appearanceProfile ?? null,  // pass selected profile to engine
+        current.metadata.appearanceProfile ?? null,
+        current.metadata.scanMode ?? 'reconstituted',
       );
 
       setSession((prev) => {

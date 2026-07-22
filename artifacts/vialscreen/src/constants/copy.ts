@@ -159,7 +159,7 @@ export const PREPARATION = {
 export const SCAN_COPY = {
   prepare: {
     title: 'Prepare Your Vial',
-    instruction: 'Before capturing, select an appearance profile and complete the preparation checklist.',
+    instruction: 'Select your scan type and complete the preparation checklist below.',
     profileHeading: 'Appearance Profile',
     profileSubheading: 'Select the profile that best describes what this vial is expected to look like. This affects how the analysis interprets color and clarity.',
     checklistHeading: 'Preparation Checklist',
@@ -169,6 +169,12 @@ export const SCAN_COPY = {
       'Lighting is bright and even',
       'Vial has been gently swirled or inverted and allowed to settle',
       'Any air bubbles have cleared (wait 10–15 seconds)',
+    ],
+    powderChecklist: [
+      'Vial is sealed and has NOT yet been reconstituted',
+      'White or neutral background is placed behind the vial',
+      'Lighting is bright and even — no shadows across the vial body',
+      'Full vial body and powder puck (visible at bottom) are in frame',
     ],
   },
 
@@ -180,6 +186,18 @@ export const SCAN_COPY = {
       'Ensure the full vial body is visible',
       'White background should be clearly visible behind and around the vial',
       'Avoid glare on the vial face',
+    ],
+    countdownNote: 'Hold steady — capturing in',
+  },
+
+  powderCapture: {
+    title: 'Powder Capture',
+    instruction: 'Hold the vial upright on a white or neutral background. The powder puck at the bottom should be clearly visible.',
+    tips: [
+      'Vial should be upright — powder settled at bottom',
+      'Use even, diffused light — no shadows across vial body',
+      'Full vial body including the powder puck must be in frame',
+      'Avoid glare on the glass surface',
     ],
     countdownNote: 'Hold steady — capturing in',
   },

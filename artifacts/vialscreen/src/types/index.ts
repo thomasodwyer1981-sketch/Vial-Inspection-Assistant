@@ -52,6 +52,15 @@ export type CategoryKey =
   | 'crackDamage'
   | 'glareInterference';
 
+// ---- Scan Mode --------------------------------------------
+
+/**
+ * Scan mode determines what kind of vial is being inspected.
+ * 'reconstituted' — liquid vial after adding BAC water (standard, free).
+ * 'powder'        — lyophilized / freeze-dried vial pre-mix (Pro feature).
+ */
+export type ScanMode = 'reconstituted' | 'powder';
+
 // ---- Appearance Profile -----------------------------------
 
 /**
@@ -154,6 +163,13 @@ export interface ScanMetadata {
    * Null means not selected (should be required before analysis starts).
    */
   appearanceProfile: AppearanceProfile | null;
+
+  /**
+   * Scan mode. 'reconstituted' for liquid vials after BAC water.
+   * 'powder' for lyophilized vials before reconstitution (Pro feature).
+   * Optional for backward compatibility with pre-existing sessions.
+   */
+  scanMode?: ScanMode;
 }
 
 // ---- Analysis Result --------------------------------------

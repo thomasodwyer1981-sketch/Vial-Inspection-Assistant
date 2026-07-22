@@ -232,6 +232,7 @@ export function createNewSession(): ScanSession {
       purchaseDate: '',
       notes: '',
       appearanceProfile: null,
+      scanMode: 'reconstituted',
     },
     captures: [],
     analysisResult: null,

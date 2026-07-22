@@ -4,3 +4,4 @@
 - [Appearance profile design](vialscreen-profiles.md) — how AppearanceProfile flows from type → engine → UI and backward compat rules
 - [Save/retry persistence fix](vialscreen-save-retry.md) — pendingSave flag design: why finalizeSession must NOT clear active session on failure
 - [Results & sharing features](vialscreen-results-features.md) — share card canvas generator, contextual findings, By Vial history tab
+- [Scan modes and powder analysis](vialscreen-scan-modes.md) — ScanMode type, powder flow, Pro gate, wallpaper CSS approach

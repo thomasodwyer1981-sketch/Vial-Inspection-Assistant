@@ -65,7 +65,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* LIGHT MODE - Clinical Precision */
+/* LIGHT MODE */
 :root {
   --button-outline: rgba(0, 0, 0, 0.1);
   --badge-outline: rgba(0, 0, 0, 0.05);
@@ -73,7 +73,7 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  --background: 220 20% 97%;
+  --background: 215 45% 97%;
   --foreground: 220 40% 10%;
   --border: 220 15% 85%;
   --input: 220 15% 85%;
@@ -177,7 +177,14 @@
     @apply border-border;
   }
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased text-foreground;
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(20, 201, 160, 0.13) 0%, transparent 100%),
+      radial-gradient(ellipse 60% 40% at 80% 110%, rgba(14, 30, 53, 0.09) 0%, transparent 100%),
+      radial-gradient(circle, rgba(20, 201, 160, 0.07) 1.5px, transparent 1.5px);
+    background-size: auto, auto, 26px 26px;
+    background-attachment: fixed;
   }
 }
 
@@ -191,4 +198,16 @@
   .pt-safe-4 { padding-top:    calc(env(safe-area-inset-top,    0px) + 1rem); }
   .pb-safe-4 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); }
   .pb-safe-6 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
+
+  /* Wallpaper — any element with bg-background shares the fixed dot-grid + glow.
+     background-attachment:fixed means all instances show the same viewport-aligned pattern. */
+  .bg-background {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(20, 201, 160, 0.13) 0%, transparent 100%),
+      radial-gradient(ellipse 60% 40% at 80% 110%, rgba(14, 30, 53, 0.09) 0%, transparent 100%),
+      radial-gradient(circle, rgba(20, 201, 160, 0.07) 1.5px, transparent 1.5px);
+    background-size: auto, auto, 26px 26px;
+    background-attachment: fixed;
+  }
 }

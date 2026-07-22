@@ -21,6 +21,7 @@ import type {
   MediaCapture,
   TriageResult,
   AppearanceProfile,
+  ScanMode,
 } from '../types';
 import {
   loadImage,
@@ -870,6 +871,180 @@ async function scoreGlareInterference(captures: MediaCapture[]): Promise<Categor
 }
 
 // ----------------------------------------------------------------
+// POWDER APPEARANCE (powder/pre-mix mode only)
+// Analyzes white-background capture for lyophilized powder color.
+// White/off-white: pass. Yellow/amber tint: oxidation flag.
+// ----------------------------------------------------------------
+async function scorePowderAppearance(captures: MediaCapture[]): Promise<CategoryScore> {
+  const category: CategoryKey = 'clarity'; // reuses clarity slot in results display
+  const label = 'Powder Appearance';
+
+  const whiteCapture = captures.find((c) => c.background === 'white');
+
+  if (!whiteCapture) {
+    return {
+      category, label, score: 0, status: 'unable',
+      explanation: 'No capture available for powder appearance assessment.',
+      method: 'Requires white background capture.',
+    };
+  }
+
+  try {
+    const img = await loadImage(whiteCapture.dataUrl);
+    const { ctx, width, height } = drawToCanvas(img, 512);
+    const imageData = ctx.getImageData(0, 0, width, height);
+
+    const color = computeColorProfile(imageData);
+    const stats = computePixelStats(imageData);
+
+    // Yellow/amber tinting in lyophilized powder → possible degradation or oxidation.
+    const amberPenalty = color.amberDominant ? 22 : 0;
+
+    // Abnormally dark overall image (mean brightness < 170) may indicate
+    // discoloured or contaminated powder. Shadows can also cause this — flag conservatively.
+    const darkPowderPenalty = stats.meanBrightness < 170 ? 12 : 0;
+
+    const score = Math.max(0, Math.min(100, 82 - amberPenalty - darkPowderPenalty));
+    const status = scoreToStatus(score);
+
+    const amberNote = color.amberDominant
+      ? ' Yellow or amber tinting detected. Freshly lyophilized peptides are typically white to off-white; yellow/amber coloration may indicate degradation, oxidation, or impurity. Verify against supplier certificate of analysis.'
+      : '';
+    const darkNote = darkPowderPenalty > 0
+      ? ' Image is darker than expected — check for shadows across the vial body and review the powder color carefully.'
+      : '';
+
+    return {
+      category, label, score, status,
+      explanation:
+        score >= 70
+          ? `Powder appears consistent with expected white to off-white lyophilized appearance.${amberNote}${darkNote}`
+          : score >= 40
+          ? `Powder appearance may be abnormal. Visual review recommended.${amberNote}${darkNote}`
+          : `Significant powder color anomaly detected. Verify before reconstitution.${amberNote}${darkNote}`,
+      method: `Powder mode: color profile + brightness (mean=${Math.round(stats.meanBrightness)}). Amber penalty=${amberPenalty}, dark penalty=${darkPowderPenalty}.`,
+    };
+  } catch {
+    return {
+      category, label, score: 40, status: 'review',
+      explanation: 'Powder appearance analysis encountered an error.',
+      method: 'Analysis failed.',
+    };
+  }
+}
+
+// ----------------------------------------------------------------
+// POWDER MODE ANALYSIS ENGINE
+// Runs only the scorers relevant to lyophilized/pre-mix vials.
+// Skips: turbidity/clarity, visible particles, fill level.
+// ----------------------------------------------------------------
+async function runPowderAnalysis(
+  captures: MediaCapture[],
+  expectedPeptideName?: string,
+  onProgress?: (phase: string) => void,
+): Promise<AnalysisResult> {
+  onProgress?.('Analyzing powder appearance…');
+
+  const [
+    captureQualityScore,
+    powderScore,
+    capScore,
+    ocrScore,
+    crackScore,
+    glareScore,
+  ] = await Promise.all([
+    scoreCaptureQuality(captures),
+    scorePowderAppearance(captures),
+    scoreCapIntegrity(captures),
+    scoreLabelOcr(captures, expectedPeptideName, onProgress),
+    scoreCrackDamage(captures),
+    scoreGlareInterference(captures),
+  ]);
+
+  const categories: CategoryScore[] = [
+    captureQualityScore,
+    powderScore,
+    capScore,
+    ocrScore,
+    crackScore,
+    glareScore,
+  ];
+
+  const qualityMultiplier = captureQualityScore.score < 40 ? 0.6
+    : captureQualityScore.score < 60 ? 0.8 : 1.0;
+  const glareMultiplier = glareScore.score < 40 ? 0.7
+    : glareScore.score < 60 ? 0.85 : 1.0;
+
+  const scoreable = categories.filter((c) => c.status !== 'unable');
+  const avgScore = scoreable.length > 0
+    ? scoreable.reduce((sum, c) => sum + c.score, 0) / scoreable.length
+    : 50;
+
+  const overallConfidence = Math.round(avgScore * qualityMultiplier * glareMultiplier);
+  const qualityDegraded = captureQualityScore.score < 50 || glareScore.score < 40;
+
+  const flaggedCategories = categories.filter((c) => c.status === 'flag');
+  const reviewCategories = categories.filter((c) => c.status === 'review');
+
+  let ocrText: string | null = null;
+  if (ocrScore.status !== 'unable') {
+    const match = ocrScore.explanation.match(/Extracted: "([^"]+)"/);
+    if (match) ocrText = match[1];
+  }
+
+  let triageResult: TriageResult;
+  const primaryReasons: string[] = [];
+
+  if (flaggedCategories.length >= 2) {
+    triageResult = 'do-not-use';
+    primaryReasons.push(
+      `${flaggedCategories.length} category(ies) flagged: ` +
+      flaggedCategories.map((c) => c.label).join(', '),
+    );
+  } else if (flaggedCategories.length === 1) {
+    triageResult = 'review';
+    primaryReasons.push(`Flagged: ${flaggedCategories[0].label} — ${flaggedCategories[0].explanation}`);
+  } else if (reviewCategories.length >= 3 || qualityDegraded) {
+    triageResult = 'review';
+    primaryReasons.push(
+      reviewCategories.length >= 3
+        ? `${reviewCategories.length} categories require review: ` +
+          reviewCategories.map((c) => c.label).join(', ')
+        : 'Capture quality is insufficient for reliable screening. Retake with better lighting and focus.',
+    );
+  } else if (reviewCategories.length > 0) {
+    triageResult = 'review';
+    primaryReasons.push(
+      `${reviewCategories.length} category(ies) uncertain: ` +
+      reviewCategories.map((c) => c.label).join(', '),
+    );
+  } else {
+    triageResult = 'pass';
+    primaryReasons.push(
+      'No obvious visual anomalies detected in the lyophilized powder. ' +
+      'Verify appearance matches your supplier certificate of analysis. ' +
+      'A pass does not confirm purity, identity, or potency.',
+    );
+  }
+
+  if (overallConfidence < 50) {
+    primaryReasons.push(
+      'Overall screening confidence is low due to capture quality. Consider retaking.',
+    );
+  }
+
+  return {
+    triageResult,
+    overallConfidence,
+    categories,
+    primaryReasons,
+    qualityDegraded,
+    ocrText,
+    profileUsed: null,
+  };
+}
+
+// ----------------------------------------------------------------
 // MAIN ENGINE: Run all scorers and derive overall result
 // ----------------------------------------------------------------
 export async function runAnalysis(
@@ -877,7 +1052,13 @@ export async function runAnalysis(
   expectedPeptideName?: string,
   onProgress?: (phase: string) => void,
   profile?: AppearanceProfile | null,
+  scanMode?: ScanMode | null,
 ): Promise<AnalysisResult> {
+  // Route to powder-specific analysis for lyophilized pre-mix vials
+  if (scanMode === 'powder') {
+    return runPowderAnalysis(captures, expectedPeptideName, onProgress);
+  }
+
   onProgress?.('Analyzing capture quality…');
 
   const resolvedProfile = profile ?? null;

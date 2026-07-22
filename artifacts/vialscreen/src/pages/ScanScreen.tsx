@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { ScanSessionProvider, useScanSessionContext } from '@/context/ScanSessionContext';
 import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
-import { APPEARANCE_PROFILES, type AppearanceProfile, type CaptureBackground } from '@/types';
+import { APPEARANCE_PROFILES, type AppearanceProfile, type CaptureBackground, type ScanMode } from '@/types';
 import StepProgress from '@/components/StepProgress';
 import CaptureButton from '@/components/CaptureButton';
 import MediaPreview from '@/components/MediaPreview';
@@ -10,10 +10,12 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers } from 'lucide-react';
 import { shareOrDownloadCard } from '@/utils/shareCard';
 import { ScanStep } from '@/types';
 import { loadActiveSession } from '@/utils/storage';
+import { useProStatus } from '@/hooks/useProStatus';
+import { PRO_PRICE_DISPLAY } from '@/utils/pro';
 
 // Inline capture quality tips shown on white/black capture steps
 const CAPTURE_TIPS = [
@@ -82,6 +84,13 @@ function ScanScreenInner() {
       advanceStep();
     }
   }, [currentStep, isAnalyzing, session?.analysisResult, analysisError, advanceStep]);
+
+  // Auto-skip black-capture in powder mode — only white background capture is needed
+  useEffect(() => {
+    if (currentStep === 'black-capture' && session?.metadata.scanMode === 'powder') {
+      advanceStep();
+    }
+  }, [currentStep, session?.metadata.scanMode, advanceStep]);
 
   if (!session || !currentStep) return <div className="min-h-[100dvh] bg-background" />;
 
@@ -152,15 +161,35 @@ function ScanScreenInner() {
 
 function PrepareStep() {
   const { session, updateMetadata, advanceStep } = useScanSessionContext();
+  const { isPro } = useProStatus();
+  const [, navigate] = useLocation();
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+
+  const scanMode: ScanMode = (session?.metadata.scanMode ?? 'reconstituted') as ScanMode;
+  const isPowder = scanMode === 'powder';
+
+  const activeChecklist = isPowder
+    ? SCAN_COPY.prepare.powderChecklist
+    : SCAN_COPY.prepare.checklist;
+
   const [checkedItems, setCheckedItems] = useState<boolean[]>(
-    new Array(SCAN_COPY.prepare.checklist.length).fill(false),
+    new Array(activeChecklist.length).fill(false),
   );
+
+  // Reset checklist when scan mode changes
+  const prevScanModeRef = useRef<ScanMode>(scanMode);
+  useEffect(() => {
+    if (prevScanModeRef.current !== scanMode) {
+      prevScanModeRef.current = scanMode;
+      setCheckedItems(new Array(activeChecklist.length).fill(false));
+    }
+  }, [scanMode, activeChecklist.length]);
 
   const allChecked = checkedItems.every(Boolean);
   const selectedProfile = session?.metadata.appearanceProfile ?? null;
 
-  // Begin Capture requires both a profile selection AND all checklist items checked
-  const canProceed = allChecked && selectedProfile !== null;
+  // Powder mode: no appearance profile required (analysis is profile-agnostic)
+  const canProceed = isPowder ? allChecked : (allChecked && selectedProfile !== null);
 
   const handleCheck = (index: number, val: boolean) => {
     const newItems = [...checkedItems];
@@ -172,6 +201,15 @@ function PrepareStep() {
     updateMetadata({ appearanceProfile: profile });
   };
 
+  const handleScanModeSelect = (mode: ScanMode) => {
+    if (mode === 'powder' && !isPro) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+    setShowUpgradePrompt(false);
+    updateMetadata({ scanMode: mode });
+  };
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div>
@@ -181,65 +219,138 @@ function PrepareStep() {
 
       <div className="flex-1 overflow-y-auto space-y-6 -mx-1 px-1">
 
-        {/* ── Appearance Profile Selection ── */}
+        {/* ── Scan Type Selection ── */}
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Palette className="w-4 h-4 text-muted-foreground shrink-0" />
+            <Layers className="w-4 h-4 text-muted-foreground shrink-0" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              {SCAN_COPY.prepare.profileHeading}
+              Scan Type
             </h3>
           </div>
           <p className="text-xs text-muted-foreground mb-3 pl-6">
-            {SCAN_COPY.prepare.profileSubheading}
+            Select the state of the vial you are screening.
           </p>
-          <div className="space-y-2">
-            {PROFILE_OPTIONS.map((profile) => {
-              const info = APPEARANCE_PROFILES[profile];
-              const copy = APPEARANCE_PROFILE_COPY[profile];
-              const isSelected = selectedProfile === profile;
-              return (
-                <button
-                  key={profile}
-                  onClick={() => handleProfileSelect(profile)}
-                  className={`w-full text-left rounded-xl border p-4 transition-colors ${
-                    isSelected
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                      : 'border-border bg-card hover:bg-muted/50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${
-                      isSelected ? 'border-primary' : 'border-muted-foreground/40'
-                    }`}>
-                      {isSelected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm leading-snug">{info.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                        {copy.description}
-                      </p>
-                      {isSelected && profile === 'ghk-cu' && (
-                        <p className="text-xs text-primary/80 mt-1.5 font-medium">
-                          Blue coloration will not be treated as a concern.
-                        </p>
-                      )}
-                      {isSelected && profile === 'glp1-clear' && (
-                        <p className="text-xs text-primary/80 mt-1.5 font-medium">
-                          Slight yellow or warm tint will not be penalized.
-                        </p>
-                      )}
-                      {isSelected && profile === 'unknown-custom' && (
-                        <p className="text-xs text-warning mt-1.5 font-medium">
-                          Conservative mode — uncertain findings default to Review.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleScanModeSelect('reconstituted')}
+              className={`text-left rounded-xl border p-3 transition-colors ${
+                scanMode === 'reconstituted'
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                  : 'border-border bg-card hover:bg-muted/50'
+              }`}
+            >
+              <p className="text-xl mb-1.5">🧪</p>
+              <p className="font-semibold text-sm leading-snug">Liquid</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                After adding BAC water
+              </p>
+            </button>
+
+            <button
+              onClick={() => handleScanModeSelect('powder')}
+              className={`text-left rounded-xl border p-3 transition-colors relative ${
+                scanMode === 'powder'
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                  : 'border-border bg-card hover:bg-muted/50'
+              }`}
+            >
+              {!isPro && (
+                <div className="absolute top-2 right-2 bg-primary/10 rounded-full p-0.5">
+                  <Lock className="w-3 h-3 text-primary" />
+                </div>
+              )}
+              <p className="text-xl mb-1.5">🔬</p>
+              <p className="font-semibold text-sm leading-snug">Pre-Mix Powder</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                Lyophilized, before mixing
+                {!isPro && <span className="text-primary font-medium"> · Pro</span>}
+              </p>
+            </button>
           </div>
+
+          {showUpgradePrompt && !isPro && (
+            <div className="mt-3 rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-start gap-3">
+              <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-primary">Pro Feature</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Pre-mix powder scanning is part of PepScan Pro — one-time {PRO_PRICE_DISPLAY} unlock.
+                </p>
+                <button
+                  onClick={() => navigate('/upgrade')}
+                  className="mt-2 text-xs font-bold text-primary hover:underline"
+                >
+                  Unlock Pro →
+                </button>
+              </div>
+              <button onClick={() => setShowUpgradePrompt(false)} className="text-muted-foreground">
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* ── Appearance Profile Selection (liquid mode only) ── */}
+        {!isPowder && (
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Palette className="w-4 h-4 text-muted-foreground shrink-0" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                {SCAN_COPY.prepare.profileHeading}
+              </h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3 pl-6">
+              {SCAN_COPY.prepare.profileSubheading}
+            </p>
+            <div className="space-y-2">
+              {PROFILE_OPTIONS.map((profile) => {
+                const info = APPEARANCE_PROFILES[profile];
+                const copy = APPEARANCE_PROFILE_COPY[profile];
+                const isSelected = selectedProfile === profile;
+                return (
+                  <button
+                    key={profile}
+                    onClick={() => handleProfileSelect(profile)}
+                    className={`w-full text-left rounded-xl border p-4 transition-colors ${
+                      isSelected
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                        : 'border-border bg-card hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 flex items-center justify-center ${
+                        isSelected ? 'border-primary' : 'border-muted-foreground/40'
+                      }`}>
+                        {isSelected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm leading-snug">{info.label}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                          {copy.description}
+                        </p>
+                        {isSelected && profile === 'ghk-cu' && (
+                          <p className="text-xs text-primary/80 mt-1.5 font-medium">
+                            Blue coloration will not be treated as a concern.
+                          </p>
+                        )}
+                        {isSelected && profile === 'glp1-clear' && (
+                          <p className="text-xs text-primary/80 mt-1.5 font-medium">
+                            Slight yellow or warm tint will not be penalized.
+                          </p>
+                        )}
+                        {isSelected && profile === 'unknown-custom' && (
+                          <p className="text-xs text-warning mt-1.5 font-medium">
+                            Conservative mode — uncertain findings default to Review.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Preparation Checklist ── */}
         <div>
@@ -247,9 +358,9 @@ function PrepareStep() {
             {SCAN_COPY.prepare.checklistHeading}
           </h3>
           <div className="space-y-3">
-            {SCAN_COPY.prepare.checklist.map((item, i) => (
+            {activeChecklist.map((item, i) => (
               <ChecklistItem
-                key={i}
+                key={`${scanMode}-${i}`}
                 label={item}
                 checked={checkedItems[i]}
                 onCheckedChange={(c) => handleCheck(i, c)}
@@ -312,14 +423,14 @@ function PrepareStep() {
         </div>
       </div>
 
-      {/* Gate button on both profile selection and checklist */}
+      {/* Gate button on profile selection (liquid) and checklist (both modes) */}
       <div className="space-y-2 pt-2">
-        {!selectedProfile && (
+        {!isPowder && !selectedProfile && (
           <p className="text-xs text-muted-foreground text-center">
             Select an appearance profile above to continue.
           </p>
         )}
-        {selectedProfile && !allChecked && (
+        {(isPowder || selectedProfile) && !allChecked && (
           <p className="text-xs text-muted-foreground text-center">
             Complete the preparation checklist to continue.
           </p>
@@ -337,16 +448,19 @@ function PrepareStep() {
 }
 
 function DualCaptureStep() {
-  const { addCapture, getCaptureForBackground, advanceStep, currentStep } = useScanSessionContext();
+  const { session, addCapture, getCaptureForBackground, advanceStep, currentStep } = useScanSessionContext();
   const [transitioning, setTransitioning] = useState(false);
   const prevStepRef = useRef(currentStep);
 
   const isBlackPhase = currentStep === 'black-capture';
+  const isPowderMode = session?.metadata.scanMode === 'powder';
   const activeBackground: CaptureBackground = isBlackPhase ? 'black' : 'white';
   const whiteCap = getCaptureForBackground('white');
   const blackCap = getCaptureForBackground('black');
   const existing = getCaptureForBackground(activeBackground);
-  const copy = isBlackPhase ? SCAN_COPY.blackCapture : SCAN_COPY.whiteCapture;
+  const copy = isBlackPhase
+    ? SCAN_COPY.blackCapture
+    : (isPowderMode ? SCAN_COPY.powderCapture : SCAN_COPY.whiteCapture);
 
   // Trigger slide-in animation when background phase changes
   useEffect(() => {
