@@ -1,0 +1,65 @@
+name: Build Android AAB
+
+on:
+  workflow_dispatch: # Run manually from GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build web app
+        run: pnpm --filter @workspace/vialscreen run build
+        env:
+          VITE_API_BASE_URL: https://pepscan.replit.app
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Sync Capacitor
+        working-directory: artifacts/vialscreen
+        run: npx cap sync android --no-open
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > artifacts/vialscreen/android/app/pepscan-key.jks
+
+      - name: Build signed AAB
+        working-directory: artifacts/vialscreen/android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=app/pepscan-key.jks \
+            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: pepscan-release
+          path: artifacts/vialscreen/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30

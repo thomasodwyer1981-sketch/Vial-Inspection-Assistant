@@ -1,5 +1,10 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
+# Android signing keys — never commit these
+*.jks
+*.keystore
+pepscan-keystore-base64.txt
+
 # compiled output
 dist
 tmp
