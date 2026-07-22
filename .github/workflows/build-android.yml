@@ -29,6 +29,8 @@ jobs:
         run: pnpm --filter @workspace/vialscreen run build
         env:
           VITE_API_BASE_URL: https://pepscan.replit.app
+          PORT: "3000"
+          BASE_PATH: "/"
 
       - name: Setup Java
         uses: actions/setup-java@v4
