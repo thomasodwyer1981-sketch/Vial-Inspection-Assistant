@@ -26,6 +26,7 @@ WHOP_COMPANY_ID = "biz_AkaNOYEhAyYo0V"
 WHOP_PLAN_ID = "plan_CYV6n06EK7y0Z"
 WHOP_PRODUCT_ID = "prod_jdqgC3DWWQLEO"
 VITE_API_BASE_URL = "https://pepscan.replit.app"
+VITE_REVENUECAT_API_KEY = "test_qyXJnrdLXTJhARfJDQUkVFHdcMA"
 
 [nix]
 channel = "stable-25_05"

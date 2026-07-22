@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield, Sparkles, RotateCcw, Loader2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
 import { useProStatus, activateProUnlock } from '@/hooks/useProStatus';
+import { purchaseRCPro, restoreRCPurchases } from '@/utils/revenuecat';
+
+const isNative = Capacitor.isNativePlatform();
 
 export default function UpgradeScreen() {
   const [, navigate] = useLocation();
@@ -11,13 +15,51 @@ export default function UpgradeScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Restore flow state
+  // Restore flow state (web: membership ID input; native: RC restore button)
   const [showRestore, setShowRestore] = useState(false);
   const [restoreId, setRestoreId] = useState('');
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
-  const handleUpgrade = async () => {
+  // ── Native (Google Play) purchase via RevenueCat ──
+  const handleNativePurchase = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const success = await purchaseRCPro();
+      if (success) {
+        await recheck();
+        navigate('/home');
+      }
+      // If false the user cancelled — just reset loading, no error
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Purchase failed. Please try again.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNativeRestore = async () => {
+    setRestoreLoading(true);
+    setRestoreError(null);
+    try {
+      const restored = await restoreRCPurchases();
+      if (restored) {
+        await recheck();
+        navigate('/home');
+      } else {
+        setRestoreError('No previous purchase found for this Google account.');
+      }
+    } catch {
+      setRestoreError('Restore failed. Please try again.');
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
+  // ── Web (Whop) purchase ──
+  const handleWebPurchase = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -36,7 +78,7 @@ export default function UpgradeScreen() {
     }
   };
 
-  const handleRestore = async () => {
+  const handleWebRestore = async () => {
     const id = restoreId.trim();
     if (!id) {
       setRestoreError('Please paste your membership ID.');
@@ -46,7 +88,6 @@ export default function UpgradeScreen() {
       setRestoreError('Membership IDs start with mem_ — check your Whop account.');
       return;
     }
-
     setRestoreLoading(true);
     setRestoreError(null);
     try {
@@ -157,79 +198,111 @@ export default function UpgradeScreen() {
                   {error}
                 </p>
               )}
+
+              {/* Purchase button */}
               <button
-                onClick={handleUpgrade}
+                onClick={isNative ? handleNativePurchase : handleWebPurchase}
                 disabled={loading || proLoading}
                 className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
               >
-                {loading ? 'Starting checkout…' : `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`}
+                {loading
+                  ? 'Processing…'
+                  : isNative
+                    ? `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`
+                    : `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`}
               </button>
+
               <p className="text-center text-xs text-muted-foreground">
-                Secure checkout powered by Whop. No recurring charges.
+                {isNative
+                  ? 'Secure payment via Google Play. No recurring charges.'
+                  : 'Secure checkout powered by Whop. No recurring charges.'}
               </p>
 
-              {/* Restore Purchase */}
+              {/* Restore purchase */}
               <div className="pt-2 border-t">
-                {!showRestore ? (
-                  <button
-                    onClick={() => setShowRestore(true)}
-                    className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Already purchased? Restore access
-                  </button>
-                ) : (
-                  <div className="space-y-3 pt-1">
-                    <div>
-                      <p className="text-sm font-semibold mb-1">Restore your purchase</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                        Find your membership ID at{' '}
-                        <a
-                          href="https://whop.com/purchases"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary underline underline-offset-2"
-                        >
-                          whop.com/purchases
-                        </a>{' '}
-                        — tap your PepScan Pro order and copy the ID starting with <span className="font-mono">mem_</span>
-                      </p>
-                      <input
-                        type="text"
-                        value={restoreId}
-                        onChange={(e) => setRestoreId(e.target.value)}
-                        placeholder="mem_xxxxxxxxxxxxxxxx"
-                        className="w-full border rounded-xl px-4 py-3 text-sm font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        autoCapitalize="none"
-                        autoCorrect="off"
-                        spellCheck={false}
-                      />
-                    </div>
+                {isNative ? (
+                  // Native: single restore button via RevenueCat
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleNativeRestore}
+                      disabled={restoreLoading}
+                      className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
+                    >
+                      {restoreLoading ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Restoring…</>
+                      ) : (
+                        <><RotateCcw className="w-4 h-4" /> Restore previous purchase</>
+                      )}
+                    </button>
                     {restoreError && (
-                      <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+                      <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2 text-center">
                         {restoreError}
                       </p>
                     )}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setShowRestore(false); setRestoreId(''); setRestoreError(null); }}
-                        className="flex-1 py-3 rounded-xl border text-sm font-medium text-muted-foreground"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleRestore}
-                        disabled={restoreLoading}
-                        className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2"
-                      >
-                        {restoreLoading ? (
-                          <><Loader2 className="w-4 h-4 animate-spin" /> Verifying…</>
-                        ) : (
-                          'Activate Pro'
-                        )}
-                      </button>
-                    </div>
                   </div>
+                ) : (
+                  // Web: Whop membership ID restore
+                  !showRestore ? (
+                    <button
+                      onClick={() => setShowRestore(true)}
+                      className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Already purchased? Restore access
+                    </button>
+                  ) : (
+                    <div className="space-y-3 pt-1">
+                      <div>
+                        <p className="text-sm font-semibold mb-1">Restore your purchase</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                          Find your membership ID at{' '}
+                          <a
+                            href="https://whop.com/purchases"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline underline-offset-2"
+                          >
+                            whop.com/purchases
+                          </a>{' '}
+                          — tap your PepScan Pro order and copy the ID starting with <span className="font-mono">mem_</span>
+                        </p>
+                        <input
+                          type="text"
+                          value={restoreId}
+                          onChange={(e) => setRestoreId(e.target.value)}
+                          placeholder="mem_xxxxxxxxxxxxxxxx"
+                          className="w-full border rounded-xl px-4 py-3 text-sm font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                        />
+                      </div>
+                      {restoreError && (
+                        <p className="text-xs text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+                          {restoreError}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowRestore(false); setRestoreId(''); setRestoreError(null); }}
+                          className="flex-1 py-3 rounded-xl border text-sm font-medium text-muted-foreground"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleWebRestore}
+                          disabled={restoreLoading}
+                          className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2"
+                        >
+                          {restoreLoading ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> Verifying…</>
+                          ) : (
+                            'Activate Pro'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             </>

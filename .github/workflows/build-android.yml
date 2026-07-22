@@ -29,6 +29,7 @@ jobs:
         run: pnpm --filter @workspace/vialscreen run build
         env:
           VITE_API_BASE_URL: https://pepscan.replit.app
+          VITE_REVENUECAT_API_KEY: ${{ secrets.VITE_REVENUECAT_API_KEY }}
           PORT: "3000"
           BASE_PATH: "/"
 

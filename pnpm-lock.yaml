@@ -417,6 +417,9 @@ importers:
       '@capacitor/ios':
         specifier: ^8.4.2
         version: 8.4.2(@capacitor/core@8.4.2)
+      '@revenuecat/purchases-capacitor':
+        specifier: ^13.2.3
+        version: 13.2.3(@capacitor/core@8.4.2)
       '@sentry/capacitor':
         specifier: ^4.2.0
         version: 4.2.0(@capacitor/core@8.4.2)(@sentry/react@10.67.0(react@19.1.0))
@@ -1559,6 +1562,14 @@ packages:
 
   '@replit/vite-plugin-runtime-error-modal@0.0.6':
     resolution: {integrity: sha512-53iuzLsrvcUnWxAo0fvNrUhOf7LYJ+3at61dZeTIrkaZD4vGNjTbvE0j50TFcjjTC9UM74uprlnQ4+L2A//Cjg==}
+
+  '@revenuecat/purchases-capacitor@13.2.3':
+    resolution: {integrity: sha512-fW10KEjRnDev5G/KLBkMHyE8XRrDv4ivzV+Jv/2ACj9u28CXAcc39323rKaYsQiiTen40JEyeQXBsQUtTNyFBg==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
+  '@revenuecat/purchases-typescript-internal-esm@18.21.0':
+    resolution: {integrity: sha512-6aOc/RaWiIL8w69DzGZX9eenQ+dATc0ZcLbQlusFT28+6ODukSYyy4xPbVo7uZO5wkeZ0nRO74Yoi00kTOdfhg==}
 
   '@rolldown/pluginutils@1.0.0-rc.3':
     resolution: {integrity: sha512-eybk3TjzzzV97Dlj5c+XrBFW57eTNhzod66y9HrBlzJ6NsCrWCp/2kaPS3K9wJmurBC0Tdw4yPjXKZqlznim3Q==}
@@ -4645,6 +4656,13 @@ snapshots:
   '@replit/vite-plugin-runtime-error-modal@0.0.6':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
+
+  '@revenuecat/purchases-capacitor@13.2.3(@capacitor/core@8.4.2)':
+    dependencies:
+      '@capacitor/core': 8.4.2
+      '@revenuecat/purchases-typescript-internal-esm': 18.21.0
+
+  '@revenuecat/purchases-typescript-internal-esm@18.21.0': {}
 
   '@rolldown/pluginutils@1.0.0-rc.3': {}
 
