@@ -11,7 +11,7 @@ import { Capacitor } from '@capacitor/core';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 
 /** Must match RevenueCat dashboard entitlement identifier exactly. */
-export const RC_ENTITLEMENT_ID = 'pepscan_pro';
+export const RC_ENTITLEMENT_ID = 'Pepscan Pro';
 
 let initialized = false;
 
