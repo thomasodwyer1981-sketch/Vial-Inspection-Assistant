@@ -30,3 +30,15 @@ VITE_REVENUECAT_API_KEY = "test_qyXJnrdLXTJhARfJDQUkVFHdcMA"
 
 [nix]
 channel = "stable-25_05"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 22989
+externalPort = 80
