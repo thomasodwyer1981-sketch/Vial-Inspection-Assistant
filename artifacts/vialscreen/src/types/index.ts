@@ -212,6 +212,18 @@ export interface AnalysisResult {
    * Null for sessions created before profile support was added.
    */
   profileUsed: AppearanceProfile | null;
+
+  /**
+   * Whether AI Vision (GPT) enhanced this result.
+   * When true, the verdict and confidence reflect a blend of heuristic + AI.
+   */
+  aiEnhanced?: boolean;
+
+  /**
+   * Findings contributed by the AI Vision model.
+   * Prepended to primaryReasons when present.
+   */
+  aiFindings?: string[];
 }
 
 // ---- Full Scan Session ------------------------------------

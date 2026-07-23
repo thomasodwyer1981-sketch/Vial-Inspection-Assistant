@@ -36,9 +36,9 @@ export async function requestCameraStream(
   return navigator.mediaDevices.getUserMedia({
     video: {
       facingMode,
-      // Request high resolution for better analysis
-      width: { ideal: 1920, min: 640 },
-      height: { ideal: 1080, min: 480 },
+      // Request maximum resolution for sharpest vial detail
+      width: { ideal: 4096, min: 640 },
+      height: { ideal: 3072, min: 480 },
     },
     audio: false,
   });
@@ -49,7 +49,7 @@ export async function requestCameraStream(
 // ----------------------------------------------------------------
 export function captureFrameFromVideo(
   video: HTMLVideoElement,
-  maxDim = 1280,
+  maxDim = 2048,
 ): CaptureResult {
   const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
   const width = Math.round(video.videoWidth * scale);

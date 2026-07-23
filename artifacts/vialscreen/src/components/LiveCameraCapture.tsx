@@ -20,6 +20,8 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import {
   requestCameraStream,
@@ -92,6 +94,13 @@ export default function LiveCameraCapture({
   const [isStable, setIsStable] = useState(false);
   const [motionAvailable, setMotionAvailable] = useState(false);
 
+  // Zoom state
+  const [zoom, setZoom] = useState(1);
+  const [zoomSupported, setZoomSupported] = useState(false);
+  const [zoomRange, setZoomRange] = useState({ min: 1, max: 5 });
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef(1);
+
   // Keep stateRef in sync so motion/timer callbacks can read it without stale closure
   const setStateSync = useCallback((s: InternalState) => {
     stateRef.current = s;
@@ -128,14 +137,32 @@ export default function LiveCameraCapture({
         await videoRef.current.play().catch(() => {});
       }
 
-      // Detect torch support
+      // Detect torch + zoom support
       const track = stream.getVideoTracks()[0];
       if (track) {
         try {
           const caps = (track as MediaStreamTrack & {
-            getCapabilities?: () => Record<string, unknown>;
+            getCapabilities?: () => Record<string, { min?: number; max?: number }>;
           }).getCapabilities?.();
-          setTorchSupported(!!(caps && 'torch' in caps));
+          if (caps) {
+            setTorchSupported('torch' in caps);
+            if ('zoom' in caps && caps.zoom) {
+              setZoomSupported(true);
+              setZoomRange({
+                min: caps.zoom.min ?? 1,
+                max: Math.min(caps.zoom.max ?? 5, 8),
+              });
+            }
+            // Auto-enable torch for white/black captures
+            if ('torch' in caps && background !== 'label' && background !== 'label2') {
+              try {
+                await (track as MediaStreamTrack & {
+                  applyConstraints: (c: object) => Promise<void>;
+                }).applyConstraints({ advanced: [{ torch: true }] });
+                setTorchOn(true);
+              } catch { /* torch auto-enable failed, that's fine */ }
+            }
+          }
         } catch {
           setTorchSupported(false);
         }
@@ -185,11 +212,11 @@ export default function LiveCameraCapture({
       // 400 ms AF settle before grabbing first frame
       await new Promise<void>((r) => setTimeout(r, 400));
 
-      // Best-of-3 burst
+      // Best-of-5 burst — more candidates = better chance of a perfect frame
       const candidates: Array<CaptureResult & { sharpness: number }> = [];
-      for (let i = 0; i < 3; i++) {
-        if (i > 0) await new Promise<void>((r) => setTimeout(r, 280));
-        const frame = captureFrameFromVideo(video, 1280);
+      for (let i = 0; i < 5; i++) {
+        if (i > 0) await new Promise<void>((r) => setTimeout(r, 220));
+        const frame = captureFrameFromVideo(video, 2048);
         const img = await loadImage(frame.dataUrl);
         const { ctx, width, height } = drawToCanvas(img, 512);
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -367,6 +394,47 @@ export default function LiveCameraCapture({
     }
   };
 
+  // ── Zoom helpers ─────────────────────────────────────────────
+  const applyZoom = useCallback(async (value: number) => {
+    if (!streamRef.current || !zoomSupported) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (!track) return;
+    const clamped = Math.max(zoomRange.min, Math.min(zoomRange.max, value));
+    try {
+      await (track as MediaStreamTrack & {
+        applyConstraints: (c: object) => Promise<void>;
+      }).applyConstraints({ advanced: [{ zoom: clamped }] });
+      setZoom(clamped);
+    } catch { /* zoom apply failed */ }
+  }, [zoomSupported, zoomRange]);
+
+  const handleZoomIn  = () => applyZoom(Math.min(zoom + 0.5, zoomRange.max));
+  const handleZoomOut = () => applyZoom(Math.max(zoom - 0.5, zoomRange.min));
+
+  // Pinch-to-zoom
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDistRef.current = Math.sqrt(dx * dx + dy * dy);
+      pinchStartZoomRef.current = zoom;
+    }
+  }, [zoom]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchStartDistRef.current !== null) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const scale = dist / pinchStartDistRef.current;
+      applyZoom(pinchStartZoomRef.current * scale);
+    }
+  }, [applyZoom]);
+
+  const handleTouchEnd = useCallback(() => {
+    pinchStartDistRef.current = null;
+  }, []);
+
   if (!isOpen) return null;
 
   const isLabelBackground = background === 'label' || background === 'label2';
@@ -386,7 +454,12 @@ export default function LiveCameraCapture({
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       {/* ── Video / Preview area ─────────────────────────────── */}
-      <div className="relative flex-1 overflow-hidden">
+      <div
+        className="relative flex-1 overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Live camera feed */}
         <video
           ref={videoRef}
@@ -503,6 +576,31 @@ export default function LiveCameraCapture({
             <div className="w-11 h-11" />
           )}
         </div>
+
+        {/* ── Zoom controls ────────────────────────────────── */}
+        {isStreaming && zoomSupported && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
+            <button
+              onClick={handleZoomIn}
+              disabled={zoom >= zoomRange.max}
+              className="w-10 h-10 rounded-full bg-black/55 border border-white/20 flex items-center justify-center active:scale-95 disabled:opacity-30"
+              aria-label="Zoom in"
+            >
+              <ZoomIn className="w-4 h-4 text-white" />
+            </button>
+            <div className="text-center text-white text-[10px] font-bold bg-black/40 rounded-full py-0.5">
+              {zoom.toFixed(1)}×
+            </div>
+            <button
+              onClick={handleZoomOut}
+              disabled={zoom <= zoomRange.min}
+              className="w-10 h-10 rounded-full bg-black/55 border border-white/20 flex items-center justify-center active:scale-95 disabled:opacity-30"
+              aria-label="Zoom out"
+            >
+              <ZoomOut className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        )}
 
         {/* ── Auto-fire hint (streaming, motion available) ─── */}
         {isStreaming && motionAvailable && (

@@ -185,6 +185,7 @@ export function useScanSession(): UseScanSession {
     setAnalysisError(null);
 
     try {
+      // ── Phase 1: heuristic engine (always runs) ──────────────
       const result: AnalysisResult = await runAnalysis(
         current.captures,
         current.metadata.peptideName || undefined,
@@ -193,11 +194,51 @@ export function useScanSession(): UseScanSession {
         current.metadata.scanMode ?? 'reconstituted',
       );
 
+      // ── Phase 2: AI Vision (best-effort, non-blocking) ───────
+      setAnalysisStatus('Running AI Vision analysis…');
+      let aiResult: import('../utils/visionAnalysis').AIVisionResult | null = null;
+      try {
+        const { runVisionAnalysis } = await import('../utils/visionAnalysis');
+        aiResult = await runVisionAnalysis({
+          captures: current.captures,
+          peptideName: current.metadata.peptideName || null,
+          scanMode: current.metadata.scanMode ?? 'reconstituted',
+          appearanceProfile: current.metadata.appearanceProfile ?? null,
+        });
+      } catch {
+        // AI vision is best-effort — fall back to heuristic only
+      }
+
+      // ── Phase 3: merge ────────────────────────────────────────
+      let finalResult = result;
+      if (aiResult) {
+        const { mergeVerdicts } = await import('../utils/visionAnalysis');
+        const merged = mergeVerdicts(
+          { triage: result.triageResult, confidence: result.overallConfidence },
+          aiResult,
+        );
+
+        // Prepend unique AI findings not already in primaryReasons
+        const existingLower = result.primaryReasons.map((r) => r.toLowerCase());
+        const newFindings = aiResult.primaryFindings.filter(
+          (f) => !existingLower.some((e) => e.includes(f.toLowerCase().slice(0, 20))),
+        );
+
+        finalResult = {
+          ...result,
+          triageResult: merged.triage,
+          overallConfidence: merged.confidence,
+          primaryReasons: [...newFindings, ...result.primaryReasons],
+          aiEnhanced: true,
+          aiFindings: newFindings,
+        };
+      }
+
       setSession((prev) => {
         if (!prev) return prev;
         const updated = {
           ...prev,
-          analysisResult: result,
+          analysisResult: finalResult,
           updatedAt: new Date().toISOString(),
         };
         sessionRef.current = updated;

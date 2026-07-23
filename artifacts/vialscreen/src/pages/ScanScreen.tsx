@@ -771,7 +771,7 @@ function ReviewStep() {
           Run Analysis
         </button>
         <p className="text-[10px] text-center text-muted-foreground font-medium uppercase tracking-wider">
-          Runs locally • No data sent
+          AI Vision + Heuristic Engine
         </p>
       </div>
     </div>
@@ -795,6 +795,8 @@ function AnalysisStep() {
     analysisStatus.toLowerCase().includes('label') ||
     analysisStatus.toLowerCase().includes('downloading') ||
     analysisStatus.toLowerCase().includes('initializing');
+
+  const isAiPhase = analysisStatus.toLowerCase().includes('ai vision');
 
   return (
     <div className="flex flex-col h-full items-center justify-center text-center space-y-8 px-6">
@@ -1027,6 +1029,14 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             <div className="mt-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
               <AlertTriangle className="w-4 h-4" />
               Low Confidence ({result.overallConfidence}%) — results less reliable
+            </div>
+          )}
+
+          {/* AI Enhanced badge */}
+          {result.aiEnhanced && (
+            <div className="mt-4 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/25 text-primary px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              AI Vision Enhanced
             </div>
           )}
 
