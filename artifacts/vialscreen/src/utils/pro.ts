@@ -58,6 +58,32 @@ export function refreshVerificationCache(): void {
   }
 }
 
+// ── Upgrade return path ──────────────────────────────────────
+// When the user hits a Pro gate mid-scan and goes to /upgrade, remember
+// where they were so a successful purchase returns them to their scan
+// instead of dumping them on Home (the active session survives in storage).
+
+const RETURN_PATH_KEY = 'vialscreen:upgrade:return-path';
+
+export function rememberUpgradeReturnPath(path: string): void {
+  try {
+    sessionStorage.setItem(RETURN_PATH_KEY, path);
+  } catch {
+    // ignore — worst case the user lands on the default post-purchase page
+  }
+}
+
+/** Read AND clear the stored return path (one-shot). */
+export function consumeUpgradeReturnPath(): string | null {
+  try {
+    const path = sessionStorage.getItem(RETURN_PATH_KEY);
+    sessionStorage.removeItem(RETURN_PATH_KEY);
+    return path;
+  } catch {
+    return null;
+  }
+}
+
 /** Build the full redirect URL for after Whop checkout completes. */
 export function buildUpgradeCompleteUrl(): string {
   // Use Vite's BASE_URL (the app's configured base path, e.g. /vialscreen/)

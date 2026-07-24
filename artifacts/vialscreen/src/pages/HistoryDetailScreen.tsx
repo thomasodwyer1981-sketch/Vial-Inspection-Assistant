@@ -29,7 +29,7 @@ export default function HistoryDetailScreen() {
       <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center p-6 text-center">
         <h2 className="text-xl font-bold mb-2">Scan Not Found</h2>
         <p className="text-muted-foreground mb-6 text-sm">This scan may have been deleted or never completed.</p>
-        <Link href="/history" className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold">
+        <Link href="/history" className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold">
           Back to History
         </Link>
       </div>
@@ -149,12 +149,13 @@ export default function HistoryDetailScreen() {
           </section>
         )}
 
-        {/* Captures — dataUrls are stripped on save to stay within localStorage quota */}
-        {session.captures.filter((c) => c.dataUrl).length > 0 && (
+        {/* Captures — full dataUrls are stripped on save to stay within the
+            localStorage quota; small thumbnails survive persistence. */}
+        {session.captures.filter((c) => c.dataUrl || c.thumbDataUrl).length > 0 && (
           <section>
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Captures</h2>
             <div className="grid grid-cols-2 gap-3">
-              {session.captures.filter((c) => c.dataUrl).map((c) => (
+              {session.captures.filter((c) => c.dataUrl || c.thumbDataUrl).map((c) => (
                 <MediaPreview key={c.id} capture={c} />
               ))}
             </div>

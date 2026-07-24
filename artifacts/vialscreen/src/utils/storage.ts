@@ -78,8 +78,10 @@ export function addToHistory(session: ScanSession): void {
   try {
     const history = getScanHistory();
 
-    // Build a thumbnail from first capture
-    const thumb = session.captures[0]?.dataUrl ?? null;
+    // Use the small capture thumbnail — NEVER the full-resolution dataUrl.
+    // A full-res base64 frame is 200 KB–2 MB; storing one per history item
+    // exhausts the ~5 MB localStorage quota after only a few scans.
+    const thumb = session.captures.find((c) => c.thumbDataUrl)?.thumbDataUrl ?? null;
 
     const item: HistoryItem = {
       id: session.id,
@@ -93,8 +95,14 @@ export function addToHistory(session: ScanSession): void {
     };
 
     // Prepend (newest first), keep max 100 items
-    const updated = [item, ...history.filter((h) => h.id !== session.id)].slice(0, 100);
-    localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(updated));
+    const updated = [item, ...history.filter((h) => h.id !== session.id)];
+    const kept = updated.slice(0, 100);
+    // Also delete the full session records of pruned entries — otherwise
+    // their localStorage keys linger forever and eat quota.
+    for (const dropped of updated.slice(100)) {
+      try { localStorage.removeItem(sessionKey(dropped.id)); } catch { /* ignore */ }
+    }
+    localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(kept));
   } catch {
     // quota exceeded or serialization error — history entry could not be written
     console.warn('[VialScreen] Could not write history entry — storage may be full.');
@@ -213,6 +221,112 @@ export function clearActiveSession(): void {
   } catch {
     // ignore
   }
+}
+
+// ----------------------------------------------------------------
+// Backup export / import
+// ----------------------------------------------------------------
+
+export interface ExportPayload {
+  app: 'pepscan';
+  version: 1;
+  exportedAt: string;
+  history: HistoryItem[];
+  sessions: ScanSession[];
+}
+
+/** Bundle the full history + session records into a portable backup object. */
+export function buildExportPayload(): ExportPayload {
+  const history = getScanHistory();
+  const sessions = history
+    .map((h) => loadSession(h.id))
+    .filter((s): s is ScanSession => s !== null);
+  return {
+    app: 'pepscan',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    history,
+    sessions,
+  };
+}
+
+/**
+ * Merge a backup payload into local storage. Existing scans (matched by id)
+ * are kept as-is; only new entries are added. Throws on unrecognized files.
+ */
+export function importExportPayload(payload: unknown): { imported: number; skipped: number } {
+  const p = payload as Partial<ExportPayload> | null;
+  if (!p || p.app !== 'pepscan' || !Array.isArray(p.history)) {
+    throw new Error('Not a PepScan backup file.');
+  }
+
+  const existing = getScanHistory();
+  const existingIds = new Set(existing.map((h) => h.id));
+
+  const additions: HistoryItem[] = [];
+  let skipped = 0;
+  for (const item of p.history) {
+    if (
+      !item ||
+      typeof item.id !== 'string' ||
+      typeof item.createdAt !== 'string' ||
+      existingIds.has(item.id)
+    ) {
+      skipped++;
+      continue;
+    }
+    additions.push(item);
+  }
+
+  // Resolve the final retained set BEFORE writing anything, so the history
+  // write and the session-record writes agree on what survives the 100-item cap.
+  const merged = [...additions, ...existing].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  const retained = merged.slice(0, 100);
+  const dropped = merged.slice(100);
+  const retainedIds = new Set(retained.map((h) => h.id));
+
+  const importedItems = additions.filter((i) => retainedIds.has(i.id));
+  skipped += additions.length - importedItems.length; // new items that fell past the cap
+
+  // Commit the history list first — if this throws (quota), no session
+  // records have been written yet, so storage is left exactly as it was.
+  try {
+    localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(retained));
+  } catch {
+    throw new Error('Not enough storage space to import this backup. Delete some scans and try again.');
+  }
+
+  // Session detail records: only for imports that made the cut (best-effort —
+  // a quota failure here loses only the detail view, not the history row).
+  const sessionsById = new Map(
+    (Array.isArray(p.sessions) ? p.sessions : [])
+      .filter((s): s is ScanSession => Boolean(s) && typeof s.id === 'string')
+      .map((s) => [s.id, s]),
+  );
+  for (const item of importedItems) {
+    const sess = sessionsById.get(item.id);
+    if (sess) {
+      try {
+        localStorage.setItem(sessionKey(item.id), JSON.stringify(sess));
+      } catch {
+        // quota — history entry still imports, detail view will be missing
+      }
+    }
+  }
+
+  // Prune session records for anything the cap pushed out (mirrors
+  // addToHistory's orphan cleanup — orphaned blobs silently eat quota).
+  for (const d of dropped) {
+    try {
+      localStorage.removeItem(sessionKey(d.id));
+    } catch {
+      // ignore
+    }
+  }
+
+  return { imported: importedItems.length, skipped };
 }
 
 // ----------------------------------------------------------------

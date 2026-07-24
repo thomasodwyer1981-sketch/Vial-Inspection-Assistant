@@ -5,6 +5,7 @@ import {
   History,
   BookOpen,
   AlertTriangle,
+  Calculator,
   ChevronRight,
   Play,
   Microscope,
@@ -18,9 +19,9 @@ import { getScanHistory, loadActiveSession, clearActiveSession } from '@/utils/s
 import MolecularPattern from '@/components/MolecularPattern';
 
 // PepScan hero icon — phone with vial + scan brackets
-function VialHeroIcon() {
+function VialHeroIcon({ size = 52 }: { size?: number }) {
   return (
-    <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="11" y="3" width="30" height="46" rx="6" fill="none" stroke="url(#hg)" strokeWidth="1.8" />
       <rect x="19" y="7" width="14" height="3" rx="1.5" fill="url(#hg)" opacity="0.5" />
       <circle cx="26" cy="44" r="2.5" fill="none" stroke="url(#hg)" strokeWidth="1.4" />
@@ -52,23 +53,20 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <div
-      className="min-h-[100dvh] max-w-md mx-auto flex flex-col"
-      style={{ background: '#0d1117' }}
-    >
+    <div className="min-h-[100dvh] max-w-md mx-auto flex flex-col bg-background">
       <MolecularPattern color="#14C9A0" opacity={0.09} />
 
       {/* ── Header ─────────────────────────────────────────── */}
       <div className="relative z-10 pt-safe px-5 flex items-center justify-between pt-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-            <VialHeroIcon />
+          <div className="w-8 h-8 rounded-xl bg-card border flex items-center justify-center">
+            <VialHeroIcon size={22} />
           </div>
-          <span className="text-white/70 text-sm font-semibold tracking-wide">{APP_NAME}</span>
+          <span className="text-muted-foreground text-sm font-semibold tracking-wide">{APP_NAME}</span>
         </div>
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-full bg-white/6 border border-white/10 text-white/50 hover:text-white/80 active:scale-95 transition-all"
+          className="p-2 rounded-full bg-card border text-muted-foreground hover:text-foreground active:scale-95 transition-all"
           aria-label="Toggle theme"
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -87,40 +85,21 @@ export default function HomeScreen() {
           style={{
             background: 'linear-gradient(145deg, rgba(20,201,160,0.15), rgba(20,201,160,0.05))',
             border: '1px solid rgba(20,201,160,0.25)',
-            boxShadow: '0 0 32px rgba(20,201,160,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+            boxShadow: '0 0 32px rgba(20,201,160,0.12)',
           }}
         >
-          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-            <rect x="11" y="3" width="30" height="46" rx="6" fill="none" stroke="url(#hg2)" strokeWidth="1.8" />
-            <rect x="19" y="7" width="14" height="3" rx="1.5" fill="url(#hg2)" opacity="0.5" />
-            <circle cx="26" cy="44" r="2.5" fill="none" stroke="url(#hg2)" strokeWidth="1.4" />
-            <path d="M17 17 L17 14 L20 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M35 17 L35 14 L32 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M17 31 L17 34 L20 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M35 31 L35 34 L32 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            <rect x="22" y="18" width="8" height="14" rx="4" fill="none" stroke="#2EDFC8" strokeWidth="1.5" />
-            <path d="M22.8 27 L22.8 29 Q22.8 31.5 26 31.5 Q29.2 31.5 29.2 29 L29.2 27 Z" fill="#60C8F0" fillOpacity="0.75" />
-            <rect x="23" y="14" width="6" height="5" rx="2" fill="url(#hg2)" />
-            <defs>
-              <linearGradient id="hg2" x1="11" y1="3" x2="41" y2="49" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#2EDFC8" />
-                <stop offset="100%" stopColor="#1BAB98" />
-              </linearGradient>
-            </defs>
-          </svg>
+          <VialHeroIcon size={52} />
         </div>
 
-        <h1 className="text-4xl font-bold tracking-tight text-white mb-2">
+        <h1 className="text-4xl font-bold tracking-tight text-foreground mb-2">
           {APP_NAME}
         </h1>
-        <p className="text-sm text-white/40 font-medium max-w-[220px] mx-auto leading-relaxed">
+        <p className="text-sm text-muted-foreground font-medium max-w-[220px] mx-auto leading-relaxed">
           Visual QC for research peptide vials
         </p>
 
         {scanCount > 0 && (
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-white/50 font-medium"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground font-medium bg-card border">
             <Microscope className="w-3 h-3" />
             {scanCount} scan{scanCount !== 1 ? 's' : ''} on record
           </div>
@@ -134,17 +113,13 @@ export default function HomeScreen() {
         {activeSession && !activeSession.finalized && (
           <button
             onClick={() => setLocation('/scan')}
-            className="w-full text-left rounded-2xl p-4 flex items-center justify-between active:scale-[0.98] transition-transform"
-            style={{
-              background: 'rgba(245,158,11,0.12)',
-              border: '1px solid rgba(245,158,11,0.25)',
-            }}
+            className="w-full text-left rounded-2xl p-4 flex items-center justify-between active:scale-[0.98] transition-transform bg-amber-500/10 border border-amber-500/25"
           >
             <div>
-              <span className="font-semibold text-amber-400 text-sm">Resume In-Progress Scan</span>
-              <p className="text-xs text-white/40 mt-0.5">You have an unfinished screening session</p>
+              <span className="font-semibold text-amber-600 dark:text-amber-400 text-sm">Resume In-Progress Scan</span>
+              <p className="text-xs text-muted-foreground mt-0.5">You have an unfinished screening session</p>
             </div>
-            <Play className="w-5 h-5 text-amber-400 shrink-0" />
+            <Play className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
           </button>
         )}
 
@@ -173,20 +148,14 @@ export default function HomeScreen() {
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/history"
-            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform"
-            style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
-              border: '1px solid rgba(255,255,255,0.09)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-            }}
+            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform bg-card border shadow-sm"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(20,201,160,0.15)', border: '1px solid rgba(20,201,160,0.2)' }}>
-              <History className="w-5 h-5 text-[#14C9A0]" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 border border-primary/20">
+              <History className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm text-white/85">History</h3>
-              <p className="text-xs text-white/35 mt-0.5">
+              <h3 className="font-semibold text-sm text-foreground">History</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {scanCount > 0 ? `${scanCount} scan${scanCount !== 1 ? 's' : ''}` : 'Past scans'}
               </p>
             </div>
@@ -194,68 +163,67 @@ export default function HomeScreen() {
 
           <Link
             href="/setup"
-            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform"
-            style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
-              border: '1px solid rgba(255,255,255,0.09)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-            }}
+            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform bg-card border shadow-sm"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(20,201,160,0.15)', border: '1px solid rgba(20,201,160,0.2)' }}>
-              <BookOpen className="w-5 h-5 text-[#14C9A0]" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 border border-primary/20">
+              <BookOpen className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm text-white/85">Setup Guide</h3>
-              <p className="text-xs text-white/35 mt-0.5">How to prepare</p>
+              <h3 className="font-semibold text-sm text-foreground">Setup Guide</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">How to prepare</p>
             </div>
           </Link>
         </div>
+
+        {/* Reconstitution calculator — free utility */}
+        <Link
+          href="/calculator"
+          className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-card border shadow-sm"
+        >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/20">
+            <Calculator className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm text-foreground">Reconstitution Calculator</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">mg + mL → syringe units per dose</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+        </Link>
 
         {/* Upgrade to Pro teaser — only show if scan count is low */}
         {scanCount <= 2 && (
           <Link
             href="/upgrade"
-            className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
-            style={{
-              background: 'linear-gradient(135deg, rgba(20,201,160,0.1), rgba(20,201,160,0.04))',
-              border: '1px solid rgba(20,201,160,0.2)',
-            }}
+            className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-primary/5 border border-primary/20"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'rgba(20,201,160,0.18)', border: '1px solid rgba(20,201,160,0.25)' }}>
-              <Zap className="w-5 h-5 text-[#14C9A0]" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/25">
+              <Zap className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm text-[#14C9A0]">Unlock Pro — $4.99</h3>
-              <p className="text-xs text-white/35 mt-0.5">AI Vision · unlimited history · PDF export</p>
+              <h3 className="font-semibold text-sm text-primary">Unlock Pro — $4.99</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">AI Vision · unlimited history · PDF export</p>
             </div>
-            <ChevronRight className="w-4 h-4 text-white/25 shrink-0" />
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
           </Link>
         )}
 
         {/* Limitations */}
         <Link
           href="/limitations"
-          className="rounded-2xl px-4 py-3.5 flex items-center justify-between active:scale-[0.98] transition-transform"
-          style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.07)',
-          }}
+          className="rounded-2xl px-4 py-3.5 flex items-center justify-between active:scale-[0.98] transition-transform bg-card/60 border"
         >
           <div className="flex items-center gap-3">
-            <AlertTriangle className="w-4 h-4 text-white/25" />
-            <span className="text-sm text-white/40 font-medium">Limitations & Disclaimers</span>
+            <AlertTriangle className="w-4 h-4 text-muted-foreground/70" />
+            <span className="text-sm text-muted-foreground font-medium">Limitations &amp; Disclaimers</span>
           </div>
-          <ChevronRight className="w-4 h-4 text-white/20 shrink-0" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
         </Link>
       </div>
 
       {/* ── Disclaimer ─────────────────────────────────────── */}
-      <div className="relative z-10 w-full px-5 pt-3 pb-safe-6 flex items-center justify-center gap-2"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <AlertTriangle className="w-3 h-3 text-white/20 shrink-0" />
-        <p className="text-[9px] uppercase tracking-widest text-white/25 font-semibold leading-none">
+      <div className="relative z-10 w-full px-5 pt-3 pb-safe-6 flex items-center justify-center gap-2 border-t">
+        <AlertTriangle className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+        <p className="text-[9px] uppercase tracking-widest text-muted-foreground/80 font-semibold leading-none">
           Visual screening only · does not confirm identity, purity, potency, or safety
         </p>
       </div>

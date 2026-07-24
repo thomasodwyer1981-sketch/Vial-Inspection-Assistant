@@ -152,7 +152,9 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
     doc.text('CAPTURES', ML, y);
     y += 4;
 
-    const slots = [whiteCapture, blackCapture, labelCapture].filter(Boolean) as typeof input.captures;
+    const slots = [whiteCapture, blackCapture, labelCapture].filter(
+      (c): c is NonNullable<typeof c> => Boolean(c),
+    );
     const labels: Record<string, string> = { white: 'White Background', black: 'Black Background', label: 'Label' };
     const cols = slots.length;
     const imgW = (CW - (cols - 1) * 4) / cols;
@@ -193,11 +195,14 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
   const vc = VERDICT_COLOURS[input.triageResult] ?? [100, 100, 100];
   const verdictLabel = VERDICT_LABELS[input.triageResult] ?? input.triageResult.toUpperCase();
 
-  // Coloured badge background
+  // Coloured badge background (GState lacks a construct signature in the
+  // bundled jsPDF types, so cast the constructor once)
+  type GState = Parameters<jsPDF['setGState']>[0];
+  const GStateCtor = doc.GState as unknown as new (opts: { opacity: number }) => GState;
   doc.setFillColor(vc[0], vc[1], vc[2]);
-  doc.setGState(new doc.GState({ opacity: 0.12 }));
+  doc.setGState(new GStateCtor({ opacity: 0.12 }));
   doc.roundedRect(ML, y, CW, 18, 3, 3, 'F');
-  doc.setGState(new doc.GState({ opacity: 1 }));
+  doc.setGState(new GStateCtor({ opacity: 1 }));
 
   // Badge border
   doc.setDrawColor(vc[0], vc[1], vc[2]);

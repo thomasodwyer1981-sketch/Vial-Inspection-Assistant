@@ -1,8 +1,8 @@
 export default function DeleteData() {
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10 text-sm text-gray-800 leading-relaxed">
+    <div className="max-w-2xl mx-auto px-6 py-10 text-sm text-foreground leading-relaxed">
       <h1 className="text-2xl font-bold mb-2">Delete Your Data</h1>
-      <p className="text-gray-500 mb-6">PepScan — Data Deletion</p>
+      <p className="text-muted-foreground mb-6">PepScan — Data Deletion</p>
 
       <p className="mb-4">
         PepScan stores all scan history and settings locally on your device. No
@@ -43,7 +43,7 @@ export default function DeleteData() {
       <h2 className="text-lg font-semibold mt-6 mb-2">Contact us</h2>
       <p>
         If you have any questions about your data, email us at{" "}
-        <a href="mailto:support@pepscan.app" className="text-blue-600 underline">
+        <a href="mailto:support@pepscan.app" className="text-primary underline">
           support@pepscan.app
         </a>{" "}
         and we will respond within 30 days.

@@ -29,7 +29,7 @@ description: Stack, key files, and non-obvious decisions for the VialScreen MVP
 - `public/manifest.webmanifest` — links icon-192.png + icon-512.png (generated from favicon.svg via ImageMagick)
 - `public/apple-touch-icon.png` — 180x180 PNG for iOS
 - `index.html` has `theme-color`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`
-- No service worker — app is not offline-first
+- Service worker via `vite-plugin-pwa` (July 2026): MUST keep `manifest: false` (hand-maintained webmanifest), `navigateFallbackDenylist: [/^\/api/]`, CacheFirst runtime caching for cdn.jsdelivr.net + tessdata.projectnaptha.com (offline OCR after first use) + Google Fonts. Disabled in dev by default; SW registration inside the Capacitor WebView fails silently — harmless.
 
 ## Visual design system
 - Primary color: teal `168 75% 38%` light / `168 75% 52%` dark (HSL). NOT blue. Chosen because teal/blue-green is the actual color of copper-peptide complexes (GHK-Cu) and lab equipment — domain-coherent.
@@ -46,6 +46,8 @@ description: Stack, key files, and non-obvious decisions for the VialScreen MVP
 - `amberDominant` in `ColorProfile` is now actually used in scoring — applies a 12-point oxidation penalty to standard-clear peptides (oxidation of Met/Trp/Cys residues produces yellow-amber shift).
 - `scoreVisibleParticles` — now passes ROI from `estimateVialROI` to `computeParticleAnalysis`, restricting scan to vial body only. Eliminates false positives from label text, cap, background edges.
 - `scoreCrackDamage` — threshold raised from std dev >90 to >115. Rounded glass vials inherently produce std dev >90 from glass-wall refraction; old threshold misfired on every normal vial.
+- Per-capture ROIs (July 2026): each capture gets its OWN `estimateVialROI` (now background-aware — white vs black bg use different thresholds). Never reuse one capture's ROI for another; framing differs between shots.
+- OCR label matching: `normalizeForOcrMatch()` must be applied to BOTH the extracted text and the expected string (lowercase, strip non-alphanumerics, o→0, i/l→1, s→5). Engine parses `Extracted: "..."` out of the reason string — that format is a contract; don't reword it.
 
 ## Whop payment integration (July 2026)
 - Product: `prod_jdqgC3DWWQLEO` (VialScreen Pro), Plan: `plan_CYV6n06EK7y0Z` ($4.99 one-time), Company: `biz_AkaNOYEhAyYo0V`
@@ -56,6 +58,7 @@ description: Stack, key files, and non-obvious decisions for the VialScreen MVP
 - Free tier: 10 scans visible in HistoryScreen; all scans still SAVED (up to 100) — upgrade reveals existing history
 - Vite dev proxy: `/api` → `http://localhost:8080` (added to vite.config.ts server.proxy)
 - Upgrade flow: UpgradeScreen → Whop hosted checkout → UpgradeCompleteScreen (reads `?membership_id=mem_xxx` from URL, verifies server-side, stores unlock)
+- Upgrade return-path (July 2026): every Pro gate must call `rememberUpgradeReturnPath('/scan')` before navigating to /upgrade; success handlers navigate to `consumeUpgradeReturnPath() ?? default`. One-shot sessionStorage — forgetting the remember call strands the user on /home after purchase.
 
 ## Non-obvious decisions
 - `ScanSession.pendingSave?: boolean` — set when finalize fails due to quota; preserves active session so user can free storage and resume to results without data loss.

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield, Sparkles, RotateCcw, Loader2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
-import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl } from '@/utils/pro';
+import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl, consumeUpgradeReturnPath } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
 import { useProStatus, activateProUnlock } from '@/hooks/useProStatus';
 import { purchaseRCPro, restoreRCPurchases } from '@/utils/revenuecat';
@@ -29,7 +29,8 @@ export default function UpgradeScreen() {
       const success = await purchaseRCPro();
       if (success) {
         await recheck();
-        navigate('/home');
+        // Return to an interrupted scan if the user came from a Pro gate
+        navigate(consumeUpgradeReturnPath() ?? '/home');
       }
       // If false the user cancelled — just reset loading, no error
     } catch (e: unknown) {
@@ -47,7 +48,7 @@ export default function UpgradeScreen() {
       const restored = await restoreRCPurchases();
       if (restored) {
         await recheck();
-        navigate('/home');
+        navigate(consumeUpgradeReturnPath() ?? '/home');
       } else {
         setRestoreError('No previous purchase found for this Google account.');
       }
@@ -94,7 +95,7 @@ export default function UpgradeScreen() {
       const verified = await activateProUnlock(id);
       if (verified) {
         await recheck();
-        navigate('/history');
+        navigate(consumeUpgradeReturnPath() ?? '/history');
       } else {
         setRestoreError('That membership ID could not be verified. Make sure it matches your Whop account for PepScan Pro.');
       }
@@ -137,11 +138,11 @@ export default function UpgradeScreen() {
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Free</p>
             <ul className="space-y-2.5">
               <FeatureRow ok text="Basic visual analysis" />
-              <FeatureRow ok text="Standard Clear profile" />
+              <FeatureRow ok text="2 of 4 compound profiles" />
+              <FeatureRow ok text="Image & text sharing" />
               <FeatureRow ok={false} text="AI Vision analysis" />
               <FeatureRow ok={false} text={`Last ${FREE_HISTORY_LIMIT} scans only`} />
-              <FeatureRow ok={false} text="Export / share reports" />
-              <FeatureRow ok={false} text="Pro compound profiles" />
+              <FeatureRow ok={false} text="PDF report export" />
             </ul>
           </div>
 
@@ -155,7 +156,7 @@ export default function UpgradeScreen() {
               <FeatureRow ok text="Full AI Vision analysis" pro />
               <FeatureRow ok text="All 4 compound profiles" pro />
               <FeatureRow ok text="Unlimited scan history" pro />
-              <FeatureRow ok text="Export + PDF reports" pro />
+              <FeatureRow ok text="PDF report export" pro />
               <FeatureRow ok text="Powder vial scanning" pro />
             </ul>
           </div>
@@ -183,7 +184,7 @@ export default function UpgradeScreen() {
               </div>
               <p className="font-bold text-base mb-1">You're already on Pro</p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Unlimited history, export / share, and powder scanning are all active on your account.
+                Unlimited history, PDF export, and powder scanning are all active on your account.
               </p>
               <Link
                 href="/home"
@@ -206,11 +207,7 @@ export default function UpgradeScreen() {
                 disabled={loading || proLoading}
                 className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
               >
-                {loading
-                  ? 'Processing…'
-                  : isNative
-                    ? `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`
-                    : `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`}
+                {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`}
               </button>
 
               <p className="text-center text-xs text-muted-foreground">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { activateProUnlock } from '@/hooks/useProStatus';
+import { consumeUpgradeReturnPath } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
 
 /**
@@ -31,6 +32,7 @@ async function resolveReceiptToMembership(receiptId: string): Promise<string | n
 export default function UpgradeCompleteScreen() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
+  const [returningToScan, setReturningToScan] = useState(false);
 
   useEffect(() => {
     async function activate() {
@@ -55,8 +57,12 @@ export default function UpgradeCompleteScreen() {
       try {
         const verified = await activateProUnlock(membershipId);
         if (verified) {
+          // If the user hit a Pro gate mid-scan, take them straight back —
+          // their in-progress scan is still in the active session.
+          const returnPath = consumeUpgradeReturnPath();
+          setReturningToScan(returnPath === '/scan');
           setStatus('success');
-          setTimeout(() => navigate('/history'), 2000);
+          setTimeout(() => navigate(returnPath ?? '/history'), 2000);
         } else {
           setStatus('failed');
         }
@@ -87,7 +93,9 @@ export default function UpgradeCompleteScreen() {
           <p className="text-sm text-muted-foreground mb-1">
             Unlimited history and exports are now unlocked.
           </p>
-          <p className="text-xs text-muted-foreground">Taking you to your history…</p>
+          <p className="text-xs text-muted-foreground">
+            {returningToScan ? 'Taking you back to your scan…' : 'Taking you to your history…'}
+          </p>
         </>
       )}
 

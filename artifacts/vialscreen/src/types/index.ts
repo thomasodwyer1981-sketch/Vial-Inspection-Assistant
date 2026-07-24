@@ -113,6 +113,13 @@ export interface MediaCapture {
   dataUrl: string;
 
   /**
+   * Small thumbnail (~144px) generated at capture time. Persisted with the
+   * session and used for history lists — full dataUrls are stripped before
+   * persistence to protect the localStorage quota.
+   */
+  thumbDataUrl?: string;
+
+  /**
    * Width in pixels.
    */
   width: number;

@@ -16,7 +16,8 @@ import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { ScanStep } from '@/types';
 import { loadActiveSession } from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
-import { PRO_PRICE_DISPLAY } from '@/utils/pro';
+import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
+import { hapticSuccess, hapticWarning } from '@/utils/haptics';
 
 // Inline capture quality tips shown on white/black capture steps
 const CAPTURE_TIPS = [
@@ -280,7 +281,7 @@ function PrepareStep() {
                   Pre-mix powder scanning is part of PepScan Pro — one-time {PRO_PRICE_DISPLAY} unlock.
                 </p>
                 <button
-                  onClick={() => navigate('/upgrade')}
+                  onClick={() => { rememberUpgradeReturnPath('/scan'); navigate('/upgrade'); }}
                   className="mt-2 text-xs font-bold text-primary hover:underline"
                 >
                   Unlock Pro →
@@ -315,7 +316,7 @@ function PrepareStep() {
                   <button
                     key={profile}
                     onClick={() => {
-                      if (isLocked) { navigate('/upgrade'); return; }
+                      if (isLocked) { rememberUpgradeReturnPath('/scan'); navigate('/upgrade'); return; }
                       handleProfileSelect(profile);
                     }}
                     className={`w-full text-left rounded-xl border p-4 transition-colors ${
@@ -389,50 +390,68 @@ function PrepareStep() {
             Optional Details
           </h3>
           <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Peptide / Compound Name"
-              className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              value={session?.metadata.peptideName || ''}
-              onChange={(e) => updateMetadata({ peptideName: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Vendor / Source"
-              className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              value={session?.metadata.vendor || ''}
-              onChange={(e) => updateMetadata({ vendor: e.target.value })}
-            />
+            <label className="block">
+              <span className="block text-xs font-medium text-muted-foreground mb-1.5">Peptide / compound name</span>
+              <input
+                type="text"
+                placeholder="e.g. BPC-157"
+                className="w-full bg-card border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={session?.metadata.peptideName || ''}
+                onChange={(e) => updateMetadata({ peptideName: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-muted-foreground mb-1.5">Vendor / source</span>
+              <input
+                type="text"
+                placeholder="Where it came from"
+                className="w-full bg-card border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={session?.metadata.vendor || ''}
+                onChange={(e) => updateMetadata({ vendor: e.target.value })}
+              />
+            </label>
             <div className="grid grid-cols-2 gap-3">
-              <input
-                type="text"
-                placeholder="Batch / Lot #"
-                className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                value={session?.metadata.batchLot || ''}
-                onChange={(e) => updateMetadata({ batchLot: e.target.value })}
-              />
-              <input
-                type="text"
-                placeholder="Concentration"
-                className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                value={session?.metadata.concentration || ''}
-                onChange={(e) => updateMetadata({ concentration: e.target.value })}
-              />
+              <label className="block">
+                <span className="block text-xs font-medium text-muted-foreground mb-1.5">Batch / lot #</span>
+                <input
+                  type="text"
+                  placeholder="e.g. B240701"
+                  className="w-full bg-card border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={session?.metadata.batchLot || ''}
+                  onChange={(e) => updateMetadata({ batchLot: e.target.value })}
+                />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-muted-foreground mb-1.5">Concentration</span>
+                <input
+                  type="text"
+                  placeholder="e.g. 5 mg"
+                  className="w-full bg-card border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={session?.metadata.concentration || ''}
+                  onChange={(e) => updateMetadata({ concentration: e.target.value })}
+                />
+              </label>
             </div>
-            <input
-              type="text"
-              placeholder="Purchase Date (e.g. 12/07/2026)"
-              className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
-              value={session?.metadata.purchaseDate || ''}
-              onChange={(e) => updateMetadata({ purchaseDate: e.target.value })}
-            />
-            <textarea
-              placeholder="Notes (optional)"
-              rows={2}
-              className="w-full bg-card border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              value={session?.metadata.notes || ''}
-              onChange={(e) => updateMetadata({ notes: e.target.value })}
-            />
+            <label className="block">
+              <span className="block text-xs font-medium text-muted-foreground mb-1.5">Purchase date</span>
+              <input
+                type="text"
+                placeholder="e.g. 12/07/2026"
+                className="w-full bg-card border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                value={session?.metadata.purchaseDate || ''}
+                onChange={(e) => updateMetadata({ purchaseDate: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-muted-foreground mb-1.5">Notes</span>
+              <textarea
+                placeholder="Anything worth remembering about this vial"
+                rows={2}
+                className="w-full bg-card border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                value={session?.metadata.notes || ''}
+                onChange={(e) => updateMetadata({ notes: e.target.value })}
+              />
+            </label>
           </div>
         </div>
       </div>
@@ -919,6 +938,14 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const result = session?.analysisResult;
 
+  // Haptic verdict feedback when the result first appears (no-op on web)
+  useEffect(() => {
+    if (!result) return;
+    if (result.triageResult === 'pass') void hapticSuccess();
+    else void hapticWarning();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Text share — plain summary for any platform
   const handleShareText = async () => {
     if (!result) return;
@@ -979,7 +1006,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         primaryReasons: result.primaryReasons,
         ocrText: result.ocrText,
         captures: session?.captures,
-        scannedAt: session?.metadata.scannedAt,
+        scannedAt: session?.createdAt,
       });
     } catch { /* silently fail */ } finally {
       setGeneratingPdf(false);
@@ -1190,7 +1217,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                   </button>
                 ) : (
                   <button
-                    onClick={() => { setShowShareSheet(false); setLocation('/upgrade'); }}
+                    onClick={() => { setShowShareSheet(false); rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
                     className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border opacity-70 active:scale-[0.98] transition-transform"
                   >
                     <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">

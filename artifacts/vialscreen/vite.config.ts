@@ -2,6 +2,7 @@ import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
@@ -33,6 +34,45 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    // PWA: installable web app + offline shell. Uses the existing
+    // public/manifest.webmanifest; only generates the service worker.
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: false,
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api/],
+        // OCR engine + language data and web fonts are fetched at runtime —
+        // cache them so label reading works offline after first use.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'cdn-assets',
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/tessdata\.projectnaptha\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'tessdata',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
+      },
+    }),
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined
       ? [

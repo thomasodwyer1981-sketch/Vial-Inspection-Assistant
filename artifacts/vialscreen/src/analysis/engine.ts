@@ -400,9 +400,11 @@ async function scoreClarityHaze(
 // Particle screening applies regardless of profile — particles
 // are a concern in all expected appearances.
 //
-// IMPROVEMENT: Particle detection is now ROI-bounded. The vial body
-// region is estimated from the black-background image and only that
-// region is scanned. This eliminates false positives from label text,
+// IMPROVEMENT: Particle detection is ROI-bounded, and the ROI is
+// estimated PER CAPTURE (background-aware). The two captures are
+// separate photos — the phone almost always moves between shots, so
+// reusing the black-capture ROI on the white image would scan the
+// wrong region. This eliminates false positives from label text,
 // background edges, cap details, and surrounding objects.
 // ----------------------------------------------------------------
 async function scoreVisibleParticles(captures: MediaCapture[]): Promise<CategoryScore> {
@@ -414,18 +416,6 @@ async function scoreVisibleParticles(captures: MediaCapture[]): Promise<Category
 
   const results: { score: number; count: number }[] = [];
 
-  // Determine vial ROI from black-background image (most reliable for location)
-  // and reuse it across both background analyses for consistency.
-  let sharedRoi = undefined;
-  if (blackCapture) {
-    try {
-      const bImg = await loadImage(blackCapture.dataUrl);
-      const { ctx: bCtx, width: bW, height: bH } = drawToCanvas(bImg, 512);
-      const bData = bCtx.getImageData(0, 0, bW, bH);
-      sharedRoi = estimateVialROI(bData);
-    } catch { /* fall back to no roi */ }
-  }
-
   for (const [cap, bg] of [
     [blackCapture, 'black'],
     [whiteCapture, 'white'],
@@ -435,8 +425,10 @@ async function scoreVisibleParticles(captures: MediaCapture[]): Promise<Category
       const img = await loadImage(cap.dataUrl);
       const { ctx, width, height } = drawToCanvas(img, 512);
       const imageData = ctx.getImageData(0, 0, width, height);
-      // Pass the shared ROI so particle scan focuses on the vial body only
-      const analysis = computeParticleAnalysis(imageData, bg, sharedRoi);
+      // Estimate the vial ROI for THIS capture so the particle scan
+      // focuses on the vial body only
+      const roi = estimateVialROI(imageData, bg);
+      const analysis = computeParticleAnalysis(imageData, bg, roi);
       results.push({ score: analysis.particleRiskScore, count: analysis.suspiciousSpeckCount });
     } catch {
       // skip failed
@@ -513,7 +505,10 @@ async function scoreFillLevel(captures: MediaCapture[]): Promise<CategoryScore> 
     const img = await loadImage(whiteCapture.dataUrl);
     const { ctx, width, height } = drawToCanvas(img, 512);
     const imageData = ctx.getImageData(0, 0, width, height);
-    const fill = estimateFillLevel(imageData);
+    // Constrain the meniscus search to the detected vial body so cap edges
+    // and background transitions cannot masquerade as the fill line.
+    const roi = estimateVialROI(imageData, 'white');
+    const fill = estimateFillLevel(imageData, roi);
 
     if (!fill.fillFraction || fill.confidence === 'unable') {
       return {
@@ -524,7 +519,7 @@ async function scoreFillLevel(captures: MediaCapture[]): Promise<CategoryScore> 
         explanation:
           'Unable to estimate fill level from this capture. ' +
           'The meniscus line may not be visible, or the vial may be opaque.',
-        method: 'Horizontal gradient edge detection in central column band. Unable to detect clear edge.',
+        method: 'Horizontal gradient edge detection within detected vial region. Unable to detect clear edge.',
       };
     }
 
@@ -553,9 +548,9 @@ async function scoreFillLevel(captures: MediaCapture[]): Promise<CategoryScore> 
       status: scoreToStatus(score),
       explanation,
       method:
-        'Column-averaged brightness profile (central 40% of image width). ' +
+        'Column-averaged brightness profile (central 40% of detected vial region, cap band excluded). ' +
         'Strongest horizontal gradient identified as meniscus candidate. ' +
-        'Fill fraction = 1 - meniscusY/imageHeight.',
+        'Fill fraction measured relative to vial body height.',
     };
   } catch {
     return {
@@ -594,17 +589,22 @@ async function scoreCapIntegrity(captures: MediaCapture[]): Promise<CategoryScor
   try {
     const img = await loadImage(primary.dataUrl);
     const { ctx, width, height } = drawToCanvas(img, 256);
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const stats = computePixelStats(imageData);
 
-    // Analyze top 15% of image for a distinct region (cap area)
+    // Compare the top 15% (cap region) against the vial mid-body band
+    // (40–70% of height). Comparing top vs the WHOLE image diluted the
+    // signal, because the whole image includes the cap itself.
     const topHeight = Math.floor(height * 0.15);
     const topData = ctx.getImageData(0, 0, width, topHeight);
     const topStats = computePixelStats(topData);
 
-    const brightnessDiff = Math.abs(topStats.meanBrightness - stats.meanBrightness);
+    const midY = Math.floor(height * 0.4);
+    const midHeight = Math.max(1, Math.floor(height * 0.3));
+    const midData = ctx.getImageData(0, midY, width, midHeight);
+    const midStats = computePixelStats(midData);
 
-    // If the top region is distinctly different from overall image → cap likely present
+    const brightnessDiff = Math.abs(topStats.meanBrightness - midStats.meanBrightness);
+
+    // If the top region is distinctly different from the mid-body → cap likely present
     const capLikelyPresent = brightnessDiff > 20;
 
     return {
@@ -617,7 +617,7 @@ async function scoreCapIntegrity(captures: MediaCapture[]): Promise<CategoryScor
           'Verify visually.'
         : 'No distinct top-region difference detected. Confirm cap is present and properly seated.',
       method:
-        'Brightness difference between top 15% and overall image. ' +
+        'Brightness difference between top 15% (cap region) and mid-body band (40–70% height). ' +
         'Difference >20 → cap candidate present.',
     };
   } catch {
@@ -637,6 +637,20 @@ async function scoreCapIntegrity(captures: MediaCapture[]): Promise<CategoryScor
 // Uses simple text extraction via the Tesseract.js worker if available,
 // falls back to a conservative "unable to assess" result.
 // ----------------------------------------------------------------
+/**
+ * Normalize a string for OCR-tolerant matching: lowercase, strip
+ * non-alphanumerics, and collapse common OCR confusions (O↔0, I/L↔1, S↔5).
+ * Applied identically to BOTH sides so the confusions cancel out.
+ */
+function normalizeForOcrMatch(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/o/g, '0')
+    .replace(/[il]/g, '1')
+    .replace(/s/g, '5');
+}
+
 async function scoreLabelOcr(
   captures: MediaCapture[],
   expectedPeptideName?: string,
@@ -645,9 +659,13 @@ async function scoreLabelOcr(
   const category: CategoryKey = 'labelOcr';
   const label = 'Label Readability';
 
-  const labelCapture = captures.find((c) => c.background === 'label');
+  // Use BOTH label captures when present — the secondary detail shot often
+  // contains the batch/concentration text the primary shot missed.
+  const labelCaptures = captures.filter(
+    (c) => c.background === 'label' || c.background === 'label2',
+  );
 
-  if (!labelCapture) {
+  if (labelCaptures.length === 0) {
     return {
       category,
       label,
@@ -662,23 +680,30 @@ async function scoreLabelOcr(
   try {
     // Dynamic import — only loaded if label capture exists
     const Tesseract = await import('tesseract.js');
-    const result = await Tesseract.recognize(labelCapture.dataUrl, 'eng', {
-      logger: (m: { status: string; progress: number }) => {
-        if (!onProgress) return;
-        if (m.status === 'loading tesseract core') {
-          onProgress('Loading OCR engine — first run may take a moment…');
-        } else if (m.status === 'loading language traineddata') {
-          onProgress('Downloading OCR language data…');
-        } else if (m.status === 'initializing tesseract') {
-          onProgress('Initializing OCR…');
-        } else if (m.status === 'recognizing text') {
-          onProgress(`Reading label text (${Math.round(m.progress * 100)}%)…`);
-        }
-      },
-    });
 
-    const text = result.data.text.trim();
-    const confidence = result.data.confidence; // 0–100
+    let combinedText = '';
+    let confidence = 0;
+    for (const cap of labelCaptures) {
+      const result = await Tesseract.recognize(cap.dataUrl, 'eng', {
+        logger: (m: { status: string; progress: number }) => {
+          if (!onProgress) return;
+          if (m.status === 'loading tesseract core') {
+            onProgress('Loading OCR engine — first run may take a moment…');
+          } else if (m.status === 'loading language traineddata') {
+            onProgress('Downloading OCR language data…');
+          } else if (m.status === 'initializing tesseract') {
+            onProgress('Initializing OCR…');
+          } else if (m.status === 'recognizing text') {
+            onProgress(`Reading label text (${Math.round(m.progress * 100)}%)…`);
+          }
+        },
+      });
+      const t = result.data.text.trim();
+      if (t) combinedText += (combinedText ? '\n' : '') + t;
+      confidence = Math.max(confidence, result.data.confidence); // 0–100
+    }
+
+    const text = combinedText.trim();
 
     let matchScore = confidence;
     let explanation = '';
@@ -698,10 +723,14 @@ async function scoreLabelOcr(
     explanation = `Label text extracted (OCR confidence: ${Math.round(confidence)}%). Extracted: "${text.slice(0, 80)}${text.length > 80 ? '…' : ''}"`;
 
     if (expectedPeptideName && expectedPeptideName.trim().length > 0) {
-      const expected = expectedPeptideName.toLowerCase().trim();
-      const found = text.toLowerCase();
-      const wordMatches = expected.split(/\s+/).filter((w) => found.includes(w)).length;
-      const wordTotal = expected.split(/\s+/).length;
+      const foundNorm = normalizeForOcrMatch(text);
+      const expectedWords = expectedPeptideName
+        .trim()
+        .split(/\s+/)
+        .map(normalizeForOcrMatch)
+        .filter((w) => w.length > 0);
+      const wordMatches = expectedWords.filter((w) => foundNorm.includes(w)).length;
+      const wordTotal = Math.max(1, expectedWords.length);
       const matchRatio = wordMatches / wordTotal;
 
       if (matchRatio >= 0.8) {
@@ -722,19 +751,24 @@ async function scoreLabelOcr(
       score: Math.round(matchScore),
       status: scoreToStatus(Math.round(matchScore)),
       explanation,
-      method: 'Tesseract.js v4 OCR, English language pack. ' +
-        'Match scored by word-level overlap with user-entered expected name.',
+      method: 'Tesseract.js OCR over all label captures, English language pack. ' +
+        'Match scored by word-level overlap after OCR-tolerant normalization ' +
+        '(case/punctuation stripped; O↔0, I/L↔1, S↔5 collapsed on both sides).',
     };
   } catch {
-    // OCR failed or Tesseract unavailable
+    // OCR failed or Tesseract unavailable. First run needs network access to
+    // fetch the OCR engine + language data — call that out when offline.
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
     return {
       category,
       label,
       score: 50,
       status: 'unable',
-      explanation:
-        'Label capture was taken but OCR could not be performed. ' +
-        'Verify the label manually.',
+      explanation: offline
+        ? 'Label text reading needs an internet connection the first time it runs ' +
+          '(the OCR engine downloads on demand). Reconnect and rescan, or verify the label manually.'
+        : 'Label capture was taken but OCR could not be performed. ' +
+          'Verify the label manually.',
       method: 'Tesseract.js OCR failed or unavailable. Fallback: unable.',
     };
   }

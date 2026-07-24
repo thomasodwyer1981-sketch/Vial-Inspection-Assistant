@@ -391,13 +391,23 @@ export interface VialROI {
 }
 
 /**
- * Estimate the bounding box of the vial body in a black-background image.
- * Returns the ROI inset slightly from the detected edges to exclude the
- * bright curved-glass-wall reflections that appear at the vial edges.
+ * Estimate the bounding box of the vial body in a capture.
+ *
+ * `background` selects the detection mode:
+ * - 'black': the vial appears BRIGHTER (glass refraction, cap, liquid
+ *   scatter) than the near-black backdrop → bound bright pixels.
+ * - 'white': the vial appears DARKER (dark cap, glass-wall edges, tinted
+ *   liquid) than the near-white backdrop → bound dark pixels.
+ *
+ * The threshold adapts to the actual backdrop brightness, sampled from the
+ * outer frame ring where the backdrop should dominate.
  *
  * Falls back to a central 55%×65% region if detection fails.
  */
-export function estimateVialROI(imageData: ImageData): VialROI {
+export function estimateVialROI(
+  imageData: ImageData,
+  background: 'black' | 'white' = 'black',
+): VialROI {
   const { data, width, height } = imageData;
   const edgeMargin = Math.floor(Math.min(width, height) * 0.05);
 
@@ -406,13 +416,47 @@ export function estimateVialROI(imageData: ImageData): VialROI {
     gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
   }
 
-  const THRESHOLD = 28; // pixels significantly brighter than a dark background
+  // Sample backdrop brightness from the outer 10% frame ring (the vial is
+  // centered by the framing guide, so the ring is mostly backdrop).
+  const ring = Math.max(4, Math.floor(Math.min(width, height) * 0.1));
+  let ringSum = 0;
+  let ringCount = 0;
+  for (let y = 0; y < height; y++) {
+    if (y < ring || y >= height - ring) {
+      for (let x = 0; x < width; x++) { ringSum += gray[y * width + x]; ringCount++; }
+    } else {
+      for (let x = 0; x < ring; x++) { ringSum += gray[y * width + x]; ringCount++; }
+      for (let x = width - ring; x < width; x++) { ringSum += gray[y * width + x]; ringCount++; }
+    }
+  }
+  const backdrop = ringCount > 0 ? ringSum / ringCount : background === 'black' ? 0 : 255;
+
+  const fallbackROI = (): VialROI => {
+    const fbW = Math.round(width * 0.55);
+    const fbH = Math.round(height * 0.65);
+    return {
+      x: Math.round((width - fbW) / 2),
+      y: Math.round(height * 0.1),
+      width: fbW,
+      height: fbH,
+    };
+  };
+
+  // A "white" backdrop that is actually dim makes dark-pixel detection
+  // unreliable — use the central-region fallback rather than guessing.
+  if (background === 'white' && backdrop < 120) return fallbackROI();
+
+  const isVialPixel =
+    background === 'black'
+      ? (v: number) => v > Math.max(28, backdrop + 24)
+      : (v: number) => v < Math.min(205, backdrop - 35);
+
   let minX = width, maxX = 0, minY = height, maxY = 0;
   let foundPixels = 0;
 
   for (let y = edgeMargin; y < height - edgeMargin; y++) {
     for (let x = edgeMargin; x < width - edgeMargin; x++) {
-      if (gray[y * width + x] > THRESHOLD) {
+      if (isVialPixel(gray[y * width + x])) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -425,16 +469,18 @@ export function estimateVialROI(imageData: ImageData): VialROI {
   const roiW = maxX - minX;
   const roiH = maxY - minY;
 
-  if (foundPixels < 200 || roiW < 20 || roiH < 40 || maxX <= minX || maxY <= minY) {
-    // Fallback: central region
-    const fbW = Math.round(width * 0.55);
-    const fbH = Math.round(height * 0.65);
-    return {
-      x: Math.round((width - fbW) / 2),
-      y: Math.round(height * 0.1),
-      width: fbW,
-      height: fbH,
-    };
+  // Detection failed (too few pixels / degenerate box) or failed to
+  // discriminate (box covers nearly the whole frame) → fallback.
+  const frameArea = (width - 2 * edgeMargin) * (height - 2 * edgeMargin);
+  if (
+    foundPixels < 200 ||
+    roiW < 20 ||
+    roiH < 40 ||
+    maxX <= minX ||
+    maxY <= minY ||
+    roiW * roiH > frameArea * 0.92
+  ) {
+    return fallbackROI();
   }
 
   // Inset from detected edges to avoid the bright curved-glass-wall refraction bands
@@ -522,9 +568,13 @@ export function computeDifferentialTurbidity(
   whiteImageData: ImageData,
   blackImageData: ImageData,
 ): DifferentialTurbidity {
-  const roi = estimateVialROI(blackImageData);
+  const roi = estimateVialROI(blackImageData, 'black');
+  // The two captures are separate photos — the phone almost always moves
+  // between shots, so estimate the white-capture ROI independently instead
+  // of assuming the vial sits at the same pixel coordinates.
+  const whiteRoi = estimateVialROI(whiteImageData, 'white');
 
-  const whiteMean = roiMeanBrightness(whiteImageData, roi);
+  const whiteMean = roiMeanBrightness(whiteImageData, whiteRoi);
   const blackMean = roiMeanBrightness(blackImageData, roi);
   const delta = whiteMean - blackMean;
 
@@ -539,16 +589,16 @@ export function computeDifferentialTurbidity(
   // On white bg: clear body ≈ near-white. Precipitate = DARKER than body.
   let sedimentSuspected = false;
 
-  if (roi.height > 40) {
-    const zoneVal = (imageData: ImageData, yFrac0: number, yFrac1: number): number => {
+  if (roi.height > 40 && whiteRoi.height > 40) {
+    const zoneVal = (imageData: ImageData, zroi: VialROI, yFrac0: number, yFrac1: number): number => {
       const { data, width } = imageData;
-      const y1 = roi.y + Math.round(roi.height * yFrac0);
-      const y2 = Math.min(roi.y + Math.round(roi.height * yFrac1), imageData.height);
-      const x2 = Math.min(roi.x + roi.width, width);
+      const y1 = zroi.y + Math.round(zroi.height * yFrac0);
+      const y2 = Math.min(zroi.y + Math.round(zroi.height * yFrac1), imageData.height);
+      const x2 = Math.min(zroi.x + zroi.width, width);
       let sum = 0;
       let count = 0;
       for (let y = y1; y < y2; y++) {
-        for (let x = roi.x; x < x2; x++) {
+        for (let x = zroi.x; x < x2; x++) {
           const idx = (y * width + x) * 4;
           sum += 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
           count++;
@@ -557,10 +607,10 @@ export function computeDifferentialTurbidity(
       return count > 0 ? sum / count : -1;
     };
 
-    const bkBody = zoneVal(blackImageData, 0.1, 0.7);
-    const bkBottom = zoneVal(blackImageData, 0.76, 0.97);
-    const whBody = zoneVal(whiteImageData, 0.1, 0.7);
-    const whBottom = zoneVal(whiteImageData, 0.76, 0.97);
+    const bkBody = zoneVal(blackImageData, roi, 0.1, 0.7);
+    const bkBottom = zoneVal(blackImageData, roi, 0.76, 0.97);
+    const whBody = zoneVal(whiteImageData, whiteRoi, 0.1, 0.7);
+    const whBottom = zoneVal(whiteImageData, whiteRoi, 0.76, 0.97);
 
     // Precipitate on black bg appears as bright spots at bottom
     const sedimentOnBlack = bkBody >= 0 && bkBottom >= 0 && (bkBottom - bkBody) > 22;
@@ -590,22 +640,34 @@ export function computeDifferentialTurbidity(
 // ----------------------------------------------------------------
 export function estimateFillLevel(
   imageData: ImageData,
+  roi?: VialROI,
 ): { fillFraction: number | null; confidence: 'high' | 'medium' | 'low' | 'unable' } {
   const { data, width, height } = imageData;
 
-  // Focus on central 40% of width
-  const xStart = Math.floor(width * 0.3);
-  const xEnd = Math.floor(width * 0.7);
+  // Constrain the search to the vial body when an ROI is available.
+  // The top ~18% of the ROI is skipped — the cap/crimp edge produces a
+  // strong horizontal gradient that would otherwise win over the meniscus.
+  const rx0 = roi ? Math.max(0, roi.x) : 0;
+  const rx1 = roi ? Math.min(roi.x + roi.width, width) : width;
+  const ry0 = roi ? Math.min(height, roi.y + Math.round(roi.height * 0.18)) : 0;
+  const ry1 = roi ? Math.min(roi.y + roi.height, height) : height;
+
+  const spanW = rx1 - rx0;
+  const spanH = ry1 - ry0;
+
+  // Focus on central 40% of the search band width
+  const xStart = Math.floor(rx0 + spanW * 0.3);
+  const xEnd = Math.floor(rx0 + spanW * 0.7);
   const colWidth = xEnd - xStart;
 
-  if (colWidth < 10) return { fillFraction: null, confidence: 'unable' };
+  if (colWidth < 10 || spanH < 20) return { fillFraction: null, confidence: 'unable' };
 
-  // Build column-averaged brightness profile (top to bottom)
-  const profile = new Float32Array(height);
-  for (let y = 0; y < height; y++) {
+  // Build column-averaged brightness profile (top to bottom of search band)
+  const profile = new Float32Array(spanH);
+  for (let y = 0; y < spanH; y++) {
     let sum = 0;
     for (let x = xStart; x < xEnd; x++) {
-      const idx = (y * width + x) * 4;
+      const idx = ((ry0 + y) * width + x) * 4;
       sum += 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
     }
     profile[y] = sum / colWidth;
@@ -614,7 +676,7 @@ export function estimateFillLevel(
   // Find strongest vertical gradient (meniscus line candidate)
   let maxGrad = 0;
   let meniscusY = -1;
-  for (let y = 2; y < height - 2; y++) {
+  for (let y = 2; y < spanH - 2; y++) {
     const grad = Math.abs(profile[y + 1] - profile[y - 1]);
     if (grad > maxGrad) {
       maxGrad = grad;
@@ -626,7 +688,8 @@ export function estimateFillLevel(
     return { fillFraction: null, confidence: 'unable' };
   }
 
-  const fillFraction = 1 - meniscusY / height;
+  // Fill fraction relative to the searched vial-body band
+  const fillFraction = Math.max(0, Math.min(1, 1 - meniscusY / spanH));
   const confidence = maxGrad > 40 ? 'medium' : 'low';
 
   return { fillFraction, confidence };

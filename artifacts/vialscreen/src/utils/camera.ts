@@ -13,6 +13,8 @@ export interface CaptureResult {
   dataUrl: string;
   width: number;
   height: number;
+  /** Small thumbnail generated at capture-accept time (see generateThumbnail). */
+  thumbDataUrl?: string;
 }
 
 // ----------------------------------------------------------------

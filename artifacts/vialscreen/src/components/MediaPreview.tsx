@@ -17,7 +17,7 @@ export default function MediaPreview({ capture, onRetake, className = '' }: Medi
   return (
     <div className={`relative rounded-xl overflow-hidden border border-border bg-black group ${className}`}>
       <img 
-        src={capture.dataUrl} 
+        src={capture.dataUrl || capture.thumbDataUrl} 
         alt={BG_LABELS[capture.background]} 
         className="w-full h-auto aspect-[3/4] object-contain object-center"
       />

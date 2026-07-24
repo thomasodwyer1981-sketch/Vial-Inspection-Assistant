@@ -1,8 +1,8 @@
 export default function PrivacyPolicy() {
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10 text-sm text-gray-800 leading-relaxed">
+    <div className="max-w-2xl mx-auto px-6 py-10 text-sm text-foreground leading-relaxed">
       <h1 className="text-2xl font-bold mb-2">Privacy Policy</h1>
-      <p className="text-gray-500 mb-6">Last updated: July 22, 2026</p>
+      <p className="text-muted-foreground mb-6">Last updated: July 22, 2026</p>
 
       <p className="mb-4">
         PepScan ("we", "our", or "us") is a mobile application that helps users
@@ -61,7 +61,7 @@ export default function PrivacyPolicy() {
       <h2 className="text-lg font-semibold mt-6 mb-2">Contact</h2>
       <p className="mb-4">
         For questions about this policy, email us at:{" "}
-        <a href="mailto:support@pepscan.app" className="text-blue-600 underline">
+        <a href="mailto:support@pepscan.app" className="text-primary underline">
           support@pepscan.app
         </a>
       </p>

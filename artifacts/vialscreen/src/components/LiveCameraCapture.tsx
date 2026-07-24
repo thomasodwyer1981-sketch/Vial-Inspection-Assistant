@@ -30,8 +30,10 @@ import {
   openFilePicker,
   fileToDataUrl,
   isCameraApiAvailable,
+  generateThumbnail,
   type CaptureResult,
 } from '@/utils/camera';
+import { hapticLight } from '@/utils/haptics';
 import {
   loadImage,
   drawToCanvas,
@@ -113,7 +115,8 @@ export default function LiveCameraCapture({
       const files = await openFilePicker({ accept: 'image/*', capture: 'environment' });
       if (files.length > 0) {
         const result = await fileToDataUrl(files[0]);
-        onCapture(result);
+        const thumbDataUrl = await generateThumbnail(result.dataUrl, 144).catch(() => undefined);
+        onCapture({ ...result, thumbDataUrl });
       }
     } catch {
       // User cancelled — just close silently
@@ -122,7 +125,12 @@ export default function LiveCameraCapture({
   }, [onCapture, onClose]);
 
   // ── Camera stream lifecycle ──────────────────────────────────
+  // Generation counter guards against a race: startStream is async, so a
+  // rapid close/reopen while getUserMedia is pending would otherwise leak
+  // a live camera stream that nothing ever stops.
+  const streamGenRef = useRef(0);
   const startStream = useCallback(async () => {
+    const gen = ++streamGenRef.current;
     setStateSync('requesting');
     if (!isCameraApiAvailable()) {
       await handleFileFallback();
@@ -130,6 +138,12 @@ export default function LiveCameraCapture({
     }
     try {
       const stream = await requestCameraStream('environment');
+      if (gen !== streamGenRef.current) {
+        // Overlay closed (or restarted) while the camera was initializing —
+        // stop the stale stream instead of leaking it.
+        stopStream(stream);
+        return;
+      }
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -178,6 +192,7 @@ export default function LiveCameraCapture({
   // Mount / open / close
   useEffect(() => {
     if (!isOpen) {
+      streamGenRef.current++; // invalidate any in-flight camera request
       if (streamRef.current) {
         stopStream(streamRef.current);
         streamRef.current = null;
@@ -195,6 +210,7 @@ export default function LiveCameraCapture({
     }
     startStream();
     return () => {
+      streamGenRef.current++; // invalidate any in-flight camera request
       if (streamRef.current) {
         stopStream(streamRef.current);
         streamRef.current = null;
@@ -208,16 +224,19 @@ export default function LiveCameraCapture({
     const video = videoRef.current;
     if (!video || stateRef.current === 'capturing' || stateRef.current === 'preview') return;
     setStateSync('capturing');
+    void hapticLight(); // shutter feedback on device (no-op on web)
 
     try {
       // 400 ms AF settle before grabbing first frame
       await new Promise<void>((r) => setTimeout(r, 400));
 
-      // Best-of-5 burst — more candidates = better chance of a perfect frame
+      // Best-of-5 burst — more candidates = better chance of a perfect frame.
+      // 1600px max dimension: the analysis engine works at 512px, so anything
+      // beyond 1600 only slows the burst and bloats memory with no accuracy gain.
       const candidates: Array<CaptureResult & { sharpness: number }> = [];
       for (let i = 0; i < 5; i++) {
         if (i > 0) await new Promise<void>((r) => setTimeout(r, 220));
-        const frame = captureFrameFromVideo(video, 2048);
+        const frame = captureFrameFromVideo(video, 1600);
         const img = await loadImage(frame.dataUrl);
         const { ctx, width, height } = drawToCanvas(img, 512);
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -276,18 +295,22 @@ export default function LiveCameraCapture({
     const hasMotion = typeof DeviceMotionEvent !== 'undefined';
     if (!hasMotion) return;
 
-    setMotionAvailable(true);
-
-    let intervalId: ReturnType<typeof setInterval>;
+    let cancelled = false;
 
     const handleMotion = (e: DeviceMotionEvent) => {
+      const acc = e.accelerationIncludingGravity;
+      if (!acc || (acc.x === null && acc.y === null && acc.z === null)) return;
+
+      // Mark motion as available only once a REAL event with data arrives —
+      // desktop browsers expose the DeviceMotionEvent type but never fire,
+      // which previously showed a misleading "Move less to auto-fire" hint.
+      setMotionAvailable(true);
+
       if (stateRef.current !== 'streaming') {
         stableStartRef.current = null;
         return;
       }
 
-      const acc = e.accelerationIncludingGravity;
-      if (!acc) return;
       const mag = Math.sqrt((acc.x ?? 0) ** 2 + (acc.y ?? 0) ** 2 + (acc.z ?? 0) ** 2);
 
       const history = motionHistoryRef.current;
@@ -310,7 +333,7 @@ export default function LiveCameraCapture({
     };
 
     // Separate interval to update stableProgress (avoids flooding setState in motion handler)
-    intervalId = setInterval(() => {
+    const intervalId = setInterval(() => {
       if (stateRef.current !== 'streaming' || stableStartRef.current === null) return;
       const elapsed = Date.now() - stableStartRef.current;
       const progress = Math.min(100, (elapsed / STABLE_DURATION_MS) * 100);
@@ -322,8 +345,26 @@ export default function LiveCameraCapture({
       }
     }, 50);
 
-    window.addEventListener('devicemotion', handleMotion);
+    // iOS 13+ requires explicit permission before motion events fire.
+    // If previously granted this resolves silently; if a prompt is needed
+    // outside a user gesture it rejects — the manual shutter still works.
+    const dme = DeviceMotionEvent as unknown as {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    if (typeof dme.requestPermission === 'function') {
+      dme.requestPermission()
+        .then((res) => {
+          if (!cancelled && res === 'granted') {
+            window.addEventListener('devicemotion', handleMotion);
+          }
+        })
+        .catch(() => { /* permission unavailable — manual capture only */ });
+    } else {
+      window.addEventListener('devicemotion', handleMotion);
+    }
+
     return () => {
+      cancelled = true;
       window.removeEventListener('devicemotion', handleMotion);
       clearInterval(intervalId);
     };
@@ -374,11 +415,13 @@ export default function LiveCameraCapture({
     setStateSync('streaming');
   };
 
-  const handleAccept = () => {
-    if (capturedResult) {
-      onCapture(capturedResult);
-      onClose();
-    }
+  const handleAccept = async () => {
+    if (!capturedResult) return;
+    // Attach a small thumbnail at accept time — history storage must never
+    // hold full-resolution captures (they exhaust the localStorage quota).
+    const thumbDataUrl = await generateThumbnail(capturedResult.dataUrl, 144).catch(() => undefined);
+    onCapture({ ...capturedResult, thumbDataUrl });
+    onClose();
   };
 
   const handleTorchToggle = async () => {
@@ -528,7 +571,7 @@ export default function LiveCameraCapture({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55">
             <div className="w-14 h-14 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
             <p className="text-white font-semibold text-sm">Selecting sharpest frame…</p>
-            <p className="text-white/60 text-xs mt-1">Taking 3 quick shots</p>
+            <p className="text-white/60 text-xs mt-1">Taking 5 quick shots</p>
           </div>
         )}
 

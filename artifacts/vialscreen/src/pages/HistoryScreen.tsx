@@ -1,7 +1,8 @@
 import { Link } from 'wouter';
-import { ArrowLeft, Trash2, AlertTriangle, Lock, Zap } from 'lucide-react';
+import { ArrowLeft, Trash2, AlertTriangle, Lock, Zap, Download, Upload, FileSpreadsheet, FileJson, X as XIcon } from 'lucide-react';
 import { getScanHistory, clearHistory, deleteSession } from '@/utils/storage';
-import { useMemo, useState } from 'react';
+import { exportHistoryCsv, exportHistoryJson, importHistoryFile } from '@/utils/exportHistory';
+import { useMemo, useRef, useState } from 'react';
 import TriageBadge from '@/components/TriageBadge';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { APPEARANCE_PROFILES } from '@/types';
@@ -33,6 +34,26 @@ export default function HistoryScreen() {
   const [history, setHistory] = useState(getScanHistory());
   const { isPro, isLoading: proLoading } = useProStatus();
   const [view, setView] = useState<'all' | 'profiles'>('all');
+  const [showExport, setShowExport] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const { imported, skipped } = await importHistoryFile(file);
+      setHistory(getScanHistory());
+      setShowExport(false);
+      alert(
+        imported > 0
+          ? `Imported ${imported} scan${imported === 1 ? '' : 's'}${skipped ? ` (${skipped} skipped)` : ''}.`
+          : 'No new scans to import — everything in that backup is already here.',
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not read that file.');
+    }
+  };
 
   // Group scans by peptide name for the "By Vial" profiles view
   const vialProfiles = useMemo(
@@ -84,14 +105,32 @@ export default function HistoryScreen() {
           </h1>
         </div>
         {history.length > 0 && (
-          <button
-            onClick={handleClearAll}
-            className="text-xs font-semibold text-destructive uppercase tracking-wider p-2"
-          >
-            Clear All
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowExport(true)}
+              className="p-2 rounded-full hover:bg-muted active:bg-muted transition-colors text-muted-foreground"
+              aria-label="Export or back up history"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleClearAll}
+              className="text-xs font-semibold text-destructive uppercase tracking-wider p-2"
+            >
+              Clear All
+            </button>
+          </div>
         )}
       </header>
+
+      {/* Hidden file input for backup import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={handleImportFile}
+      />
 
       {/* View tabs — only when there's history */}
       {history.length > 0 && (
@@ -159,10 +198,16 @@ export default function HistoryScreen() {
             </p>
             <Link
               href="/scan"
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold shadow-sm"
+              className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold shadow-sm"
             >
               Start a Scan
             </Link>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-4 text-xs text-muted-foreground underline underline-offset-2"
+            >
+              Restore from a backup file
+            </button>
           </div>
         ) : view === 'profiles' ? (
           /* ── By Vial profiles view ── */
@@ -273,6 +318,69 @@ export default function HistoryScreen() {
         )}
       </div>
 
+      {/* ── Export / backup sheet ── */}
+      {showExport && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-50" onClick={() => setShowExport(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto bg-background rounded-t-2xl border-t shadow-2xl">
+            <div className="px-6 pt-5 pb-10">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="font-bold text-lg">Export &amp; Backup</h3>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    Scans are stored on this device only — keep a backup
+                  </p>
+                </div>
+                <button onClick={() => setShowExport(false)} className="p-2 rounded-full hover:bg-muted active:bg-muted">
+                  <XIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => { exportHistoryCsv(); setShowExport(false); }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm text-foreground">Export CSV</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Summary table for spreadsheets</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { exportHistoryJson(); setShowExport(false); }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
+                    <FileJson className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm text-foreground">Back Up (JSON)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Full backup — restore it on any device</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
+                    <Upload className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-sm text-foreground">Restore Backup</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Merge scans from a backup file</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <DisclaimerBanner />
     </div>
   );
@@ -310,15 +418,40 @@ function VialProfileCard({ profile }: { profile: VialProfile }) {
   const total = profile.items.length;
   const thumbItems = profile.items.filter((i) => i.thumbnailDataUrl).slice(0, 4);
 
+  // Days since the FIRST scan of this vial (items are sorted newest-first).
+  // Reconstituted peptides are commonly used within ~28 days refrigerated,
+  // so an aging vial gets a subtle amber cue.
+  const earliest = profile.items[profile.items.length - 1];
+  const dayN = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(earliest.createdAt).getTime()) / 86_400_000) + 1,
+  );
+  const aging = dayN > 28;
+
   return (
     <Link href={`/history/${profile.latest.id}`} className="block">
       <div className="bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0 mr-3">
-            <h3 className="font-bold text-base truncate">{profile.name}</h3>
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="font-bold text-base truncate">{profile.name}</h3>
+              <span
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 ${
+                  aging
+                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                    : 'bg-secondary text-muted-foreground'
+                }`}
+                title="Days since the first scan of this vial"
+              >
+                Day {dayN}
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {total} {total === 1 ? 'scan' : 'scans'} · Last: {format(new Date(profile.latest.createdAt), 'MMM d, yyyy')}
+              {aging && (
+                <span className="text-amber-600 dark:text-amber-400"> · first scanned 28+ days ago</span>
+              )}
             </p>
           </div>
           <TriageBadge result={profile.latest.triageResult} size="sm" className="shrink-0" />

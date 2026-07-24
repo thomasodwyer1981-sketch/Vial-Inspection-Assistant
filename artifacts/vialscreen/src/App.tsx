@@ -13,6 +13,7 @@ import ScanScreen from '@/pages/ScanScreen';
 import HistoryScreen from '@/pages/HistoryScreen';
 import HistoryDetailScreen from '@/pages/HistoryDetailScreen';
 import LimitationsScreen from '@/pages/LimitationsScreen';
+import CalculatorScreen from '@/pages/CalculatorScreen';
 import UpgradeScreen from '@/pages/UpgradeScreen';
 import UpgradeCompleteScreen from '@/pages/UpgradeCompleteScreen';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/history" component={HistoryScreen} />
       <Route path="/history/:id" component={HistoryDetailScreen} />
       <Route path="/limitations" component={LimitationsScreen} />
+      <Route path="/calculator" component={CalculatorScreen} />
       <Route path="/upgrade" component={UpgradeScreen} />
       <Route path="/upgrade-complete" component={UpgradeCompleteScreen} />
       <Route path="/privacy" component={PrivacyPolicy} />
