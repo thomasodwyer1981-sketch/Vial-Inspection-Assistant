@@ -56,10 +56,12 @@ export async function purchaseRCPro(): Promise<boolean> {
   } catch (e: unknown) {
     const err = e as Record<string, unknown>;
     console.error('[RevenueCat] getOfferings failed:', JSON.stringify(err));
-    // Surface the RC error code to make diagnosis easier
-    const code = err?.code ?? err?.underlyingErrorMessage ?? '';
+    const code = err?.code ?? '';
+    const readable = err?.readableErrorCode ?? err?.underlyingErrorMessage ?? '';
+    const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY as string ?? '';
+    const keyHint = apiKey ? apiKey.slice(0, 12) + '…' : 'not set';
     throw new Error(
-      `Play Billing unavailable (${code}). Make sure you installed the app from the Play Store testing track, not sideloaded, and that your Google account is added as a licence tester in Play Console.`,
+      `RC error ${code} (${readable})\nKey: ${keyHint}\nInstall from Play Store testing track and add Gmail to licence testers in Play Console.`,
     );
   }
 
