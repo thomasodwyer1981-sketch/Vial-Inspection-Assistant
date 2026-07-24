@@ -10,37 +10,27 @@ import {
   Microscope,
   Moon,
   Sun,
+  Zap,
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { APP_NAME } from '@/constants/copy';
 import { getScanHistory, loadActiveSession, clearActiveSession } from '@/utils/storage';
-import DisclaimerBanner from '@/components/DisclaimerBanner';
 import MolecularPattern from '@/components/MolecularPattern';
 
 // PepScan hero icon — phone with vial + scan brackets
 function VialHeroIcon() {
   return (
     <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Phone body */}
       <rect x="11" y="3" width="30" height="46" rx="6" fill="none" stroke="url(#hg)" strokeWidth="1.8" />
-      {/* Phone speaker */}
       <rect x="19" y="7" width="14" height="3" rx="1.5" fill="url(#hg)" opacity="0.5" />
-      {/* Home button */}
       <circle cx="26" cy="44" r="2.5" fill="none" stroke="url(#hg)" strokeWidth="1.4" />
-
-      {/* Scan brackets — green */}
       <path d="M17 17 L17 14 L20 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M35 17 L35 14 L32 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M17 31 L17 34 L20 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M35 31 L35 34 L32 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-
-      {/* Vial body */}
       <rect x="22" y="18" width="8" height="14" rx="4" fill="none" stroke="#2EDFC8" strokeWidth="1.5" />
-      {/* Liquid */}
       <path d="M22.8 27 L22.8 29 Q22.8 31.5 26 31.5 Q29.2 31.5 29.2 29 L29.2 27 Z" fill="#60C8F0" fillOpacity="0.75" />
-      {/* Cap */}
       <rect x="23" y="14" width="6" height="5" rx="2" fill="url(#hg)" />
-
       <defs>
         <linearGradient id="hg" x1="11" y1="3" x2="41" y2="49" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#2EDFC8" />
@@ -57,109 +47,146 @@ export default function HomeScreen() {
   const scanCount = getScanHistory().length;
   const { theme, toggleTheme } = useTheme();
 
-  // Pre-warm Tesseract.js so first-run OCR is faster
   useEffect(() => {
     import('tesseract.js').catch(() => {});
   }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col">
+    <div
+      className="min-h-[100dvh] max-w-md mx-auto flex flex-col"
+      style={{ background: '#0d1117' }}
+    >
+      <MolecularPattern color="#14C9A0" opacity={0.09} />
 
-      {/* ── Dark molecular hero ──────────────────────────── */}
-      <div className="relative bg-[#0d1117] overflow-hidden pt-safe">
-        <MolecularPattern color="#14C9A0" opacity={0.11} />
-
-        {/* Theme toggle */}
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="relative z-10 pt-safe px-5 flex items-center justify-between pt-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <VialHeroIcon />
+          </div>
+          <span className="text-white/70 text-sm font-semibold tracking-wide">{APP_NAME}</span>
+        </div>
         <button
           onClick={toggleTheme}
-          className="absolute top-safe right-4 mt-3 z-20 p-2.5 rounded-full bg-white/8 border border-white/12 text-white/60 hover:text-white/90 hover:bg-white/14 active:scale-95 transition-all"
+          className="p-2 rounded-full bg-white/6 border border-white/10 text-white/50 hover:text-white/80 active:scale-95 transition-all"
           aria-label="Toggle theme"
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
-
-        {/* Subtle radial glow behind the icon */}
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(20,201,160,0.12) 0%, transparent 70%)' }}
-        />
-
-        {/* Gradient fade into the cards below */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none z-10"
-          style={{ background: 'linear-gradient(to bottom, transparent, hsl(var(--background)))' }} />
-
-        <div className="relative z-10 px-6 pt-16 pb-12 text-center">
-          {/* Icon */}
-          <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-sm">
-            <VialHeroIcon />
-          </div>
-
-          {/* Wordmark */}
-          <h1 className="text-4xl font-bold tracking-tight text-white mb-1">
-            {APP_NAME}
-          </h1>
-          <p className="text-sm text-white/45 font-medium max-w-[240px] mx-auto leading-relaxed">
-            Phone-camera visual QC for research peptide vials
-          </p>
-
-          {/* Scan count pill */}
-          {scanCount > 0 && (
-            <div className="mt-4 inline-flex items-center gap-2 bg-white/8 border border-white/12 rounded-full px-3 py-1.5 text-xs text-white/60 font-medium">
-              <Microscope className="w-3 h-3" />
-              {scanCount} scan{scanCount !== 1 ? 's' : ''} on record
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* ── Actions ─────────────────────────────────────── */}
-      <div className="px-5 -mt-5 relative z-20 space-y-3 pb-4 flex-1">
+      {/* ── Hero ───────────────────────────────────────────── */}
+      <div className="relative z-10 px-5 pt-8 pb-6 text-center">
+        {/* Radial glow */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-64 rounded-full pointer-events-none -z-10"
+          style={{ background: 'radial-gradient(circle, rgba(20,201,160,0.15) 0%, transparent 70%)' }}
+        />
 
-        {/* Resume in-progress scan */}
+        <div className="w-24 h-24 mx-auto mb-5 rounded-3xl flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(145deg, rgba(20,201,160,0.15), rgba(20,201,160,0.05))',
+            border: '1px solid rgba(20,201,160,0.25)',
+            boxShadow: '0 0 32px rgba(20,201,160,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
+        >
+          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <rect x="11" y="3" width="30" height="46" rx="6" fill="none" stroke="url(#hg2)" strokeWidth="1.8" />
+            <rect x="19" y="7" width="14" height="3" rx="1.5" fill="url(#hg2)" opacity="0.5" />
+            <circle cx="26" cy="44" r="2.5" fill="none" stroke="url(#hg2)" strokeWidth="1.4" />
+            <path d="M17 17 L17 14 L20 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M35 17 L35 14 L32 14" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M17 31 L17 34 L20 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M35 31 L35 34 L32 34" stroke="#4CD964" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="22" y="18" width="8" height="14" rx="4" fill="none" stroke="#2EDFC8" strokeWidth="1.5" />
+            <path d="M22.8 27 L22.8 29 Q22.8 31.5 26 31.5 Q29.2 31.5 29.2 29 L29.2 27 Z" fill="#60C8F0" fillOpacity="0.75" />
+            <rect x="23" y="14" width="6" height="5" rx="2" fill="url(#hg2)" />
+            <defs>
+              <linearGradient id="hg2" x1="11" y1="3" x2="41" y2="49" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#2EDFC8" />
+                <stop offset="100%" stopColor="#1BAB98" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <h1 className="text-4xl font-bold tracking-tight text-white mb-2">
+          {APP_NAME}
+        </h1>
+        <p className="text-sm text-white/40 font-medium max-w-[220px] mx-auto leading-relaxed">
+          Visual QC for research peptide vials
+        </p>
+
+        {scanCount > 0 && (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-white/50 font-medium"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            <Microscope className="w-3 h-3" />
+            {scanCount} scan{scanCount !== 1 ? 's' : ''} on record
+          </div>
+        )}
+      </div>
+
+      {/* ── Actions ────────────────────────────────────────── */}
+      <div className="relative z-10 px-4 flex-1 flex flex-col gap-3 pb-4">
+
+        {/* Resume banner */}
         {activeSession && !activeSession.finalized && (
           <button
             onClick={() => setLocation('/scan')}
-            className="w-full text-left bg-warning/10 border border-warning/30 rounded-2xl p-4 flex items-center justify-between shadow-sm active:scale-[0.98] transition-transform"
+            className="w-full text-left rounded-2xl p-4 flex items-center justify-between active:scale-[0.98] transition-transform"
+            style={{
+              background: 'rgba(245,158,11,0.12)',
+              border: '1px solid rgba(245,158,11,0.25)',
+            }}
           >
-            <div className="flex flex-col">
-              <span className="font-semibold text-warning text-sm">Resume In-Progress Scan</span>
-              <span className="text-xs text-muted-foreground mt-0.5">You have an unfinished screening session</span>
+            <div>
+              <span className="font-semibold text-amber-400 text-sm">Resume In-Progress Scan</span>
+              <p className="text-xs text-white/40 mt-0.5">You have an unfinished screening session</p>
             </div>
-            <Play className="w-5 h-5 text-warning shrink-0" />
+            <Play className="w-5 h-5 text-amber-400 shrink-0" />
           </button>
         )}
 
-        {/* Start new scan — primary CTA */}
+        {/* Start New Scan — primary CTA */}
         <button
           onClick={() => { clearActiveSession(); setLocation('/scan'); }}
-          className="w-full text-left bg-primary text-primary-foreground rounded-2xl p-5 flex items-center justify-between shadow-lg active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, hsl(168 75% 38%), hsl(168 65% 30%))' }}
+          className="w-full text-left text-white rounded-2xl p-5 flex items-center justify-between active:scale-[0.98] transition-transform"
+          style={{
+            background: 'linear-gradient(135deg, hsl(168 75% 36%), hsl(168 70% 26%))',
+            boxShadow: '0 4px 24px rgba(20,201,160,0.30), 0 1px 0 rgba(255,255,255,0.08) inset',
+          }}
         >
           <div className="flex items-center gap-4">
-            <div className="bg-white/15 p-3 rounded-xl">
+            <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.15)' }}>
               <Camera className="w-6 h-6" />
             </div>
             <div>
               <h2 className="font-bold text-lg leading-tight">Start New Scan</h2>
-              <p className="text-primary-foreground/70 text-sm mt-0.5">Begin visual screening</p>
+              <p className="text-white/65 text-sm mt-0.5">Begin visual screening</p>
             </div>
           </div>
-          <ChevronRight className="w-5 h-5 opacity-60 shrink-0" />
+          <ChevronRight className="w-5 h-5 opacity-50 shrink-0" />
         </button>
 
         {/* Secondary grid */}
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/history"
-            className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 shadow-sm active:scale-[0.98] transition-transform"
-            style={{ boxShadow: '0 2px 12px rgba(20,201,160,0.06)' }}
+            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform"
+            style={{
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
+              border: '1px solid rgba(255,255,255,0.09)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            }}
           >
-            <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
-              <History className="w-4.5 h-4.5 text-primary" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(20,201,160,0.15)', border: '1px solid rgba(20,201,160,0.2)' }}>
+              <History className="w-5 h-5 text-[#14C9A0]" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">History</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <h3 className="font-semibold text-sm text-white/85">History</h3>
+              <p className="text-xs text-white/35 mt-0.5">
                 {scanCount > 0 ? `${scanCount} scan${scanCount !== 1 ? 's' : ''}` : 'Past scans'}
               </p>
             </div>
@@ -167,34 +194,71 @@ export default function HomeScreen() {
 
           <Link
             href="/setup"
-            className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 shadow-sm active:scale-[0.98] transition-transform"
-            style={{ boxShadow: '0 2px 12px rgba(20,201,160,0.06)' }}
+            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform"
+            style={{
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
+              border: '1px solid rgba(255,255,255,0.09)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            }}
           >
-            <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
-              <BookOpen className="w-4.5 h-4.5 text-primary" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(20,201,160,0.15)', border: '1px solid rgba(20,201,160,0.2)' }}>
+              <BookOpen className="w-5 h-5 text-[#14C9A0]" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">Setup Guide</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">How to prepare</p>
+              <h3 className="font-semibold text-sm text-white/85">Setup Guide</h3>
+              <p className="text-xs text-white/35 mt-0.5">How to prepare</p>
             </div>
           </Link>
         </div>
 
+        {/* Upgrade to Pro teaser — only show if scan count is low */}
+        {scanCount <= 2 && (
+          <Link
+            href="/upgrade"
+            className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
+            style={{
+              background: 'linear-gradient(135deg, rgba(20,201,160,0.1), rgba(20,201,160,0.04))',
+              border: '1px solid rgba(20,201,160,0.2)',
+            }}
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(20,201,160,0.18)', border: '1px solid rgba(20,201,160,0.25)' }}>
+              <Zap className="w-5 h-5 text-[#14C9A0]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm text-[#14C9A0]">Unlock Pro — $4.99</h3>
+              <p className="text-xs text-white/35 mt-0.5">AI Vision · unlimited history · PDF export</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-white/25 shrink-0" />
+          </Link>
+        )}
+
+        {/* Limitations */}
         <Link
           href="/limitations"
-          className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-sm active:scale-[0.98] transition-transform"
+          className="rounded-2xl px-4 py-3.5 flex items-center justify-between active:scale-[0.98] transition-transform"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+          }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-destructive/8 rounded-xl flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 text-destructive/70" />
-            </div>
-            <h3 className="font-medium text-sm">Limitations & Disclaimers</h3>
+            <AlertTriangle className="w-4 h-4 text-white/25" />
+            <span className="text-sm text-white/40 font-medium">Limitations & Disclaimers</span>
           </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          <ChevronRight className="w-4 h-4 text-white/20 shrink-0" />
         </Link>
       </div>
 
-      <DisclaimerBanner />
+      {/* ── Disclaimer ─────────────────────────────────────── */}
+      <div className="relative z-10 w-full px-5 pt-3 pb-safe-6 flex items-center justify-center gap-2"
+        style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <AlertTriangle className="w-3 h-3 text-white/20 shrink-0" />
+        <p className="text-[9px] uppercase tracking-widest text-white/25 font-semibold leading-none">
+          Visual screening only · does not confirm identity, purity, potency, or safety
+        </p>
+      </div>
     </div>
   );
 }
