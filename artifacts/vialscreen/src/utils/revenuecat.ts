@@ -61,7 +61,7 @@ export async function purchaseRCPro(): Promise<boolean> {
     const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY as string ?? '';
     const keyHint = apiKey ? apiKey.slice(0, 12) + '…' : 'not set';
     throw new Error(
-      `RC error ${code} (${readable})\nKey: ${keyHint}\nInstall from Play Store testing track and add Gmail to licence testers in Play Console.`,
+      `RC error ${code} (${readable})\nKey: ${keyHint}\nIf credentials were recently updated in Play Console, allow up to 24 hours for propagation, then retry.`,
     );
   }
 

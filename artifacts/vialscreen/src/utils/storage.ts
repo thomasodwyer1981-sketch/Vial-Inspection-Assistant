@@ -131,7 +131,14 @@ function sessionKey(id: string): string {
 /** Returns true if saved successfully, false if storage quota was exceeded. */
 export function saveSession(session: ScanSession): boolean {
   try {
-    localStorage.setItem(sessionKey(session.id), JSON.stringify(session));
+    // Strip image dataUrls before persisting — base64 images are 200 KB–2 MB each
+    // and quickly exhaust localStorage's ~5 MB quota. Analysis results, metadata,
+    // and the history thumbnail (stored separately) are preserved.
+    const lean: ScanSession = {
+      ...session,
+      captures: session.captures.map((c) => ({ ...c, dataUrl: '' })),
+    };
+    localStorage.setItem(sessionKey(session.id), JSON.stringify(lean));
     return true;
   } catch (e) {
     console.warn('[VialScreen] Could not save session — storage quota may be full:', e);
