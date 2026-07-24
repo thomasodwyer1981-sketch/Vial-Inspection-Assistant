@@ -28,6 +28,8 @@ const CAPTURE_TIPS = [
 
 // Appearance profile options in display order
 const PROFILE_OPTIONS: AppearanceProfile[] = ['clear-standard', 'glp1-clear', 'ghk-cu', 'unknown-custom'];
+/** Profiles gated behind Pro — niche professional compounds */
+const PRO_ONLY_PROFILES: AppearanceProfile[] = ['ghk-cu', 'glp1-clear'];
 
 export default function ScanScreen() {
   return (
@@ -308,14 +310,20 @@ function PrepareStep() {
                 const info = APPEARANCE_PROFILES[profile];
                 const copy = APPEARANCE_PROFILE_COPY[profile];
                 const isSelected = selectedProfile === profile;
+                const isLocked = !isPro && PRO_ONLY_PROFILES.includes(profile);
                 return (
                   <button
                     key={profile}
-                    onClick={() => handleProfileSelect(profile)}
+                    onClick={() => {
+                      if (isLocked) { navigate('/upgrade'); return; }
+                      handleProfileSelect(profile);
+                    }}
                     className={`w-full text-left rounded-xl border p-4 transition-colors ${
                       isSelected
                         ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                        : 'border-border bg-card hover:bg-muted/50'
+                        : isLocked
+                          ? 'border-border bg-card opacity-60'
+                          : 'border-border bg-card hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -325,7 +333,12 @@ function PrepareStep() {
                         {isSelected && <div className="w-2 h-2 rounded-full bg-primary" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm leading-snug">{info.label}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm leading-snug">{info.label}</p>
+                          {isLocked && (
+                            <span className="text-[9px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary rounded-full px-1.5 py-0.5">Pro</span>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                           {copy.description}
                         </p>
@@ -477,6 +490,7 @@ function DualCaptureStep() {
       const timer = setTimeout(() => handleSwitchToBlack(), 1200);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [existing?.dataUrl, isBlackPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-advance after black capture → label step
@@ -485,6 +499,7 @@ function DualCaptureStep() {
       const timer = setTimeout(() => advanceStep(), 1200);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [existing?.dataUrl, isBlackPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSwitchToBlack = () => {
@@ -674,10 +689,11 @@ function LabelCaptureStep() {
 
 function ReviewStep() {
   const { session, goToStep, runHeuristicAnalysis, advanceStep } = useScanSessionContext();
+  const { isPro } = useProStatus();
 
   const handleAnalyze = async () => {
     advanceStep(); // Advance to analysis step UI immediately
-    await runHeuristicAnalysis();
+    await runHeuristicAnalysis({ includeAiVision: isPro });
   };
 
   const captures = session?.captures ?? [];
@@ -780,12 +796,13 @@ function ReviewStep() {
 
 function AnalysisStep() {
   const { session, analysisError, analysisStatus, isAnalyzing, runHeuristicAnalysis } = useScanSessionContext();
+  const { isPro } = useProStatus();
 
   // Safety-net: if this step renders without analysis running (e.g., session was
   // resumed with currentStep stuck at 'analysis'), auto-trigger once on mount.
   useEffect(() => {
     if (!isAnalyzing && !session?.analysisResult && !analysisError) {
-      runHeuristicAnalysis();
+      runHeuristicAnalysis({ includeAiVision: isPro });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionally mount-only — safety net for stale resumed sessions
@@ -810,7 +827,7 @@ function AnalysisStep() {
             <p className="text-sm text-muted-foreground">{analysisError}</p>
           </div>
           <button
-            onClick={runHeuristicAnalysis}
+            onClick={() => runHeuristicAnalysis({ includeAiVision: isPro })}
             className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-bold"
           >
             Retry Analysis
@@ -895,6 +912,7 @@ interface ResultsStepProps {
 function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
   const { session } = useScanSessionContext();
   const [, setLocation] = useLocation();
+  const { isPro } = useProStatus();
   const [copied, setCopied] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
@@ -1157,18 +1175,36 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                   </div>
                 </button>
 
-                <button
-                  onClick={handleSharePdf}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
-                >
-                  <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
-                    <FileText className="w-5 h-5 text-foreground" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-bold text-sm text-foreground">PDF Report</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Branded report with vial photos included</p>
-                  </div>
-                </button>
+                {isPro ? (
+                  <button
+                    onClick={handleSharePdf}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border active:scale-[0.98] transition-transform"
+                  >
+                    <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5 text-foreground" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-sm text-foreground">PDF Report</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Branded report with vial photos included</p>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setShowShareSheet(false); setLocation('/upgrade'); }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-secondary border opacity-70 active:scale-[0.98] transition-transform"
+                  >
+                    <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-sm text-foreground flex items-center gap-2">
+                        PDF Report
+                        <span className="text-[9px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary rounded-full px-1.5 py-0.5">Pro</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Unlock with PepScan Pro</p>
+                    </div>
+                  </button>
+                )}
 
                 <button
                   onClick={handleShareText}

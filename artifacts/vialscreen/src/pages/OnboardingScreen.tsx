@@ -1,8 +1,28 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { setOnboardingComplete } from '@/utils/storage';
-import { PRIMARY_DISCLAIMER, ONBOARDING } from '@/constants/copy';
 import { Checkbox } from '@/components/ui/checkbox';
+import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+
+const DOES: string[] = [
+  'Guides a standardised two-background visual inspection',
+  'Screens for visible particles, haze, fill anomalies & label readability',
+  'Returns a structured triage: Pass, Review, or Do Not Use',
+];
+
+const DOES_NOT: string[] = [
+  'Confirm compound identity or authenticity',
+  'Verify purity, potency, or sterility',
+  'Replace lab analysis or professional testing',
+];
+
+const HARD_CASES: string[] = [
+  'Amber / dark glass vials',
+  'Coloured or opaque liquids',
+  'Powder / lyophilised vials',
+  'Heavy foil or printed labels',
+  'Poor lighting or heavy glare',
+];
 
 export default function OnboardingScreen() {
   const [, setLocation] = useLocation();
@@ -16,80 +36,78 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-background max-w-md mx-auto relative shadow-2xl overflow-hidden">
-      <div className="flex-1 overflow-y-auto px-6 py-10 pb-32">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">
-          {ONBOARDING.title}
-        </h1>
-        <p className="text-muted-foreground mb-8">{ONBOARDING.subtitle}</p>
+    <div className="min-h-[100dvh] flex flex-col bg-background max-w-md mx-auto overflow-hidden">
+      <div className="flex-1 overflow-y-auto px-5 pt-10 pb-36">
 
-        <div className="bg-card border rounded-xl p-5 mb-8 shadow-sm">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
-            {PRIMARY_DISCLAIMER}
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground leading-tight">
+            Before You Begin
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            PepScan is a <span className="font-semibold text-foreground">visual screening tool only</span> — not a lab test.
           </p>
         </div>
 
-        <div className="space-y-8">
-          <section>
-            <h2 className="text-lg font-semibold mb-3 text-foreground">
-              {ONBOARDING.whatItDoes.heading}
-            </h2>
-            <ul className="space-y-2">
-              {ONBOARDING.whatItDoes.points.map((pt, i) => (
-                <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                  <span>{pt}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {/* What it does */}
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-2.5">
+            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">What it does</h2>
+          </div>
+          <ul className="space-y-1.5 pl-6">
+            {DOES.map((pt, i) => (
+              <li key={i} className="text-sm text-foreground leading-snug">{pt}</li>
+            ))}
+          </ul>
+        </div>
 
-          <section>
-            <h2 className="text-lg font-semibold mb-3 text-foreground">
-              {ONBOARDING.whatItDoesNot.heading}
-            </h2>
-            <ul className="space-y-2">
-              {ONBOARDING.whatItDoesNot.points.map((pt, i) => (
-                <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-                  <div className="w-1.5 h-1.5 rounded-full bg-destructive mt-1.5 shrink-0" />
-                  <span>{pt}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {/* What it does NOT do */}
+        <div className="mb-5 bg-destructive/5 border border-destructive/15 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-2.5">
+            <XCircle className="w-4 h-4 text-destructive shrink-0" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-destructive/80">Does NOT</h2>
+          </div>
+          <ul className="space-y-1.5 pl-6">
+            {DOES_NOT.map((pt, i) => (
+              <li key={i} className="text-sm text-muted-foreground leading-snug">{pt}</li>
+            ))}
+          </ul>
+        </div>
 
-          <section>
-            <h2 className="text-lg font-semibold mb-3 text-foreground">
-              {ONBOARDING.hardCases.heading}
-            </h2>
-            <ul className="space-y-2">
-              {ONBOARDING.hardCases.points.map((pt, i) => (
-                <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-                  <div className="w-1.5 h-1.5 rounded-full bg-warning mt-1.5 shrink-0" />
-                  <span>{pt}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {/* Difficult cases */}
+        <div className="bg-warning/5 border border-warning/20 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-2.5">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-warning/80">Lower confidence on</h2>
+          </div>
+          <div className="flex flex-wrap gap-2 pl-6">
+            {HARD_CASES.map((pt, i) => (
+              <span key={i} className="text-xs text-muted-foreground bg-muted border rounded-full px-2.5 py-1 leading-tight">
+                {pt}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-5 pt-4">
-        <label className="flex items-start gap-3 cursor-pointer mb-4">
-          <Checkbox 
-            checked={acknowledged} 
+      {/* Sticky footer */}
+      <div className="absolute bottom-0 left-0 right-0 bg-background/90 backdrop-blur-md border-t px-5 py-4 space-y-3 max-w-md mx-auto">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <Checkbox
+            checked={acknowledged}
             onCheckedChange={(checked) => setAcknowledged(checked === true)}
-            className="mt-0.5"
+            className="mt-0.5 shrink-0"
           />
-          <span className="text-sm font-medium leading-tight">
-            {ONBOARDING.acknowledge}
+          <span className="text-sm text-muted-foreground leading-snug">
+            I understand this is a visual screening tool and does not confirm safety or authenticity.
           </span>
         </label>
 
         <button
           onClick={handleSubmit}
           disabled={!acknowledged}
-          className="w-full bg-primary text-primary-foreground py-3.5 px-4 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-sm active:scale-[0.98]"
+          className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-base shadow-lg disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
         >
           Begin Screening
         </button>

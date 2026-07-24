@@ -6,7 +6,7 @@
  * re-validated with the server before granting access.
  */
 
-export const FREE_HISTORY_LIMIT = 10;
+export const FREE_HISTORY_LIMIT = 3;
 export const PRO_PRICE_DISPLAY = '$4.99';
 
 const STORAGE_KEY = 'vialscreen:pro:membershipId';

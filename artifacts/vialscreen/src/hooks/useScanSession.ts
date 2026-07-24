@@ -40,7 +40,7 @@ export interface UseScanSession {
   currentStep: ScanStep | null;
   stepIndex: number;
 
-  runHeuristicAnalysis(): Promise<void>;
+  runHeuristicAnalysis(opts?: { includeAiVision?: boolean }): Promise<void>;
 
   /**
    * Finalize the session — attempts to persist to localStorage and history.
@@ -177,7 +177,7 @@ export function useScanSession(): UseScanSession {
     });
   }, []);
 
-  const runHeuristicAnalysis = useCallback(async () => {
+  const runHeuristicAnalysis = useCallback(async (opts?: { includeAiVision?: boolean }) => {
     const current = sessionRef.current ?? session;
     if (!current) return;
 
@@ -194,10 +194,10 @@ export function useScanSession(): UseScanSession {
         current.metadata.scanMode ?? 'reconstituted',
       );
 
-      // ── Phase 2: AI Vision (best-effort, non-blocking) ───────
-      setAnalysisStatus('Running AI Vision analysis…');
+      // ── Phase 2: AI Vision (Pro only, best-effort) ───────────
+      setAnalysisStatus(opts?.includeAiVision ? 'Running AI Vision analysis…' : '');
       let aiResult: import('../utils/visionAnalysis').AIVisionResult | null = null;
-      try {
+      if (opts?.includeAiVision) try {
         const { runVisionAnalysis } = await import('../utils/visionAnalysis');
         aiResult = await runVisionAnalysis({
           captures: current.captures,

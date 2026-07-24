@@ -147,10 +147,11 @@ export default function LiveCameraCapture({
           if (caps) {
             setTorchSupported('torch' in caps);
             if ('zoom' in caps && caps.zoom) {
+              const zoomCaps = caps.zoom as { min?: number; max?: number };
               setZoomSupported(true);
               setZoomRange({
-                min: caps.zoom.min ?? 1,
-                max: Math.min(caps.zoom.max ?? 5, 8),
+                min: zoomCaps.min ?? 1,
+                max: Math.min(zoomCaps.max ?? 5, 8),
               });
             }
             // Auto-enable torch for white/black captures

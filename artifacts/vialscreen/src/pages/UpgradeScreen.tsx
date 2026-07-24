@@ -136,11 +136,12 @@ export default function UpgradeScreen() {
           <div className="bg-muted/50 rounded-2xl p-4 border">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Free</p>
             <ul className="space-y-2.5">
-              <FeatureRow ok text="Full analysis on every scan" />
-              <FeatureRow ok text="All appearance profiles" />
-              <FeatureRow ok text="Advanced clarity detection" />
+              <FeatureRow ok text="Basic visual analysis" />
+              <FeatureRow ok text="Standard Clear profile" />
+              <FeatureRow ok={false} text="AI Vision analysis" />
               <FeatureRow ok={false} text={`Last ${FREE_HISTORY_LIMIT} scans only`} />
               <FeatureRow ok={false} text="Export / share reports" />
+              <FeatureRow ok={false} text="Pro compound profiles" />
             </ul>
           </div>
 
@@ -151,11 +152,11 @@ export default function UpgradeScreen() {
             </div>
             <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Pro</p>
             <ul className="space-y-2.5">
-              <FeatureRow ok text="Full analysis on every scan" pro />
-              <FeatureRow ok text="All appearance profiles" pro />
-              <FeatureRow ok text="Advanced clarity detection" pro />
+              <FeatureRow ok text="Full AI Vision analysis" pro />
+              <FeatureRow ok text="All 4 compound profiles" pro />
               <FeatureRow ok text="Unlimited scan history" pro />
-              <FeatureRow ok text="Export / share reports" pro />
+              <FeatureRow ok text="Export + PDF reports" pro />
+              <FeatureRow ok text="Powder vial scanning" pro />
             </ul>
           </div>
         </div>
