@@ -50,14 +50,27 @@ export async function checkRCEntitlement(): Promise<boolean> {
 export async function purchaseRCPro(): Promise<boolean> {
   await initRevenueCat();
 
-  const offerings = await Purchases.getOfferings();
+  let offerings;
+  try {
+    offerings = await Purchases.getOfferings();
+  } catch (e: unknown) {
+    const err = e as Record<string, unknown>;
+    console.error('[RevenueCat] getOfferings failed:', JSON.stringify(err));
+    // Surface the RC error code to make diagnosis easier
+    const code = err?.code ?? err?.underlyingErrorMessage ?? '';
+    throw new Error(
+      `Play Billing unavailable (${code}). Make sure you installed the app from the Play Store testing track, not sideloaded, and that your Google account is added as a licence tester in Play Console.`,
+    );
+  }
+
   const current = offerings?.current;
 
   // Prefer the lifetime package; fall back to the first available package
   const pkg = current?.lifetime ?? current?.availablePackages?.[0] ?? null;
   if (!pkg) {
+    console.error('[RevenueCat] No packages in offering:', JSON.stringify(offerings));
     throw new Error(
-      'No packages found in RevenueCat. Make sure you have a product linked to an offering.',
+      'No packages found in RevenueCat offering. Check that the lifetime product is attached to the default offering in the RC dashboard.',
     );
   }
 
@@ -70,6 +83,7 @@ export async function purchaseRCPro(): Promise<boolean> {
     if (err?.userCancelled === true || err?.code === 'PURCHASE_CANCELLED') {
       return false;
     }
+    console.error('[RevenueCat] purchasePackage failed:', JSON.stringify(err));
     throw e;
   }
 }

@@ -67,7 +67,7 @@ export default function HomeScreen() {
 
       {/* ── Dark molecular hero ──────────────────────────── */}
       <div className="relative bg-[#0d1117] overflow-hidden pt-safe">
-        <MolecularPattern color="#14C9A0" opacity={0.09} />
+        <MolecularPattern color="#14C9A0" opacity={0.11} />
 
         {/* Theme toggle */}
         <button
@@ -83,6 +83,10 @@ export default function HomeScreen() {
           className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(20,201,160,0.12) 0%, transparent 70%)' }}
         />
+
+        {/* Gradient fade into the cards below */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none z-10"
+          style={{ background: 'linear-gradient(to bottom, transparent, hsl(var(--background)))' }} />
 
         <div className="relative z-10 px-6 pt-16 pb-12 text-center">
           {/* Icon */}
@@ -109,7 +113,7 @@ export default function HomeScreen() {
       </div>
 
       {/* ── Actions ─────────────────────────────────────── */}
-      <div className="px-5 -mt-5 relative z-10 space-y-3 pb-safe-6 flex-1">
+      <div className="px-5 -mt-5 relative z-20 space-y-3 pb-4 flex-1">
 
         {/* Resume in-progress scan */}
         {activeSession && !activeSession.finalized && (
@@ -148,6 +152,7 @@ export default function HomeScreen() {
           <Link
             href="/history"
             className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 shadow-sm active:scale-[0.98] transition-transform"
+            style={{ boxShadow: '0 2px 12px rgba(20,201,160,0.06)' }}
           >
             <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
               <History className="w-4.5 h-4.5 text-primary" />
@@ -163,6 +168,7 @@ export default function HomeScreen() {
           <Link
             href="/setup"
             className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 shadow-sm active:scale-[0.98] transition-transform"
+            style={{ boxShadow: '0 2px 12px rgba(20,201,160,0.06)' }}
           >
             <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
               <BookOpen className="w-4.5 h-4.5 text-primary" />

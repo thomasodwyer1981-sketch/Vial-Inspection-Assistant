@@ -198,6 +198,7 @@
   .pt-safe-4 { padding-top:    calc(env(safe-area-inset-top,    0px) + 1rem); }
   .pb-safe-4 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); }
   .pb-safe-6 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
+  .pb-safe-8 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2rem); }
 
   /* Wallpaper — any element with bg-background shares the fixed dot-grid + glow.
      background-attachment:fixed means all instances show the same viewport-aligned pattern. */
