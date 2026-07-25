@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield, Sparkles, RotateCcw, Loader2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
-import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl, consumeUpgradeReturnPath } from '@/utils/pro';
+import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl, consumeUpgradeReturnPath, peekUpgradeReturnPath } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
 import { useProStatus, activateProUnlock } from '@/hooks/useProStatus';
 import { purchaseRCPro, restoreRCPurchases } from '@/utils/revenuecat';
+import { hapticSuccess } from '@/utils/haptics';
 
 const isNative = Capacitor.isNativePlatform();
 
@@ -14,6 +15,31 @@ export default function UpgradeScreen() {
   const { isPro, isLoading: proLoading, recheck } = useProStatus();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Post-purchase confirmation (native) — shown briefly before navigating on,
+  // mirroring the web flow's UpgradeCompleteScreen.
+  const [success, setSuccess] = useState<{ returnPath: string | null; restored: boolean } | null>(null);
+  const redirectTimer = useRef<number | null>(null);
+
+  // Cancel any pending post-purchase redirect if the user leaves this screen first
+  useEffect(
+    () => () => {
+      if (redirectTimer.current !== null) window.clearTimeout(redirectTimer.current);
+    },
+    [],
+  );
+
+  const celebrate = (restored: boolean) => {
+    void hapticSuccess();
+    // Peek (don't consume) so an aborted flow keeps the stored return path;
+    // it's consumed exactly once, at the moment we actually navigate.
+    setSuccess({ returnPath: peekUpgradeReturnPath(), restored });
+    // Refresh entitlement state in the background — never block the redirect on it
+    void recheck();
+    redirectTimer.current = window.setTimeout(() => {
+      navigate(consumeUpgradeReturnPath() ?? '/home');
+    }, 2200);
+  };
 
   // Restore flow state (web: membership ID input; native: RC restore button)
   const [showRestore, setShowRestore] = useState(false);
@@ -26,11 +52,9 @@ export default function UpgradeScreen() {
     setLoading(true);
     setError(null);
     try {
-      const success = await purchaseRCPro();
-      if (success) {
-        await recheck();
-        // Return to an interrupted scan if the user came from a Pro gate
-        navigate(consumeUpgradeReturnPath() ?? '/home');
+      const purchased = await purchaseRCPro();
+      if (purchased) {
+        celebrate(false);
       }
       // If false the user cancelled — just reset loading, no error
     } catch (e: unknown) {
@@ -47,8 +71,7 @@ export default function UpgradeScreen() {
     try {
       const restored = await restoreRCPurchases();
       if (restored) {
-        await recheck();
-        navigate(consumeUpgradeReturnPath() ?? '/home');
+        celebrate(true);
       } else {
         setRestoreError('No previous purchase found for this Google account.');
       }
@@ -177,7 +200,23 @@ export default function UpgradeScreen() {
 
         {/* CTA */}
         <div className="mt-auto space-y-3">
-          {isPro ? (
+          {success ? (
+            <div className="rounded-2xl bg-primary/10 border border-primary/25 p-5 text-center">
+              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <p className="font-bold text-lg mb-1">
+                {success.restored ? 'Purchase restored!' : 'Pro activated!'}
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                AI Vision, all compound profiles, unlimited history, PDF export, and powder scanning are now unlocked.
+              </p>
+              <p className="text-xs text-muted-foreground mt-3 flex items-center justify-center gap-1.5">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                {success.returnPath === '/scan' ? 'Returning to your scan…' : 'Taking you home…'}
+              </p>
+            </div>
+          ) : isPro ? (
             <div className="rounded-2xl bg-primary/10 border border-primary/25 p-5 text-center">
               <div className="w-10 h-10 bg-primary/15 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Sparkles className="w-5 h-5 text-primary" />

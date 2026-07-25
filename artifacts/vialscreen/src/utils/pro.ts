@@ -73,6 +73,15 @@ export function rememberUpgradeReturnPath(path: string): void {
   }
 }
 
+/** Read the stored return path without clearing it (for display only). */
+export function peekUpgradeReturnPath(): string | null {
+  try {
+    return sessionStorage.getItem(RETURN_PATH_KEY);
+  } catch {
+    return null;
+  }
+}
+
 /** Read AND clear the stored return path (one-shot). */
 export function consumeUpgradeReturnPath(): string | null {
   try {

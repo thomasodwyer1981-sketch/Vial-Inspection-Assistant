@@ -14,6 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
+import { useProStatus } from '@/hooks/useProStatus';
 import { APP_NAME } from '@/constants/copy';
 import { getScanHistory, loadActiveSession, clearActiveSession } from '@/utils/storage';
 import MolecularPattern from '@/components/MolecularPattern';
@@ -47,6 +48,7 @@ export default function HomeScreen() {
   const activeSession = loadActiveSession();
   const scanCount = getScanHistory().length;
   const { theme, toggleTheme } = useTheme();
+  const { isPro, isLoading: proLoading } = useProStatus();
 
   useEffect(() => {
     import('tesseract.js').catch(() => {});
@@ -63,6 +65,11 @@ export default function HomeScreen() {
             <VialHeroIcon size={22} />
           </div>
           <span className="text-muted-foreground text-sm font-semibold tracking-wide">{APP_NAME}</span>
+          {isPro && (
+            <span className="bg-primary text-primary-foreground text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+              Pro
+            </span>
+          )}
         </div>
         <button
           onClick={toggleTheme}
@@ -190,8 +197,8 @@ export default function HomeScreen() {
           <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
         </Link>
 
-        {/* Upgrade to Pro teaser — only show if scan count is low */}
-        {scanCount <= 2 && (
+        {/* Upgrade to Pro teaser — hidden for Pro users; only shown while scan count is low */}
+        {!proLoading && !isPro && scanCount <= 2 && (
           <Link
             href="/upgrade"
             className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-primary/5 border border-primary/20"
