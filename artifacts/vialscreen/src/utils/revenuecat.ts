@@ -57,7 +57,14 @@ export async function purchaseRCPro(): Promise<boolean> {
     const err = e as Record<string, unknown>;
     console.error('[RevenueCat] getOfferings failed:', JSON.stringify(err));
     const code = err?.code ?? '';
-    const readable = err?.readableErrorCode ?? err?.underlyingErrorMessage ?? '';
+    // Capacitor bridge rejections often drop RC's custom fields — fall back
+    // through every place the human-readable reason can live.
+    const readable =
+      (typeof err?.readableErrorCode === 'string' && err.readableErrorCode) ||
+      (typeof err?.underlyingErrorMessage === 'string' && err.underlyingErrorMessage) ||
+      (typeof err?.errorMessage === 'string' && err.errorMessage) ||
+      (e instanceof Error ? e.message : '') ||
+      '';
     const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY as string ?? '';
     const keyHint = apiKey ? apiKey.slice(0, 12) + '…' : 'not set';
     throw new Error(
