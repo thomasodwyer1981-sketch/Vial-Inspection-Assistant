@@ -6,3 +6,4 @@
 - [Results & sharing features](vialscreen-results-features.md) — share card canvas generator, contextual findings, By Vial history tab
 - [Scan modes and powder analysis](vialscreen-scan-modes.md) — ScanMode type, powder flow, Pro gate, wallpaper CSS approach
 - [localStorage quota & thumbnails](vialscreen-quota-thumbnails.md) — never store full dataUrls in history; 144px thumbs + orphaned-session pruning rules
+- [RevenueCat payments](vialscreen-revenuecat.md) — error-23 root cause (offering lacked the Play product), RC connector API access pattern, Play/RC identifier contract
