@@ -101,6 +101,16 @@ export function useProStatus(): ProStatus {
     void verify();
   }, [verify]);
 
+  // Re-verify whenever the user returns to the app — covers the case where
+  // someone completes a Play Store purchase in a browser overlay and comes back.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void verify(true);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [verify]);
+
   const recheck = useCallback(() => verify(true), [verify]);
 
   return { isPro, isLoading, membershipId, recheck };

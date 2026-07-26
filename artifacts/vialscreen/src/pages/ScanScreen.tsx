@@ -10,7 +10,7 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2 } from 'lucide-react';
 import { shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { ScanStep } from '@/types';
@@ -19,6 +19,28 @@ import { useProStatus } from '@/hooks/useProStatus';
 import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
 import { captureError } from '@/lib/sentry';
+
+/** Format a stored ISO date as a compact relative label ("3d ago", "2w ago"). */
+function fmtDate(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
+/** Triage result colour classes for mini badges. */
+function triageColor(t: string) {
+  if (t === 'pass') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
+  if (t === 'do-not-use') return 'bg-red-500/15 text-red-700 dark:text-red-400';
+  return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
+}
+function triageLabel(t: string) {
+  if (t === 'pass') return 'Pass';
+  if (t === 'do-not-use') return 'DNU';
+  return 'Review';
+}
 
 // Inline capture quality tips shown on white/black capture steps
 const CAPTURE_TIPS = [
@@ -1093,6 +1115,37 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     }
   };
 
+  // Baseline score comparison — loads previous sessions so we can show per-category deltas.
+  // Must be declared before the null guard (React hooks must run unconditionally).
+  const baselineData = useMemo(() => {
+    if (!result?.baselineUsed || !session?.metadata.peptideName) return null;
+    const prevItems = getHistoryForSampleName(
+      result.baselineUsed.sampleName,
+      (session.metadata.scanMode ?? 'reconstituted') as ScanMode,
+    ).slice(0, 3);
+    if (prevItems.length === 0) return null;
+
+    // Load full sessions to get per-category scores (synchronous localStorage reads)
+    const prevSessions = prevItems
+      .map((h) => ({ item: h, full: loadSession(h.id) }))
+      .filter((x) => !!x.full?.analysisResult?.categories?.length);
+
+    // Average each category's score across previous sessions
+    const categoryAvgs: Record<string, number> = {};
+    if (prevSessions.length > 0) {
+      const keys = new Set(prevSessions.flatMap((x) => x.full!.analysisResult!.categories.map((c) => c.category)));
+      for (const key of keys) {
+        const scores = prevSessions.flatMap((x) =>
+          x.full!.analysisResult!.categories.filter((c) => c.category === key).map((c) => c.score),
+        );
+        if (scores.length) categoryAvgs[key] = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      }
+    }
+
+    const avgConfidence = Math.round(prevItems.reduce((a, b) => a + b.overallConfidence, 0) / prevItems.length);
+    return { items: prevItems, categoryAvgs, avgConfidence };
+  }, [result?.baselineUsed, session?.metadata.peptideName, session?.metadata.scanMode]);
+
   // Null guard
   if (!result) {
     return (
@@ -1165,18 +1218,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             </div>
           )}
 
-          {/* Baseline comparison badge */}
+          {/* Baseline comparison badge — compact; detail appears in the body section */}
           {result.baselineUsed && (
-            <div className="mt-3 mx-auto max-w-xs rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
-              <div className="flex items-center gap-2 mb-1">
-                <History className="w-3.5 h-3.5 text-primary shrink-0" />
-                <p className="text-xs font-bold text-primary uppercase tracking-wider">Baseline Comparison Active</p>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Compared against your {result.baselineUsed.previousScanCount} previous scan{result.baselineUsed.previousScanCount !== 1 ? 's' : ''} of{' '}
-                <span className="font-semibold text-foreground">{result.baselineUsed.sampleName}</span>.
-                Any deviations from your baseline are highlighted above.
-              </p>
+            <div className="mt-3 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
+              <History className="w-3 h-3 shrink-0" />
+              Baseline — {result.baselineUsed.previousScanCount} previous scan{result.baselineUsed.previousScanCount !== 1 ? 's' : ''}
             </div>
           )}
 
@@ -1217,6 +1263,106 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
               })}
             </ul>
           </section>
+
+          {/* ── Baseline Vial Comparison ── */}
+          {result.baselineUsed && baselineData && (
+            <section>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-1">How This Vial Compares</h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Score changes vs your previous {baselineData.items.length} scan{baselineData.items.length !== 1 ? 's' : ''} of "{result.baselineUsed.sampleName}".
+              </p>
+
+              {/* Thumbnail strip — previous scans → this scan (oldest left, current right) */}
+              {baselineData.items.some((i) => i.thumbnailDataUrl) && (
+                <div className="flex items-end gap-3 mb-5 overflow-x-auto pb-1">
+                  {baselineData.items.map((item) =>
+                    item.thumbnailDataUrl ? (
+                      <div key={item.id} className="flex flex-col items-center gap-1.5 shrink-0">
+                        <img
+                          src={item.thumbnailDataUrl}
+                          alt="Previous vial scan"
+                          className="w-14 h-14 rounded-xl object-cover border border-border"
+                        />
+                        <span className="text-[10px] text-muted-foreground">{fmtDate(item.createdAt)}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${triageColor(item.triageResult)}`}>
+                          {triageLabel(item.triageResult)}
+                        </span>
+                      </div>
+                    ) : null
+                  )}
+                  {/* Current scan */}
+                  <div className="flex flex-col items-center gap-1.5 shrink-0 ml-auto">
+                    <div className="w-14 h-14 rounded-xl border-2 border-primary/50 bg-primary/5 flex items-center justify-center">
+                      <span className="text-[9px] font-bold text-primary text-center leading-tight">This<br />scan</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Now</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${triageColor(result.triageResult)}`}>
+                      {triageLabel(result.triageResult)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Per-category score delta table */}
+              {Object.keys(baselineData.categoryAvgs).length > 0 && (
+                <div className="rounded-xl border overflow-hidden bg-card">
+                  {/* Header row */}
+                  <div className="grid grid-cols-[1fr_44px_44px_50px] text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-4 py-2 bg-muted/50 border-b">
+                    <span>Category</span>
+                    <span className="text-right">Prev</span>
+                    <span className="text-right">Now</span>
+                    <span className="text-right">Change</span>
+                  </div>
+
+                  {/* Category rows — skip secondary/noise categories */}
+                  {result.categories
+                    .filter((c) => baselineData.categoryAvgs[c.category] !== undefined && !['glareInterference', 'crackDamage'].includes(c.category))
+                    .map((cat) => {
+                      const prev = baselineData.categoryAvgs[cat.category];
+                      const delta = cat.score - prev;
+                      const sig = Math.abs(delta) > 5;
+                      return (
+                        <div key={cat.category} className="grid grid-cols-[1fr_44px_44px_50px] px-4 py-3 border-b last:border-0 items-center">
+                          <span className="text-xs font-medium text-foreground truncate pr-2">{cat.label}</span>
+                          <span className="text-xs text-muted-foreground text-right">{prev}</span>
+                          <span className="text-xs font-bold text-right">{cat.score}</span>
+                          <span className={`text-xs font-bold text-right ${
+                            !sig ? 'text-muted-foreground' :
+                            delta > 0 ? 'text-emerald-600 dark:text-emerald-400' :
+                            'text-red-600 dark:text-red-400'
+                          }`}>
+                            {!sig ? '—' : delta > 0 ? `+${delta}` : `${delta}`}
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                  {/* Overall confidence row */}
+                  {(() => {
+                    const delta = result.overallConfidence - baselineData.avgConfidence;
+                    const sig = Math.abs(delta) > 5;
+                    return (
+                      <div className="grid grid-cols-[1fr_44px_44px_50px] px-4 py-3 bg-muted/30 items-center border-t">
+                        <span className="text-xs font-bold text-foreground">Overall</span>
+                        <span className="text-xs text-muted-foreground text-right">{baselineData.avgConfidence}%</span>
+                        <span className="text-xs font-bold text-right">{result.overallConfidence}%</span>
+                        <span className={`text-xs font-bold text-right ${
+                          !sig ? 'text-muted-foreground' :
+                          delta > 0 ? 'text-emerald-600 dark:text-emerald-400' :
+                          'text-red-600 dark:text-red-400'
+                        }`}>
+                          {!sig ? '—' : delta > 0 ? `+${delta}%` : `${delta}%`}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                Scores 0–100 (higher = better). Changes &gt;5 pts are highlighted.
+              </p>
+            </section>
+          )}
 
           {result.ocrText && (
             <section>
@@ -1264,7 +1410,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             disabled={generatingCard || generatingPdf}
             className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            <Share2 className="w-4 h-4" />
+            {(generatingCard || generatingPdf) ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Share2 className="w-4 h-4" />
+            )}
             {generatingCard ? 'Creating…' : generatingPdf ? 'PDF…' : copied ? 'Copied!' : 'Share'}
           </button>
         </div>
