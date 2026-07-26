@@ -240,20 +240,29 @@ export default function UpgradeScreen() {
                 </p>
               )}
 
-              {/* Purchase button */}
-              <button
-                onClick={isNative ? handleNativePurchase : handleWebPurchase}
-                disabled={loading || proLoading}
-                className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
-              >
-                {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY}`}
-              </button>
-
-              <p className="text-center text-xs text-muted-foreground">
-                {isNative
-                  ? 'Secure payment via Google Play. Billed annually. Cancel anytime.'
-                  : 'Secure checkout powered by Whop. Billed annually. Cancel anytime.'}
-              </p>
+              {/* Purchase button — native only; web shows app store redirect */}
+              {isNative ? (
+                <>
+                  <button
+                    onClick={handleNativePurchase}
+                    disabled={loading || proLoading}
+                    className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
+                  >
+                    {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY}`}
+                  </button>
+                  <p className="text-center text-xs text-muted-foreground">
+                    Secure payment via Google Play. Billed annually. Cancel anytime.
+                  </p>
+                </>
+              ) : (
+                <div className="rounded-2xl border bg-muted/40 p-5 text-center space-y-2">
+                  <p className="font-semibold text-sm">Available on Android</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    PepScan Pro is purchased through the Android app via Google Play.
+                    Download the app to upgrade.
+                  </p>
+                </div>
+              )}
 
               {/* Restore purchase */}
               <div className="pt-2 border-t">
