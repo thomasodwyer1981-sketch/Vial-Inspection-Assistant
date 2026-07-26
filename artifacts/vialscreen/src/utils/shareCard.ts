@@ -6,9 +6,23 @@
  * image-sharing platforms.
  *
  * Sharing strategy:
- *  1. Web Share API with files (Android Chrome, iOS Safari 15.1+) → native share sheet
- *  2. Fallback → download the PNG to device
+ *  1. Capacitor native (Android/iOS) — write to cache dir + native share sheet
+ *  2. Web Share API with files (Android Chrome, iOS Safari 15.1+)
+ *  3. Fallback → download the PNG to device
  */
+
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 export interface ShareCardInput {
   triageResult: 'pass' | 'review' | 'do-not-use';
@@ -227,23 +241,34 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
 /** Share the card via native share sheet if available, otherwise download it. */
 export async function shareOrDownloadCard(input: ShareCardInput): Promise<void> {
   const blob = await generateShareCard(input);
-  const file = new File([blob], 'pepscan-result.png', { type: 'image/png' });
+  const name = `pepscan-${input.triageResult}.png`;
 
+  // ── Native Capacitor (Android / iOS) ────────────────────────────────────────
+  if (Capacitor.isNativePlatform()) {
+    const base64 = await blobToBase64(blob);
+    const saved = await Filesystem.writeFile({
+      path: name,
+      data: base64,
+      directory: Directory.Cache,
+    });
+    await Share.share({ title: 'PepScan Screening Result', url: saved.uri });
+    return;
+  }
+
+  // ── Web fallback ─────────────────────────────────────────────────────────────
+  const file = new File([blob], name, { type: 'image/png' });
   if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: 'PepScan Screening Result' });
       return;
     } catch (err) {
       if ((err as DOMException).name === 'AbortError') return;
-      // Fall through to download
     }
   }
-
-  // Fallback: trigger browser download
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `pepscan-${input.triageResult}.png`;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

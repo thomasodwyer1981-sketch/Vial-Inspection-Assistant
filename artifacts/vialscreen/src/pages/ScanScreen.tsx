@@ -477,7 +477,7 @@ function PrepareStep() {
       </div>
 
       {/* Gate button on profile selection (liquid) and checklist (both modes) */}
-      <div className="space-y-2 pt-2">
+      <div className="space-y-2 pt-2 pb-safe-4">
         {!isPowder && !selectedProfile && (
           <p className="text-xs text-muted-foreground text-center">
             Select an appearance profile above to continue.
@@ -524,10 +524,17 @@ function DualCaptureStep() {
     }
   }, [currentStep]);
 
-  // Auto-advance after white capture → black phase
+  // Auto-advance after white capture → black phase (or skip to label-capture in powder mode)
   useEffect(() => {
     if (!isBlackPhase && existing) {
-      const timer = setTimeout(() => handleSwitchToBlack(), 1200);
+      const timer = setTimeout(() => {
+        if (isPowderMode) {
+          // Powder only needs white background — skip straight to label capture
+          goToStep('label-capture');
+        } else {
+          handleSwitchToBlack();
+        }
+      }, 1200);
       return () => clearTimeout(timer);
     }
     return undefined;
@@ -644,7 +651,7 @@ function DualCaptureStep() {
       </div>
 
       {/* ── Controls ── */}
-      <div className="space-y-3 pt-4 border-t">
+      <div className="space-y-3 pt-4 border-t pb-safe-4">
         {/* Back button: visible on black-capture before a photo is taken */}
         {isBlackPhase && !existing && (
           <button
@@ -662,10 +669,18 @@ function DualCaptureStep() {
         />
         {existing && (
           <button
-            onClick={isBlackPhase ? advanceStep : handleSwitchToBlack}
+            onClick={
+              isPowderMode
+                ? () => goToStep('label-capture')
+                : isBlackPhase
+                ? advanceStep
+                : handleSwitchToBlack
+            }
             className="w-full flex items-center justify-center gap-2.5 bg-foreground text-background py-3.5 px-4 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-transform"
           >
-            {isBlackPhase ? <><ArrowRight className="w-4 h-4" /> Continue</> : <><Moon className="w-4 h-4" /> Switch to Black Background</>}
+            {isBlackPhase || isPowderMode
+              ? <><ArrowRight className="w-4 h-4" /> {isPowderMode ? 'Continue to Review' : 'Continue'}</>
+              : <><Moon className="w-4 h-4" /> Switch to Black Background</>}
           </button>
         )}
       </div>
@@ -725,11 +740,12 @@ function LabelCaptureStep() {
         <p className="text-xs text-muted-foreground mt-2">{copy.optional}</p>
       </div>
 
-      <div className="space-y-3 pt-4 border-t">
+      <div className="space-y-3 pt-4 border-t pb-safe-4">
         <button
           onClick={advanceStep}
-          className="w-full bg-foreground text-background py-4 px-4 rounded-xl font-bold active:scale-[0.98] transition-transform"
+          className="w-full flex items-center justify-center gap-2.5 bg-foreground text-background py-3.5 px-4 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-transform"
         >
+          <ArrowRight className="w-4 h-4" />
           {label1 ? 'Continue to Review' : 'Skip Label Capture'}
         </button>
       </div>
@@ -850,7 +866,7 @@ function ReviewStep() {
         ))}
       </div>
 
-      <div className="pt-4 border-t space-y-3">
+      <div className="pt-4 border-t space-y-3 pb-safe-4">
         <button
           onClick={handleAnalyze}
           className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground py-3.5 px-4 rounded-2xl font-bold shadow-md shadow-primary/20 active:scale-[0.98] transition-transform"
@@ -989,6 +1005,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const result = session?.analysisResult;
 
   // Haptic verdict feedback when the result first appears (no-op on web)
@@ -1032,6 +1049,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     if (!result) return;
     setShowShareSheet(false);
     setGeneratingCard(true);
+    setShareError(null);
     try {
       await shareOrDownloadCard({
         triageResult: result.triageResult,
@@ -1040,7 +1058,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         vendor: session?.metadata.vendor,
         primaryReasons: result.primaryReasons,
       });
-    } catch { /* silently fail */ } finally {
+    } catch {
+      setShareError('Could not share the image. Try the text summary instead.');
+    } finally {
       setGeneratingCard(false);
     }
   };
@@ -1050,6 +1070,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     if (!result) return;
     setShowShareSheet(false);
     setGeneratingPdf(true);
+    setShareError(null);
     try {
       await shareOrDownloadPdf({
         triageResult: result.triageResult,
@@ -1061,7 +1082,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         captures: session?.captures,
         scannedAt: session?.createdAt,
       });
-    } catch { /* silently fail */ } finally {
+    } catch {
+      setShareError('Could not generate the PDF. Try the text summary instead.');
+    } finally {
       setGeneratingPdf(false);
     }
   };
@@ -1223,6 +1246,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           <Save className="w-4 h-4" />
           {saveFailed ? 'Save Failed — See Above' : 'Save Vial Record'}
         </button>
+        {shareError && (
+          <p className="text-xs text-destructive text-center bg-destructive/10 rounded-xl py-2 px-3">
+            {shareError}
+          </p>
+        )}
         <div className="flex gap-3">
           <button onClick={onRetake} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]">
             Retake

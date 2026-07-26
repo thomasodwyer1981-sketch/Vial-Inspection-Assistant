@@ -95,6 +95,7 @@ export default function LiveCameraCapture({
   const [stableProgress, setStableProgress] = useState(0); // 0–100
   const [isStable, setIsStable] = useState(false);
   const [motionAvailable, setMotionAvailable] = useState(false);
+  const [countdownNum, setCountdownNum] = useState<number | null>(null);
 
   // Zoom state
   const [zoom, setZoom] = useState(1);
@@ -370,6 +371,15 @@ export default function LiveCameraCapture({
     };
   }, [isOpen]);
 
+  // ── Visible 3-2-1 countdown number ──────────────────────────
+  useEffect(() => {
+    if (state !== 'countdown') { setCountdownNum(null); return; }
+    setCountdownNum(3);
+    const t1 = setTimeout(() => setCountdownNum(2), STABLE_DURATION_MS / 3);
+    const t2 = setTimeout(() => setCountdownNum(1), (STABLE_DURATION_MS * 2) / 3);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [state]);
+
   // ── Countdown ring animation trigger ────────────────────────
   useEffect(() => {
     if (state !== 'countdown') return;
@@ -556,12 +566,24 @@ export default function LiveCameraCapture({
               isCountingDown ? 'scale-105' : ''
             }`}>
               {isCountingDown
-                ? 'Hold steady…'
+                ? '📸 Get ready — photo in ' + (countdownNum ?? 1) + '…'
                 : motionAvailable && stableProgress > 10
                   ? 'Keep holding…'
                   : isLabelBackground
                     ? 'Center label in frame'
                     : 'Center vial in frame'}
+            </span>
+          </div>
+        )}
+
+        {/* ── 3-2-1 countdown overlay ──────────────────────── */}
+        {isCountingDown && countdownNum !== null && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span
+              className="text-white font-black leading-none select-none"
+              style={{ fontSize: 160, textShadow: '0 6px 40px rgba(0,0,0,0.9)', opacity: 0.88 }}
+            >
+              {countdownNum}
             </span>
           </div>
         )}

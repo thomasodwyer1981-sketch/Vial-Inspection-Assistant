@@ -6,6 +6,19 @@
  */
 
 import jsPDF from 'jspdf';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
+/** Blob → bare base64 string (no data:… prefix). */
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 export interface PdfReportInput {
   triageResult: 'pass' | 'review' | 'do-not-use';
@@ -308,20 +321,31 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
 export async function shareOrDownloadPdf(input: PdfReportInput): Promise<void> {
   const blob = await generatePdfReport(input);
   const name  = (input.peptideName?.trim().replace(/\s+/g, '-') || 'vial') + '-pepscan.pdf';
-  const file  = new File([blob], name, { type: 'application/pdf' });
 
-  // Native share sheet (Android Chrome, iOS 15+)
+  // ── Native Capacitor (Android / iOS) ────────────────────────────────────────
+  // Write to cache dir then share the file URI via the native share sheet.
+  // The browser download trick (a.click()) does not work in a Capacitor WebView.
+  if (Capacitor.isNativePlatform()) {
+    const base64 = await blobToBase64(blob);
+    const saved = await Filesystem.writeFile({
+      path: name,
+      data: base64,
+      directory: Directory.Cache,
+    });
+    await Share.share({ title: 'PepScan Report', url: saved.uri });
+    return;
+  }
+
+  // ── Web fallback ─────────────────────────────────────────────────────────────
+  const file = new File([blob], name, { type: 'application/pdf' });
   if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: 'PepScan Report' });
       return;
     } catch (err) {
       if ((err as DOMException).name === 'AbortError') return;
-      // Fall through to download
     }
   }
-
-  // Fallback — trigger browser download
   const url = URL.createObjectURL(blob);
   const a   = document.createElement('a');
   a.href     = url;
