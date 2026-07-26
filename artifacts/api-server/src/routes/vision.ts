@@ -51,11 +51,13 @@ router.post('/vision/analyze', async (req, res) => {
       peptideName,
       scanMode,
       appearanceProfile,
+      baselineContext,
     } = req.body as {
       captures: Array<{ background: string; dataUrl: string }>;
       peptideName?: string;
       scanMode?: string;
       appearanceProfile?: string;
+      baselineContext?: string[];
     };
 
     if (!captures || captures.length === 0) {
@@ -85,6 +87,10 @@ router.post('/vision/analyze', async (req, res) => {
       : '';
     const nameNote = peptideName ? `Product name: ${peptideName}.` : '';
 
+    const baselineNote = baselineContext?.length
+      ? `BASELINE COMPARISON — previous scans of this sample showed the following findings: ${baselineContext.map((f, i) => `(${i + 1}) ${f}`).join('; ')}. Compare the current images against this baseline and explicitly note any significant changes or deviations (e.g. increased cloudiness, new particles, colour shift). If this scan looks consistent with the baseline, state that clearly.`
+      : '';
+
     const userText = [
       `Analyse this ${productType} vial for visual quality control.`,
       nameNote,
@@ -92,6 +98,7 @@ router.post('/vision/analyze', async (req, res) => {
       `${captures.filter((c) => c.background === 'white').length > 0 ? 'White background image included.' : ''}`,
       `${captures.filter((c) => c.background === 'black').length > 0 ? 'Black background image included.' : ''}`,
       'Check for: particles/foreign matter, cloudiness/haze/turbidity, colour deviations, fill level, cap and stopper integrity.',
+      baselineNote,
     ]
       .filter(Boolean)
       .join(' ');

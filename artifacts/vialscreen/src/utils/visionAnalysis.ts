@@ -29,6 +29,8 @@ export interface VisionAnalysisInput {
   peptideName?: string | null;
   scanMode?: string;
   appearanceProfile?: string | null;
+  /** Pro: previous scan findings for the same sample — drives baseline comparison. */
+  baselineContext?: string[];
 }
 
 export async function runVisionAnalysis(
@@ -47,6 +49,7 @@ export async function runVisionAnalysis(
         peptideName: input.peptideName ?? undefined,
         scanMode: input.scanMode ?? 'liquid',
         appearanceProfile: input.appearanceProfile ?? undefined,
+        baselineContext: input.baselineContext?.length ? input.baselineContext : undefined,
       }),
     });
 

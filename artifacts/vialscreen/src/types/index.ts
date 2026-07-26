@@ -231,6 +231,15 @@ export interface AnalysisResult {
    * Prepended to primaryReasons when present.
    */
   aiFindings?: string[];
+
+  /**
+   * Set when analysis was run with baseline context from previous scans
+   * of the same sample name (Pro — Baseline Comparison feature).
+   */
+  baselineUsed?: {
+    sampleName: string;
+    previousScanCount: number;
+  };
 }
 
 // ---- Full Scan Session ------------------------------------

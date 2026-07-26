@@ -40,7 +40,13 @@ export interface UseScanSession {
   currentStep: ScanStep | null;
   stepIndex: number;
 
-  runHeuristicAnalysis(opts?: { includeAiVision?: boolean }): Promise<void>;
+  runHeuristicAnalysis(opts?: {
+    includeAiVision?: boolean;
+    /** Pro baseline-comparison: findings from previous scans of the same sample. */
+    baselineContext?: string[];
+    /** How many previous sessions contributed to baselineContext. */
+    baselineScanCount?: number;
+  }): Promise<void>;
 
   /**
    * Finalize the session — attempts to persist to localStorage and history.
@@ -177,7 +183,11 @@ export function useScanSession(): UseScanSession {
     });
   }, []);
 
-  const runHeuristicAnalysis = useCallback(async (opts?: { includeAiVision?: boolean }) => {
+  const runHeuristicAnalysis = useCallback(async (opts?: {
+    includeAiVision?: boolean;
+    baselineContext?: string[];
+    baselineScanCount?: number;
+  }) => {
     const current = sessionRef.current ?? session;
     if (!current) return;
 
@@ -204,6 +214,7 @@ export function useScanSession(): UseScanSession {
           peptideName: current.metadata.peptideName || null,
           scanMode: current.metadata.scanMode ?? 'reconstituted',
           appearanceProfile: current.metadata.appearanceProfile ?? null,
+          baselineContext: opts?.baselineContext?.length ? opts.baselineContext : undefined,
         });
       } catch {
         // AI vision is best-effort — fall back to heuristic only
@@ -231,6 +242,21 @@ export function useScanSession(): UseScanSession {
           primaryReasons: [...newFindings, ...result.primaryReasons],
           aiEnhanced: true,
           aiFindings: newFindings,
+        };
+      }
+
+      // Baseline comparison: tag the result so the UI can show the indicator
+      if (
+        opts?.baselineContext?.length &&
+        opts.baselineScanCount &&
+        current.metadata.peptideName?.trim()
+      ) {
+        finalResult = {
+          ...finalResult,
+          baselineUsed: {
+            sampleName: current.metadata.peptideName.trim(),
+            previousScanCount: opts.baselineScanCount,
+          },
         };
       }
 

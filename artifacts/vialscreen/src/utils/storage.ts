@@ -109,6 +109,19 @@ export function addToHistory(session: ScanSession): void {
   }
 }
 
+/**
+ * Return all history items whose peptideName matches `name` (case-insensitive).
+ * Used by the Pro baseline-comparison feature to find previous scans of the
+ * same sample before analysis runs.
+ */
+export function getHistoryForSampleName(name: string): HistoryItem[] {
+  if (!name.trim()) return [];
+  const normalized = name.trim().toLowerCase();
+  return getScanHistory().filter(
+    (h) => (h.peptideName ?? '').trim().toLowerCase() === normalized,
+  );
+}
+
 export function removeFromHistory(id: string): void {
   try {
     const history = getScanHistory().filter((h) => h.id !== id);

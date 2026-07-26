@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { ScanSessionProvider, useScanSessionContext } from '@/context/ScanSessionContext';
 import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
@@ -10,11 +10,11 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History } from 'lucide-react';
 import { shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { ScanStep } from '@/types';
-import { loadActiveSession } from '@/utils/storage';
+import { loadActiveSession, loadSession, getHistoryForSampleName } from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
 import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
@@ -166,6 +166,12 @@ function ScanScreenInner() {
 function PrepareStep() {
   const { session, updateMetadata, advanceStep } = useScanSessionContext();
   const { isPro } = useProStatus();
+
+  // Baseline comparison: count previous scans of the same sample name (Pro only)
+  const baselinePrevCount = useMemo(() => {
+    if (!isPro || !session?.metadata.peptideName?.trim()) return 0;
+    return getHistoryForSampleName(session.metadata.peptideName).length;
+  }, [isPro, session?.metadata.peptideName]);
   const [, navigate] = useLocation();
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
@@ -391,7 +397,10 @@ function PrepareStep() {
           </h3>
           <div className="space-y-3">
             <label className="block">
-              <span className="block text-xs font-medium text-muted-foreground mb-1.5">Peptide / compound name</span>
+              <span className="block text-xs font-medium text-muted-foreground mb-1.5">
+                Sample name
+                {isPro && <span className="ml-1 text-primary font-semibold">· Baseline Comparison</span>}
+              </span>
               <input
                 type="text"
                 placeholder="e.g. BPC-157"
@@ -399,6 +408,17 @@ function PrepareStep() {
                 value={session?.metadata.peptideName || ''}
                 onChange={(e) => updateMetadata({ peptideName: e.target.value })}
               />
+              {isPro && baselinePrevCount > 0 && (
+                <p className="mt-1.5 text-xs text-primary flex items-center gap-1.5">
+                  <History className="w-3 h-3 shrink-0" />
+                  {baselinePrevCount} previous scan{baselinePrevCount !== 1 ? 's' : ''} of this sample found — AI will compare against your baseline
+                </p>
+              )}
+              {isPro && !session?.metadata.peptideName?.trim() && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Enter a name to enable baseline comparison across scans (Pro).
+                </p>
+              )}
             </label>
             <label className="block">
               <span className="block text-xs font-medium text-muted-foreground mb-1.5">Vendor / source</span>
@@ -481,7 +501,7 @@ function PrepareStep() {
 }
 
 function DualCaptureStep() {
-  const { session, addCapture, getCaptureForBackground, advanceStep, currentStep } = useScanSessionContext();
+  const { session, addCapture, getCaptureForBackground, advanceStep, goToStep, currentStep } = useScanSessionContext();
   const [transitioning, setTransitioning] = useState(false);
   const prevStepRef = useRef(currentStep);
 
@@ -624,6 +644,16 @@ function DualCaptureStep() {
 
       {/* ── Controls ── */}
       <div className="space-y-3 pt-4 border-t">
+        {/* Back button: visible on black-capture before a photo is taken */}
+        {isBlackPhase && !existing && (
+          <button
+            onClick={() => goToStep('white-capture')}
+            className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground py-2 hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retake white background shot
+          </button>
+        )}
         <CaptureButton
           onCapture={(res) => addCapture({ background: activeBackground, ...res })}
           captured={!!existing}
@@ -712,7 +742,25 @@ function ReviewStep() {
 
   const handleAnalyze = async () => {
     advanceStep(); // Advance to analysis step UI immediately
-    await runHeuristicAnalysis({ includeAiVision: isPro });
+
+    // Pro baseline: look up previous scans of the same sample and pass their
+    // findings to the AI so it can highlight deviations from the user's baseline.
+    let baselineContext: string[] | undefined;
+    let baselineScanCount = 0;
+
+    if (isPro && session?.metadata.peptideName?.trim()) {
+      const prevItems = getHistoryForSampleName(session.metadata.peptideName).slice(0, 3);
+      if (prevItems.length > 0) {
+        baselineScanCount = prevItems.length;
+        const prevFindings = prevItems
+          .map((h) => loadSession(h.id))
+          .filter(Boolean)
+          .flatMap((s) => s!.analysisResult?.primaryReasons?.slice(0, 3) ?? []);
+        if (prevFindings.length > 0) baselineContext = prevFindings;
+      }
+    }
+
+    await runHeuristicAnalysis({ includeAiVision: isPro, baselineContext, baselineScanCount });
   };
 
   const captures = session?.captures ?? [];
@@ -1082,6 +1130,21 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             <div className="mt-4 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/25 text-primary px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               AI Vision Enhanced
+            </div>
+          )}
+
+          {/* Baseline comparison badge */}
+          {result.baselineUsed && (
+            <div className="mt-3 mx-auto max-w-xs rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
+              <div className="flex items-center gap-2 mb-1">
+                <History className="w-3.5 h-3.5 text-primary shrink-0" />
+                <p className="text-xs font-bold text-primary uppercase tracking-wider">Baseline Comparison Active</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Compared against your {result.baselineUsed.previousScanCount} previous scan{result.baselineUsed.previousScanCount !== 1 ? 's' : ''} of{' '}
+                <span className="font-semibold text-foreground">{result.baselineUsed.sampleName}</span>.
+                Any deviations from your baseline are highlighted above.
+              </p>
             </div>
           )}
 
