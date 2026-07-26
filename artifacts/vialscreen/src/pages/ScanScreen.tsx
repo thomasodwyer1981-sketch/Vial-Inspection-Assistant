@@ -18,6 +18,7 @@ import { loadActiveSession, loadSession, getHistoryForSampleName } from '@/utils
 import { useProStatus } from '@/hooks/useProStatus';
 import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
+import { captureError } from '@/lib/sentry';
 
 // Inline capture quality tips shown on white/black capture steps
 const CAPTURE_TIPS = [
@@ -1020,6 +1021,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const handleShareText = async () => {
     if (!result) return;
     setShowShareSheet(false);
+    setShareError(null);
     const name = session?.metadata.peptideName;
     const lines = [
       'PepScan Screening Result',
@@ -1058,7 +1060,8 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         vendor: session?.metadata.vendor,
         primaryReasons: result.primaryReasons,
       });
-    } catch {
+    } catch (err) {
+      captureError(err, { context: 'share-image-card' });
       setShareError('Could not share the image. Try the text summary instead.');
     } finally {
       setGeneratingCard(false);
@@ -1082,7 +1085,8 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         captures: session?.captures,
         scannedAt: session?.createdAt,
       });
-    } catch {
+    } catch (err) {
+      captureError(err, { context: 'share-pdf' });
       setShareError('Could not generate the PDF. Try the text summary instead.');
     } finally {
       setGeneratingPdf(false);
@@ -1256,7 +1260,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             Retake
           </button>
           <button
-            onClick={() => setShowShareSheet(true)}
+            onClick={() => { setShowShareSheet(true); setShareError(null); }}
             disabled={generatingCard || generatingPdf}
             className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
           >

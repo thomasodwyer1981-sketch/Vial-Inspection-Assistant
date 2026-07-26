@@ -216,8 +216,11 @@ export function useScanSession(): UseScanSession {
           appearanceProfile: current.metadata.appearanceProfile ?? null,
           baselineContext: opts?.baselineContext?.length ? opts.baselineContext : undefined,
         });
-      } catch {
-        // AI vision is best-effort — fall back to heuristic only
+      } catch (err) {
+        // AI vision is best-effort — fall back to heuristic only, but still report
+        import('../lib/sentry').then(({ captureError }) => {
+          captureError(err, { context: 'ai-vision-analysis' });
+        }).catch(() => {});
       }
 
       // ── Phase 3: merge ────────────────────────────────────────
