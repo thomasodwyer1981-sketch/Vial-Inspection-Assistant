@@ -151,14 +151,14 @@ export default function HomeScreen() {
           <ChevronRight className="w-5 h-5 opacity-50 shrink-0" />
         </button>
 
-        {/* Secondary grid */}
+        {/* Secondary grid — coloured identity per feature */}
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/history"
-            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform bg-card border shadow-sm"
+            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform bg-primary/[0.08] border border-primary/15 shadow-sm"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 border border-primary/20">
-              <History className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary shadow-sm">
+              <History className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <h3 className="font-semibold text-sm text-foreground">History</h3>
@@ -170,10 +170,10 @@ export default function HomeScreen() {
 
           <Link
             href="/setup"
-            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform bg-card border shadow-sm"
+            className="rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform bg-slate-500/[0.07] border border-slate-400/20 shadow-sm"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 border border-primary/20">
-              <BookOpen className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-600 dark:bg-slate-500 shadow-sm">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
               <h3 className="font-semibold text-sm text-foreground">Setup Guide</h3>
@@ -182,13 +182,13 @@ export default function HomeScreen() {
           </Link>
         </div>
 
-        {/* Reconstitution calculator — free utility */}
+        {/* Reconstitution calculator — amber identity */}
         <Link
           href="/calculator"
-          className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-card border shadow-sm"
+          className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-amber-500/[0.07] border border-amber-500/20 shadow-sm"
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/20">
-            <Calculator className="w-5 h-5 text-primary" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500 shadow-sm">
+            <Calculator className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm text-foreground">Reconstitution Calculator</h3>
@@ -197,14 +197,14 @@ export default function HomeScreen() {
           <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
         </Link>
 
-        {/* Upgrade to Pro teaser — hidden for Pro users; only shown while scan count is low */}
+        {/* Upgrade to Pro teaser */}
         {!proLoading && !isPro && scanCount <= 2 && (
           <Link
             href="/upgrade"
-            className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-primary/5 border border-primary/20"
+            className="rounded-2xl p-4 flex items-center gap-3 active:scale-[0.98] transition-transform bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/25">
-              <Zap className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary shadow-sm">
+              <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm text-primary">Unlock Pro — $4.99/yr</h3>

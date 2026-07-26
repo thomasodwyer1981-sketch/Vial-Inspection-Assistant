@@ -339,11 +339,8 @@ export default function LiveCameraCapture({
       const elapsed = Date.now() - stableStartRef.current;
       const progress = Math.min(100, (elapsed / STABLE_DURATION_MS) * 100);
       setStableProgress(progress);
-      if (progress >= 100) {
-        stableStartRef.current = null;
-        setStableProgress(0);
-        runBurstRef.current();
-      }
+      // Ring stays full at 100% as a "steady — tap to capture" indicator. No auto-fire.
+      if (progress >= 100) stableStartRef.current = null;
     }, 50);
 
     // iOS 13+ requires explicit permission before motion events fire.
@@ -567,11 +564,9 @@ export default function LiveCameraCapture({
             }`}>
               {isCountingDown
                 ? '📸 Get ready — photo in ' + (countdownNum ?? 1) + '…'
-                : motionAvailable && stableProgress > 10
-                  ? 'Keep holding…'
-                  : isLabelBackground
-                    ? 'Center label in frame'
-                    : 'Center vial in frame'}
+                : isLabelBackground
+                  ? 'Center label in frame'
+                  : 'Center vial in frame'}
             </span>
           </div>
         )}
@@ -668,15 +663,11 @@ export default function LiveCameraCapture({
           </div>
         )}
 
-        {/* ── Auto-fire hint (streaming, motion available) ─── */}
-        {isStreaming && motionAvailable && (
+        {/* ── Steadiness badge — appears when phone is stable ── */}
+        {isStreaming && motionAvailable && isStable && (
           <div className="absolute bottom-[30%] left-0 right-0 flex justify-center pointer-events-none">
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full transition-all duration-300 ${
-              isStable
-                ? 'text-emerald-300 bg-black/40'
-                : 'text-white/40 bg-transparent'
-            }`}>
-              {isStable ? '● Steady' : '● Move less to auto-fire'}
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full text-emerald-300 bg-black/40">
+              ● Steady — tap to capture
             </span>
           </div>
         )}
