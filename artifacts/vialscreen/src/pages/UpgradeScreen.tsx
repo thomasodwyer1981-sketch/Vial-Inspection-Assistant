@@ -188,13 +188,13 @@ export default function UpgradeScreen() {
         {/* Trust signals */}
         <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground mb-8">
           <span className="flex items-center gap-1.5">
-            <Shield className="w-3.5 h-3.5" /> One-time only
+            <Shield className="w-3.5 h-3.5" /> Cancel anytime
           </span>
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" /> No subscription
+            <CheckCircle2 className="w-3.5 h-3.5" /> Billed annually
           </span>
           <span className="flex items-center gap-1.5">
-            <History className="w-3.5 h-3.5" /> Unlock forever
+            <History className="w-3.5 h-3.5" /> Renews each year
           </span>
         </div>
 
@@ -246,13 +246,13 @@ export default function UpgradeScreen() {
                 disabled={loading || proLoading}
                 className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
               >
-                {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY} one-time`}
+                {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY}`}
               </button>
 
               <p className="text-center text-xs text-muted-foreground">
                 {isNative
-                  ? 'Secure payment via Google Play. No recurring charges.'
-                  : 'Secure checkout powered by Whop. No recurring charges.'}
+                  ? 'Secure payment via Google Play. Billed annually. Cancel anytime.'
+                  : 'Secure checkout powered by Whop. Billed annually. Cancel anytime.'}
               </p>
 
               {/* Restore purchase */}

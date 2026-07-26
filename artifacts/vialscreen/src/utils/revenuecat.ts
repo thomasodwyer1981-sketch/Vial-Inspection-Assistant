@@ -42,7 +42,7 @@ export async function checkRCEntitlement(): Promise<boolean> {
 }
 
 /**
- * Triggers the Google Play purchase sheet for the lifetime/one-time package.
+ * Triggers the Google Play purchase sheet for the annual subscription package.
  * Returns true if purchase succeeded and entitlement is now active.
  * Returns false if user cancelled.
  * Throws on any other error.
@@ -74,12 +74,12 @@ export async function purchaseRCPro(): Promise<boolean> {
 
   const current = offerings?.current;
 
-  // Prefer the lifetime package; fall back to the first available package
-  const pkg = current?.lifetime ?? current?.availablePackages?.[0] ?? null;
+  // Prefer the annual package; fall back to the first available package
+  const pkg = current?.annual ?? current?.availablePackages?.[0] ?? null;
   if (!pkg) {
     console.error('[RevenueCat] No packages in offering:', JSON.stringify(offerings));
     throw new Error(
-      'No packages found in RevenueCat offering. Check that the lifetime product is attached to the default offering in the RC dashboard.',
+      'No packages found in RevenueCat offering. Check that the annual product is attached to the default offering in the RC dashboard.',
     );
   }
 

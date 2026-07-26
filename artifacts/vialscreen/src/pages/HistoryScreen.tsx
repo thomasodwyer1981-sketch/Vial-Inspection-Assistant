@@ -167,7 +167,7 @@ export default function HistoryScreen() {
                   {FREE_HISTORY_LIMIT} scan limit reached
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Upgrade for unlimited history — {PRO_PRICE_DISPLAY} one-time
+                  Upgrade for unlimited history — {PRO_PRICE_DISPLAY}
                 </p>
               </div>
               <div className="bg-primary text-primary-foreground text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1">
@@ -305,7 +305,7 @@ export default function HistoryScreen() {
                       {lockedCount} older {lockedCount === 1 ? 'scan' : 'scans'} locked
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Upgrade to Pro to see your full history — {PRO_PRICE_DISPLAY} one-time
+                      Upgrade to Pro to see your full history — {PRO_PRICE_DISPLAY}
                     </p>
                   </div>
                   <span className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
