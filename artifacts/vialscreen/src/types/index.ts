@@ -302,6 +302,12 @@ export interface HistoryItem {
    * Optional for backward compatibility with older history entries.
    */
   appearanceProfile?: AppearanceProfile | null;
+
+  /**
+   * Scan mode — liquid reconstituted or pre-mix powder.
+   * Optional for backward compatibility with older history entries.
+   */
+  scanMode?: ScanMode;
 }
 
 // ---- App State Shapes ------------------------------------

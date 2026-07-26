@@ -263,6 +263,11 @@ export default function HistoryScreen() {
                             <p className="text-xs text-muted-foreground truncate">
                               {item.vendor || 'No vendor'}
                             </p>
+                            {item.scanMode === 'powder' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                Powder
+                              </span>
+                            )}
                             {profileBadge && (
                               <span
                                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 ${profileBadge.className}`}

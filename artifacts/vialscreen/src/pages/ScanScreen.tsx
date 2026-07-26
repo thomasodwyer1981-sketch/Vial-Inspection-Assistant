@@ -10,7 +10,7 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save } from 'lucide-react';
 import { shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { ScanStep } from '@/types';
@@ -491,8 +491,9 @@ function PrepareStep() {
         <button
           disabled={!canProceed}
           onClick={advanceStep}
-          className="w-full bg-primary text-primary-foreground py-4 px-4 rounded-xl font-bold disabled:opacity-40 transition-opacity active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground py-3.5 px-4 rounded-2xl font-bold shadow-md shadow-primary/20 disabled:opacity-40 transition-all active:scale-[0.98]"
         >
+          <Camera className="w-4 h-4" />
           Begin Capture
         </button>
       </div>
@@ -662,9 +663,9 @@ function DualCaptureStep() {
         {existing && (
           <button
             onClick={isBlackPhase ? advanceStep : handleSwitchToBlack}
-            className="w-full bg-foreground text-background py-4 px-4 rounded-xl font-bold active:scale-[0.98] transition-transform"
+            className="w-full flex items-center justify-center gap-2.5 bg-foreground text-background py-3.5 px-4 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-transform"
           >
-            {isBlackPhase ? 'Continue →' : 'Switch to Black Background →'}
+            {isBlackPhase ? <><ArrowRight className="w-4 h-4" /> Continue</> : <><Moon className="w-4 h-4" /> Switch to Black Background</>}
           </button>
         )}
       </div>
@@ -749,7 +750,10 @@ function ReviewStep() {
     let baselineScanCount = 0;
 
     if (isPro && session?.metadata.peptideName?.trim()) {
-      const prevItems = getHistoryForSampleName(session.metadata.peptideName).slice(0, 3);
+      const prevItems = getHistoryForSampleName(
+        session.metadata.peptideName,
+        (session.metadata.scanMode ?? 'reconstituted') as ScanMode,
+      ).slice(0, 3);
       if (prevItems.length > 0) {
         baselineScanCount = prevItems.length;
         const prevFindings = prevItems
@@ -849,8 +853,9 @@ function ReviewStep() {
       <div className="pt-4 border-t space-y-3">
         <button
           onClick={handleAnalyze}
-          className="w-full bg-primary text-primary-foreground py-4 px-4 rounded-xl font-bold shadow-md active:scale-[0.98] transition-transform"
+          className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground py-3.5 px-4 rounded-2xl font-bold shadow-md shadow-primary/20 active:scale-[0.98] transition-transform"
         >
+          <Zap className="w-4 h-4" />
           Run Analysis
         </button>
         <p className="text-[10px] text-center text-muted-foreground font-medium uppercase tracking-wider">
@@ -1213,18 +1218,19 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         <button
           onClick={onFinish}
           disabled={saveFailed}
-          className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold shadow-md active:scale-[0.98] disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground py-3.5 rounded-2xl font-bold shadow-md shadow-primary/20 active:scale-[0.98] disabled:opacity-50 transition-all"
         >
+          <Save className="w-4 h-4" />
           {saveFailed ? 'Save Failed — See Above' : 'Save Vial Record'}
         </button>
         <div className="flex gap-3">
-          <button onClick={onRetake} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98]">
+          <button onClick={onRetake} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]">
             Retake
           </button>
           <button
             onClick={() => setShowShareSheet(true)}
             disabled={generatingCard || generatingPdf}
-            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
+            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <Share2 className="w-4 h-4" />
             {generatingCard ? 'Creating…' : generatingPdf ? 'PDF…' : copied ? 'Copied!' : 'Share'}

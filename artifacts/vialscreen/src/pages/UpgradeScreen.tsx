@@ -246,8 +246,9 @@ export default function UpgradeScreen() {
                   <button
                     onClick={handleNativePurchase}
                     disabled={loading || proLoading}
-                    className="w-full bg-primary text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg active:scale-[0.97] transition-transform disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.97] transition-all disabled:opacity-60"
                   >
+                    <Zap className="w-5 h-5" />
                     {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY}`}
                   </button>
                   <p className="text-center text-xs text-muted-foreground">

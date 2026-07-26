@@ -6,7 +6,7 @@
  * Data lives only in the user's browser.
  */
 
-import type { ScanSession, HistoryItem, OnboardingState } from '../types';
+import type { ScanSession, HistoryItem, OnboardingState, ScanMode } from '../types';
 
 const KEYS = {
   ONBOARDING: 'vialscreen:onboarding',
@@ -92,6 +92,7 @@ export function addToHistory(session: ScanSession): void {
       overallConfidence: session.analysisResult?.overallConfidence ?? 0,
       thumbnailDataUrl: thumb,
       appearanceProfile: session.metadata.appearanceProfile ?? null,
+      scanMode: session.metadata.scanMode,
     };
 
     // Prepend (newest first), keep max 100 items
@@ -111,14 +112,16 @@ export function addToHistory(session: ScanSession): void {
 
 /**
  * Return all history items whose peptideName matches `name` (case-insensitive).
- * Used by the Pro baseline-comparison feature to find previous scans of the
- * same sample before analysis runs.
+ * Pass `scanMode` to restrict to scans of the same type (liquid vs powder) —
+ * important for baseline comparison so powder scans only compare with powder.
  */
-export function getHistoryForSampleName(name: string): HistoryItem[] {
+export function getHistoryForSampleName(name: string, scanMode?: ScanMode): HistoryItem[] {
   if (!name.trim()) return [];
   const normalized = name.trim().toLowerCase();
   return getScanHistory().filter(
-    (h) => (h.peptideName ?? '').trim().toLowerCase() === normalized,
+    (h) =>
+      (h.peptideName ?? '').trim().toLowerCase() === normalized &&
+      (scanMode === undefined || (h.scanMode ?? 'reconstituted') === scanMode),
   );
 }
 
