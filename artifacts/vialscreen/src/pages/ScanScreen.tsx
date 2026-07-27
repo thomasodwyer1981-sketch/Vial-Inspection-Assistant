@@ -307,7 +307,7 @@ function PrepareStep() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-primary">Pro Feature</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Pre-mix powder scanning is part of PepScan Pro — {PRO_PRICE_DISPLAY} per year.
+                  Pre-mix powder scanning is part of PepScan Pro — {PRO_PRICE_DISPLAY}.
                 </p>
                 <button
                   onClick={() => { rememberUpgradeReturnPath('/scan'); navigate('/upgrade'); }}

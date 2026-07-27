@@ -252,7 +252,14 @@ export default function UpgradeScreen() {
                     {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY}`}
                   </button>
                   <p className="text-center text-xs text-muted-foreground">
-                    Secure payment via Google Play. Billed annually. Cancel anytime.
+                    Secure payment via Google Play. Billed annually. Cancel anytime.{' '}
+                    Subscription renews automatically unless cancelled 24 hours before renewal.
+                  </p>
+                  <p className="text-center text-xs text-muted-foreground/70">
+                    By purchasing you agree to our{' '}
+                    <a href="/terms" className="underline underline-offset-2">Terms of Use</a>
+                    {' '}and{' '}
+                    <a href="/privacy" className="underline underline-offset-2">Privacy Policy</a>.
                   </p>
                 </>
               ) : (

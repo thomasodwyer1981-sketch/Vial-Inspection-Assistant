@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { setOnboardingComplete } from '@/utils/storage';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Link } from 'wouter';
 
 const DOES: string[] = [
   'Guides a standardised two-background visual inspection',
@@ -101,6 +102,15 @@ export default function OnboardingScreen() {
           />
           <span className="text-sm text-muted-foreground leading-snug">
             I understand this is a visual screening tool and does not confirm safety or authenticity.
+            I agree to the{' '}
+            <Link href="/terms" onClick={(e) => e.stopPropagation()} className="text-primary underline underline-offset-2">
+              Terms of Use
+            </Link>
+            {' '}and{' '}
+            <Link href="/privacy" onClick={(e) => e.stopPropagation()} className="text-primary underline underline-offset-2">
+              Privacy Policy
+            </Link>
+            .
           </span>
         </label>
 
