@@ -8,3 +8,4 @@
 - [localStorage quota & thumbnails](vialscreen-quota-thumbnails.md) — never store full dataUrls in history; 144px thumbs + orphaned-session pruning rules
 - [RevenueCat payments](vialscreen-revenuecat.md) — error-23 root cause (offering lacked the Play product), RC connector API access pattern, Play/RC identifier contract
 - [Release pipeline gotchas](vialscreen-release-pipeline.md) — mixed Sentry-version launch crash, AAB content verification via bundle grep, Play track opt-in traps
+- [Device camera rules](vialscreen-device-camera.md) — cap getUserMedia at 1920 (4K melts WebView memory), best-of-3 burst, capture failures must be loud

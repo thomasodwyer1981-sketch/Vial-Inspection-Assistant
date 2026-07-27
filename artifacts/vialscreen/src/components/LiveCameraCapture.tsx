@@ -226,6 +226,12 @@ export default function LiveCameraCapture({
   const runBurst = useCallback(async () => {
     const video = videoRef.current;
     if (!video || stateRef.current === 'capturing' || stateRef.current === 'preview') return;
+    // Snapshot the stream generation: if the overlay closes or the stream
+    // restarts while this async burst is in flight, abort silently instead of
+    // writing stale preview state (or a stopped-stream error) into a session
+    // that has moved on.
+    const gen = streamGenRef.current;
+    const isStale = () => gen !== streamGenRef.current;
     setStateSync('capturing');
     void hapticLight(); // shutter feedback on device (no-op on web)
 
@@ -237,11 +243,16 @@ export default function LiveCameraCapture({
       // videoWidth can be 0 right after play(), and drawing a 0×0 frame
       // produced an empty capture that failed silently.
       const waitStart = Date.now();
-      while ((video.videoWidth === 0 || video.readyState < 2) && Date.now() - waitStart < 2000) {
+      while (
+        !isStale() &&
+        (video.videoWidth === 0 || video.readyState < 2) &&
+        Date.now() - waitStart < 2000
+      ) {
         await new Promise<void>((r) => setTimeout(r, 100));
       }
-      if (video.videoWidth === 0) {
-        throw new Error('Camera feed has no frames (videoWidth = 0)');
+      if (isStale()) return;
+      if (video.videoWidth === 0 || video.readyState < 2) {
+        throw new Error('Camera feed not delivering frames (videoWidth = 0 or not ready)');
       }
 
       // Best-of-3 burst — solid sharpness selection without the memory churn
@@ -251,6 +262,7 @@ export default function LiveCameraCapture({
       const candidates: Array<CaptureResult & { sharpness: number }> = [];
       for (let i = 0; i < 3; i++) {
         if (i > 0) await new Promise<void>((r) => setTimeout(r, 220));
+        if (isStale()) return;
         const frame = captureFrameFromVideo(video, 1600);
         const img = await loadImage(frame.dataUrl);
         const { ctx, width, height } = drawToCanvas(img, 512);
@@ -291,10 +303,12 @@ export default function LiveCameraCapture({
         detail = 'Holding steady or using a flat surface will improve accuracy.';
       }
 
+      if (isStale()) return;
       setQuality({ label, detail, level });
       setCapturedResult(best);
       setStateSync('preview');
     } catch (err) {
+      if (isStale()) return; // overlay closed mid-burst — cancellation, not an error
       // Never fail silently — show the user feedback and send Sentry the cause.
       captureError(err, { where: 'LiveCameraCapture.runBurst' });
       setCaptureFailed('Capture failed — hold steady and tap again');
