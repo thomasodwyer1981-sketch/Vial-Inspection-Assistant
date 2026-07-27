@@ -8,8 +8,8 @@ android {
         applicationId "com.pepscan.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 17
-        versionName "1.1.4"
+        versionCode 18
+        versionName "1.1.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Inject Sentry DSN into the manifest at build time (safe to embed — it's a client endpoint)
         manifestPlaceholders = [sentryDsn: System.getenv("VITE_SENTRY_DSN") ?: ""]

@@ -36,8 +36,6 @@ import {
 import { hapticLight } from '@/utils/haptics';
 import { captureError } from '@/lib/sentry';
 import {
-  loadImage,
-  drawToCanvas,
   computeBlurMetrics,
   computePixelStats,
 } from '@/analysis/imageAnalysis';
@@ -335,25 +333,45 @@ export default function LiveCameraCapture({
       // of 5 high-res grabs (which hit OOM-adjacent failures on real devices).
       // 1600px max dimension: the analysis engine works at 512px, so anything
       // beyond 1600 only slows the burst and bloats memory with no accuracy gain.
-      const candidates: Array<CaptureResult & { sharpness: number }> = [];
+      //
+      // IMPORTANT: we draw the analysis canvas DIRECTLY from the live video
+      // element rather than going through loadImage(toDataURL(...)). On Android
+      // WebView, new Image().onload can silently never fire under memory
+      // pressure, which caused runBurst to hang forever in 'capturing' state.
+      // Drawing from the live video is synchronous and never hangs.
+      type Candidate = CaptureResult & {
+        sharpness: number;
+        imageData: ImageData;
+      };
+      const candidates: Candidate[] = [];
       for (let i = 0; i < 3; i++) {
         if (i > 0) await new Promise<void>((r) => setTimeout(r, 220));
         if (isStale()) return;
+
+        // High-res frame for the final output dataUrl
         const frame = captureFrameFromVideo(video, 1600);
-        const img = await loadImage(frame.dataUrl);
-        const { ctx, width, height } = drawToCanvas(img, 512);
-        const imageData = ctx.getImageData(0, 0, width, height);
+
+        // Analysis-size frame drawn directly from live video — no round-trip
+        const aScale = Math.min(1, 512 / Math.max(video.videoWidth, video.videoHeight, 1));
+        const aw = Math.max(1, Math.round(video.videoWidth * aScale));
+        const ah = Math.max(1, Math.round(video.videoHeight * aScale));
+        const ac = document.createElement('canvas');
+        ac.width = aw;
+        ac.height = ah;
+        const actx = ac.getContext('2d');
+        if (!actx) throw new Error('Canvas 2D context unavailable — cannot analyze frame.');
+        actx.drawImage(video, 0, 0, aw, ah);
+        const imageData = actx.getImageData(0, 0, aw, ah);
         const blur = computeBlurMetrics(imageData);
-        candidates.push({ ...frame, sharpness: blur.sharpnessScore });
+
+        candidates.push({ ...frame, sharpness: blur.sharpnessScore, imageData });
       }
 
       // Pick sharpest frame
       const best = candidates.reduce((a, b) => (a.sharpness > b.sharpness ? a : b));
 
-      // Full quality assessment on best frame
-      const img = await loadImage(best.dataUrl);
-      const { ctx, width, height } = drawToCanvas(img, 512);
-      const imageData = ctx.getImageData(0, 0, width, height);
+      // Full quality assessment — reuse the already-captured imageData (no loadImage needed)
+      const { imageData } = best;
       const stats = computePixelStats(imageData);
       const blur = computeBlurMetrics(imageData);
 
