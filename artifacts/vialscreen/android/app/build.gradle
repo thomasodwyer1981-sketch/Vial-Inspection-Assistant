@@ -8,8 +8,8 @@ android {
         applicationId "com.pepscan.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 13
-        versionName "1.1.0"
+        versionCode 14
+        versionName "1.1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Inject Sentry DSN into the manifest at build time (safe to embed — it's a client endpoint)
         manifestPlaceholders = [sentryDsn: System.getenv("VITE_SENTRY_DSN") ?: ""]
@@ -50,12 +50,21 @@ sentry {
     tracingInstrumentation {
         enabled = false
     }
+
+    // CRITICAL: @sentry/capacitor bundles its own sentry-android (8.41.x).
+    // autoInstallation would inject companion modules (fragment, kotlin-extensions)
+    // at the plugin's default version (8.13.x), packaging two mixed Sentry versions
+    // in one app → NoSuchMethodError → instant crash on launch (shipped in versionCode 13).
+    autoInstallation {
+        enabled = false
+    }
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation 'io.sentry:sentry-android:8.13.0'
+    // NOTE: do NOT add io.sentry:sentry-android here — @sentry/capacitor ships its own
+    // pinned sentry-android; a second copy at a different version crashes the app at launch.
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
