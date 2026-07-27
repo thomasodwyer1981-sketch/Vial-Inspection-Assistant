@@ -17,3 +17,11 @@ description: getUserMedia resolution cap for Capacitor WebView, burst sizing, an
 
 ## Burst sizing
 Best-of-3 at ≤1600px is the sweet spot. 5 high-res grabs in ~1.3s caused OOM-adjacent failures on device; sharpness selection gains beyond 3 candidates are marginal. Also guard `video.videoWidth > 0 && readyState >= 2` before grabbing — Android WebView reports 0×0 right after `play()`, which yields empty captures.
+
+## Denied camera permission hangs BOTH capture paths on Android
+**Rule:** Every camera acquisition must have a guaranteed-settle timeout and end in a visible error state, never a spinner.
+**Why:** When the app *declares* CAMERA but the OS permission is denied (user denial or Android auto-reset after reinstall), WebView `getUserMedia` never settles AND the `<input capture>` chooser intent is blocked (declared-but-denied apps may not use ACTION_IMAGE_CAPTURE) — so both the live path and the fallback hung forever on "Opening camera…" / a spinning disabled button. Phone's own Camera app keeps working, which misleads debugging.
+**How to apply:** Keep the 12s getUserMedia timeout (stop late-arriving streams to avoid locking the camera), the error screen with per-error hints (NotAllowedError → Settings→Apps→PepScan→Permissions→Camera), and the visibility-based watchdog on file-chooser paths (if the app never backgrounds within ~7s of `input.click()`, the chooser never opened). First support question for "can't capture": check the app's camera permission in Android settings.
+
+## E2E testing the camera in headless browsers
+The testing agent's browser has no camera and can't grant fake devices reliably — `getUserMedia` fails there, which makes it a perfect probe for the failure/error-state UX (it reproduced the silent-hang bug exactly). Don't use it to validate the happy capture path; use it to validate that camera failures are loud and recoverable.
