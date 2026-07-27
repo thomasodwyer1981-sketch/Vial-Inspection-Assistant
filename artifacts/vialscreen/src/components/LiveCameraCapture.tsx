@@ -34,7 +34,7 @@ import {
   type CaptureResult,
 } from '@/utils/camera';
 import { hapticLight } from '@/utils/haptics';
-import { captureError } from '@/lib/sentry';
+import { captureError, addBreadcrumb, startCaptureTrace } from '@/lib/sentry';
 import {
   computeBlurMetrics,
   computePixelStats,
@@ -228,6 +228,7 @@ export default function LiveCameraCapture({
         }
       }
 
+      addBreadcrumb('Camera stream open', { background });
       setStateSync('streaming');
     } catch (err) {
       if (gen !== streamGenRef.current) return; // overlay closed meanwhile — irrelevant
@@ -308,6 +309,10 @@ export default function LiveCameraCapture({
     const isStale = () => gen !== streamGenRef.current;
     setStateSync('capturing');
     void hapticLight(); // shutter feedback on device (no-op on web)
+
+    // Instrument every capture attempt — slow or failed captures surface in
+    // Sentry automatically without the user needing to file a bug report.
+    const finishTrace = startCaptureTrace(background, 'LiveCameraCapture.runBurst');
 
     try {
       // 250 ms AF settle before grabbing first frame
@@ -400,19 +405,20 @@ export default function LiveCameraCapture({
         detail = 'Holding steady or using a flat surface will improve accuracy.';
       }
 
-      if (isStale()) return;
+      if (isStale()) { finishTrace('aborted'); return; }
       setQuality({ label, detail, level });
       setCapturedResult(best);
+      finishTrace('success');
       setStateSync('preview');
     } catch (err) {
-      if (isStale()) return; // overlay closed mid-burst — cancellation, not an error
+      if (isStale()) { finishTrace('aborted'); return; }
       // Never fail silently — show the user feedback and send Sentry the cause.
-      captureError(err, { where: 'LiveCameraCapture.runBurst' });
+      finishTrace('failed', err);
       setCaptureFailed('Capture failed — hold steady and tap again');
       window.setTimeout(() => setCaptureFailed(null), 3200);
       setStateSync('streaming');
     }
-  }, [setStateSync]);
+  }, [background, setStateSync]);
 
   // Keep runBurst accessible to motion effect without triggering re-subscribe
   const runBurstRef = useRef(runBurst);
