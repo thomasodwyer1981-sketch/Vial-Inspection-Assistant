@@ -257,9 +257,9 @@ export default function UpgradeScreen() {
                   </p>
                   <p className="text-center text-xs text-muted-foreground/70">
                     By purchasing you agree to our{' '}
-                    <a href="/terms" className="underline underline-offset-2">Terms of Use</a>
+                    <Link href="/terms" className="underline underline-offset-2">Terms of Use</Link>
                     {' '}and{' '}
-                    <a href="/privacy" className="underline underline-offset-2">Privacy Policy</a>.
+                    <Link href="/privacy" className="underline underline-offset-2">Privacy Policy</Link>.
                   </p>
                 </>
               ) : (

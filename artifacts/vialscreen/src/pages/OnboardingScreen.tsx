@@ -102,17 +102,15 @@ export default function OnboardingScreen() {
           />
           <span className="text-sm text-muted-foreground leading-snug">
             I understand this is a visual screening tool and does not confirm safety or authenticity.
-            I agree to the{' '}
-            <Link href="/terms" onClick={(e) => e.stopPropagation()} className="text-primary underline underline-offset-2">
-              Terms of Use
-            </Link>
-            {' '}and{' '}
-            <Link href="/privacy" onClick={(e) => e.stopPropagation()} className="text-primary underline underline-offset-2">
-              Privacy Policy
-            </Link>
-            .
           </span>
         </label>
+        {/* T&C links kept outside the label so tapping them never toggles the checkbox */}
+        <p className="text-xs text-muted-foreground pl-7 -mt-1">
+          By continuing you agree to the{' '}
+          <Link href="/terms" className="text-primary underline underline-offset-2">Terms of Use</Link>
+          {' '}and{' '}
+          <Link href="/privacy" className="text-primary underline underline-offset-2">Privacy Policy</Link>.
+        </p>
 
         <button
           onClick={handleSubmit}

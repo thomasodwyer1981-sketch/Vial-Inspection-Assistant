@@ -1,4 +1,4 @@
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { ArrowLeft } from 'lucide-react';
 
 export default function TermsScreen() {
@@ -9,7 +9,7 @@ export default function TermsScreen() {
       {/* Header */}
       <div className="sticky top-0 bg-background/95 backdrop-blur border-b px-4 py-3 flex items-center gap-3 z-10">
         <button
-          onClick={() => history.back()}
+          onClick={() => { if (window.history.length > 1) window.history.back(); else setLocation('/home'); }}
           className="p-2 -ml-2 rounded-full hover:bg-muted active:bg-muted"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -181,7 +181,7 @@ export default function TermsScreen() {
           <h2 className="text-base font-bold mb-2">11. Privacy and Data</h2>
           <p>
             Our collection and use of your personal information is governed by our{' '}
-            <a href="/privacy" className="text-primary underline underline-offset-2">Privacy Policy</a>,
+            <Link href="/privacy" className="text-primary underline underline-offset-2">Privacy Policy</Link>,
             which is incorporated into these Terms by reference. By using PepScan you consent to our
             data practices as described in the Privacy Policy.
           </p>
