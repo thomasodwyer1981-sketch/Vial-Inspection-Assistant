@@ -25,11 +25,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Extract version name from build.gradle
+        id: version
+        working-directory: artifacts/vialscreen/android/app
+        run: |
+          VERSION=$(grep 'versionName' build.gradle | grep -oP '"[^"]+"' | tr -d '"')
+          echo "name=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build web app
         run: pnpm --filter @workspace/vialscreen run build
         env:
           VITE_API_BASE_URL: https://pepscan.replit.app
           VITE_REVENUECAT_API_KEY: ${{ secrets.VITE_REVENUECAT_API_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION: ${{ steps.version.outputs.name }}
           PORT: "3000"
           BASE_PATH: "/"
 
@@ -52,6 +61,9 @@ jobs:
 
       - name: Build signed AAB
         working-directory: artifacts/vialscreen/android
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease \

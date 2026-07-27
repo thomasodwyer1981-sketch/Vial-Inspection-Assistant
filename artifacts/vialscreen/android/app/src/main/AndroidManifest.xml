@@ -24,6 +24,13 @@
 
         </activity>
 
+        <!-- Sentry native crash + ANR reporting -->
+        <meta-data android:name="io.sentry.dsn" android:value="${sentryDsn}" />
+        <meta-data android:name="io.sentry.environment" android:value="production" />
+        <meta-data android:name="io.sentry.traces-sample-rate" android:value="0.2" />
+        <!-- ANR detection threshold: report if main thread blocked >5s -->
+        <meta-data android:name="io.sentry.anr.timeout-interval-millis" android:value="5000" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'io.sentry.android.gradle'
 
 android {
     namespace = "com.pepscan.app"
@@ -10,6 +11,8 @@ android {
         versionCode 12
         versionName "1.0.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Inject Sentry DSN into the manifest at build time (safe to embed — it's a client endpoint)
+        manifestPlaceholders = [sentryDsn: System.getenv("VITE_SENTRY_DSN") ?: ""]
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -30,9 +33,29 @@ repositories {
     }
 }
 
+sentry {
+    org = "peptilog"
+    projectName = "pepscan"
+    // Auth token read from env — set SENTRY_AUTH_TOKEN in GitHub Actions secrets
+    authToken = System.getenv("SENTRY_AUTH_TOKEN")
+
+    // Upload JS/TypeScript source maps so production stack traces are readable
+    includeSourceContext = true
+
+    // No C++ native code in this project
+    uploadNativeSymbols = false
+    includeNativeSources = false
+
+    // Disable auto-instrumentation overhead — we use manual Sentry.captureException calls
+    tracingInstrumentation {
+        enabled = false
+    }
+}
+
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation 'io.sentry:sentry-android:8.13.0'
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
