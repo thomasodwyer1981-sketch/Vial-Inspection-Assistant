@@ -192,6 +192,12 @@ export default function LiveCameraCapture({
         ]);
       }
 
+      if (gen !== streamGenRef.current) {
+        // Overlay closed/reopened while play() was settling — the close path
+        // already stopped this stream; don't write stale state over the new session.
+        return;
+      }
+
       // Detect torch + zoom support
       const track = stream.getVideoTracks()[0];
       if (track) {
