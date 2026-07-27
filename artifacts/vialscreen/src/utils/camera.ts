@@ -38,9 +38,12 @@ export async function requestCameraStream(
   return navigator.mediaDevices.getUserMedia({
     video: {
       facingMode,
-      // Request maximum resolution for sharpest vial detail
-      width: { ideal: 4096, min: 640 },
-      height: { ideal: 3072, min: 480 },
+      // 1920×1440 is plenty: captures top out at 1600px and the analysis
+      // engine works at 512px. Requesting 4K here made phones run the full
+      // 12MP pipeline — ballooning WebView memory, slowing the whole device,
+      // and making canvas frame-grabs fail under memory pressure.
+      width: { ideal: 1920, min: 640 },
+      height: { ideal: 1440, min: 480 },
     },
     audio: false,
   });

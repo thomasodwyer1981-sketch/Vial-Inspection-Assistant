@@ -34,6 +34,7 @@ import {
   type CaptureResult,
 } from '@/utils/camera';
 import { hapticLight } from '@/utils/haptics';
+import { captureError } from '@/lib/sentry';
 import {
   loadImage,
   drawToCanvas,
@@ -90,6 +91,7 @@ export default function LiveCameraCapture({
   const [state, setState] = useState<InternalState>('requesting');
   const [capturedResult, setCapturedResult] = useState<CaptureResult | null>(null);
   const [quality, setQuality] = useState<QualityFeedback | null>(null);
+  const [captureFailed, setCaptureFailed] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [stableProgress, setStableProgress] = useState(0); // 0–100
@@ -231,11 +233,23 @@ export default function LiveCameraCapture({
       // 400 ms AF settle before grabbing first frame
       await new Promise<void>((r) => setTimeout(r, 400));
 
-      // Best-of-5 burst — more candidates = better chance of a perfect frame.
+      // Wait until the pipeline actually delivers frames — on Android WebView
+      // videoWidth can be 0 right after play(), and drawing a 0×0 frame
+      // produced an empty capture that failed silently.
+      const waitStart = Date.now();
+      while ((video.videoWidth === 0 || video.readyState < 2) && Date.now() - waitStart < 2000) {
+        await new Promise<void>((r) => setTimeout(r, 100));
+      }
+      if (video.videoWidth === 0) {
+        throw new Error('Camera feed has no frames (videoWidth = 0)');
+      }
+
+      // Best-of-3 burst — solid sharpness selection without the memory churn
+      // of 5 high-res grabs (which hit OOM-adjacent failures on real devices).
       // 1600px max dimension: the analysis engine works at 512px, so anything
       // beyond 1600 only slows the burst and bloats memory with no accuracy gain.
       const candidates: Array<CaptureResult & { sharpness: number }> = [];
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         if (i > 0) await new Promise<void>((r) => setTimeout(r, 220));
         const frame = captureFrameFromVideo(video, 1600);
         const img = await loadImage(frame.dataUrl);
@@ -280,7 +294,11 @@ export default function LiveCameraCapture({
       setQuality({ label, detail, level });
       setCapturedResult(best);
       setStateSync('preview');
-    } catch {
+    } catch (err) {
+      // Never fail silently — show the user feedback and send Sentry the cause.
+      captureError(err, { where: 'LiveCameraCapture.runBurst' });
+      setCaptureFailed('Capture failed — hold steady and tap again');
+      window.setTimeout(() => setCaptureFailed(null), 3200);
       setStateSync('streaming');
     }
   }, [setStateSync]);
@@ -588,7 +606,7 @@ export default function LiveCameraCapture({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55">
             <div className="w-14 h-14 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
             <p className="text-white font-semibold text-sm">Selecting sharpest frame…</p>
-            <p className="text-white/60 text-xs mt-1">Taking 5 quick shots</p>
+            <p className="text-white/60 text-xs mt-1">Taking 3 quick shots</p>
           </div>
         )}
 
@@ -660,6 +678,15 @@ export default function LiveCameraCapture({
             >
               <ZoomOut className="w-4 h-4 text-white" />
             </button>
+          </div>
+        )}
+
+        {/* ── Capture failure feedback ─────────────────────── */}
+        {captureFailed && isStreaming && (
+          <div className="absolute bottom-[36%] left-0 right-0 flex justify-center pointer-events-none">
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full text-white bg-red-600/85">
+              {captureFailed}
+            </span>
           </div>
         )}
 
