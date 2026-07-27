@@ -23,6 +23,15 @@ Best-of-3 at ≤1600px is the sweet spot. 5 high-res grabs in ~1.3s caused OOM-a
 **Why:** When the app *declares* CAMERA but the OS permission is denied (user denial or Android auto-reset after reinstall), WebView `getUserMedia` never settles AND the `<input capture>` chooser intent is blocked (declared-but-denied apps may not use ACTION_IMAGE_CAPTURE) — so both the live path and the fallback hung forever on "Opening camera…" / a spinning disabled button. Phone's own Camera app keeps working, which misleads debugging.
 **How to apply:** Keep the 12s getUserMedia timeout (stop late-arriving streams to avoid locking the camera), the error screen with per-error hints (NotAllowedError → Settings→Apps→PepScan→Permissions→Camera), and the visibility-based watchdog on file-chooser paths (if the app never backgrounds within ~7s of `input.click()`, the chooser never opened). First support question for "can't capture": check the app's camera permission in Android settings.
 
+## Shutter tap must fire burst immediately — no countdown delay
+**Rule:** `handleShutterTap` must call `runBurst()` directly; never interpose a countdown state (1–2 s) between tap and visual feedback.
+**Why:** The 1.5 s countdown made the button feel completely broken — users saw no state change for up to 5 s (countdown + burst time) and assumed the tap hadn't registered. The burst's own 250 ms AF settle is sufficient; a visible countdown is unnecessary.
+**How to apply:** Any "tap-shake settle" should be handled inside runBurst (short setTimeout before grabbing frames), not as a UI-level delay before the burst starts. Show the 'capturing' spinner within 250 ms of tap.
+
+## Burst capture resolution: 800 px max dimension
+**Rule:** Use `captureFrameFromVideo(video, 800)` in the burst loop, not 1600 or higher.
+**Why:** The analysis engine uses 512 px; 800 px gives identical accuracy. A 1600×1200 canvas blocks the main thread for 1–3 s during JPEG encoding on mid-range Android WebView; 800×600 is ~4× faster.
+
 ## Never use loadImage() inside the burst loop on Android
 **Rule:** `runBurst` must never call `new Image()` / `loadImage()` to draw video frames for analysis. Draw directly from the live video element to a canvas.
 **Why:** On Android WebView under memory pressure, `new Image().onload` can silently never fire (no error, no timeout). With 4 `loadImage` calls per burst (3 frames + quality check), the burst hung forever in 'capturing' state — spinner on button, nothing the user could dismiss. The fix: `ctx.drawImage(video, ...)` directly to a 512px canvas for sharpness/stats; store the resulting `ImageData` per candidate. Only one `toDataURL` at 1600px for the final output frame.
