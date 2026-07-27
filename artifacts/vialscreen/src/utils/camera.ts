@@ -28,25 +28,76 @@ export function isCameraApiAvailable(): boolean {
 // Request live camera stream
 // Returns a MediaStream or throws on denial/unavailability
 // ----------------------------------------------------------------
+const CAMERA_TIMEOUT_MS = 12000;
+
+/**
+ * getUserMedia that is GUARANTEED to settle. On Android, when camera
+ * permission is denied at the OS level, the WebView request can simply never
+ * resolve — which used to leave the UI on "Opening camera…" forever.
+ */
+function getUserMediaWithTimeout(
+  constraints: MediaStreamConstraints,
+  timeoutMs: number,
+): Promise<MediaStream> {
+  let timedOut = false;
+  const request = navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+    if (timedOut) {
+      // The OS answered after we gave up — stop the tracks so an orphaned
+      // stream doesn't keep the camera locked.
+      stopStream(stream);
+      const late = new Error('Camera responded after timeout');
+      late.name = 'CameraTimeoutError';
+      throw late;
+    }
+    return stream;
+  });
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      const err = new Error('The camera did not respond — access may be blocked for this app.');
+      err.name = 'CameraTimeoutError';
+      reject(err);
+    }, timeoutMs);
+  });
+
+  return Promise.race([request, timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function requestCameraStream(
   facingMode: 'environment' | 'user' = 'environment',
 ): Promise<MediaStream> {
   if (!isCameraApiAvailable()) {
-    throw new Error('Camera API is not available in this browser.');
+    const err = new Error('Camera API is not available in this browser.');
+    err.name = 'CameraUnavailableError';
+    throw err;
   }
 
-  return navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode,
-      // 1920×1440 is plenty: captures top out at 1600px and the analysis
-      // engine works at 512px. Requesting 4K here made phones run the full
-      // 12MP pipeline — ballooning WebView memory, slowing the whole device,
-      // and making canvas frame-grabs fail under memory pressure.
-      width: { ideal: 1920, min: 640 },
-      height: { ideal: 1440, min: 480 },
-    },
-    audio: false,
-  });
+  try {
+    return await getUserMediaWithTimeout(
+      {
+        video: {
+          facingMode,
+          // 1920×1440 is plenty: captures top out at 1600px and the analysis
+          // engine works at 512px. Requesting 4K here made phones run the full
+          // 12MP pipeline — ballooning WebView memory, slowing the whole device,
+          // and making canvas frame-grabs fail under memory pressure.
+          width: { ideal: 1920, min: 640 },
+          height: { ideal: 1440, min: 480 },
+        },
+        audio: false,
+      },
+      CAMERA_TIMEOUT_MS,
+    );
+  } catch (err) {
+    // Some devices reject size hints outright — retry once with bare video
+    // before surfacing an error to the UI.
+    if (err instanceof Error && err.name === 'OverconstrainedError') {
+      return getUserMediaWithTimeout({ video: { facingMode }, audio: false }, CAMERA_TIMEOUT_MS);
+    }
+    throw err;
+  }
 }
 
 // ----------------------------------------------------------------

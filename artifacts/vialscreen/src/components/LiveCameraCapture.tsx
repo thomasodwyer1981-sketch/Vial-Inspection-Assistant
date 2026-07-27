@@ -92,6 +92,7 @@ export default function LiveCameraCapture({
   const [capturedResult, setCapturedResult] = useState<CaptureResult | null>(null);
   const [quality, setQuality] = useState<QualityFeedback | null>(null);
   const [captureFailed, setCaptureFailed] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<{ title: string; hint: string } | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [stableProgress, setStableProgress] = useState(0); // 0–100
@@ -114,6 +115,28 @@ export default function LiveCameraCapture({
 
   // ── File picker fallback ─────────────────────────────────────
   const handleFileFallback = useCallback(async () => {
+    // Watchdog: when Android blocks the camera-capture intent (denied
+    // permission), the chooser never opens and the picker promise never
+    // settles. If the app never went to background within 7s, the chooser
+    // didn't open — say so instead of waiting forever.
+    let leftApp = false;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') leftApp = true;
+    };
+    document.addEventListener('visibilitychange', onVis);
+    const watchdog = window.setTimeout(() => {
+      if (!leftApp) {
+        captureError(new Error('Fallback chooser did not open within 7s'), {
+          where: 'LiveCameraCapture.handleFileFallback',
+        });
+        setCameraError({
+          title: 'The phone camera didn’t open',
+          hint: 'Android blocked the camera chooser — this usually means camera permission is denied for PepScan. Fix it in Settings → Apps → PepScan → Permissions → Camera.',
+        });
+        setStateSync('error');
+      }
+    }, 7000);
+
     try {
       const files = await openFilePicker({ accept: 'image/*', capture: 'environment' });
       if (files.length > 0) {
@@ -121,11 +144,16 @@ export default function LiveCameraCapture({
         const thumbDataUrl = await generateThumbnail(result.dataUrl, 144).catch(() => undefined);
         onCapture({ ...result, thumbDataUrl });
       }
+      onClose();
     } catch {
-      // User cancelled — just close silently
+      // Picker cancelled or unavailable — if we're showing the error screen,
+      // stay on it so the user keeps their options; otherwise close.
+      if (stateRef.current !== 'error') onClose();
+    } finally {
+      window.clearTimeout(watchdog);
+      document.removeEventListener('visibilitychange', onVis);
     }
-    onClose();
-  }, [onCapture, onClose]);
+  }, [onCapture, onClose, setStateSync]);
 
   // ── Camera stream lifecycle ──────────────────────────────────
   // Generation counter guards against a race: startStream is async, so a
@@ -134,9 +162,14 @@ export default function LiveCameraCapture({
   const streamGenRef = useRef(0);
   const startStream = useCallback(async () => {
     const gen = ++streamGenRef.current;
+    setCameraError(null);
     setStateSync('requesting');
     if (!isCameraApiAvailable()) {
-      await handleFileFallback();
+      setCameraError({
+        title: 'No camera available',
+        hint: 'This device or browser doesn’t expose a camera to PepScan. You can use the phone camera or photo picker instead.',
+      });
+      setStateSync('error');
       return;
     }
     try {
@@ -151,7 +184,12 @@ export default function LiveCameraCapture({
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
+        // play() can stall on some WebViews — never let it block the UI.
+        // runBurst's frame-readiness guard covers the "no frames yet" case.
+        await Promise.race([
+          videoRef.current.play().catch(() => {}),
+          new Promise<void>((r) => setTimeout(r, 3000)),
+        ]);
       }
 
       // Detect torch + zoom support
@@ -187,10 +225,41 @@ export default function LiveCameraCapture({
       }
 
       setStateSync('streaming');
-    } catch {
-      await handleFileFallback();
+    } catch (err) {
+      if (gen !== streamGenRef.current) return; // overlay closed meanwhile — irrelevant
+      // Loud and diagnosable: report the exact reason to Sentry, then show a
+      // screen that tells the user what to do — never hang on "Opening camera…".
+      captureError(err, { where: 'LiveCameraCapture.startStream' });
+      const name = err instanceof Error ? err.name : '';
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        setCameraError({
+          title: 'Camera access is blocked',
+          hint: 'PepScan isn’t allowed to use the camera. Open your phone Settings → Apps → PepScan → Permissions → Camera and choose “Allow only while using the app”, then try again.',
+        });
+      } else if (name === 'CameraTimeoutError') {
+        setCameraError({
+          title: 'The camera didn’t respond',
+          hint: 'If no permission dialog appeared, camera access may be blocked: check Settings → Apps → PepScan → Permissions → Camera. Otherwise close other apps that use the camera and try again.',
+        });
+      } else if (name === 'NotFoundError' || name === 'CameraUnavailableError') {
+        setCameraError({
+          title: 'No camera found',
+          hint: 'PepScan couldn’t find a camera on this device. You can use the phone camera or photo picker instead.',
+        });
+      } else if (name === 'NotReadableError') {
+        setCameraError({
+          title: 'The camera is busy',
+          hint: 'Another app seems to be using the camera. Close other camera apps (or restart the phone), then try again.',
+        });
+      } else {
+        setCameraError({
+          title: 'Couldn’t start the camera',
+          hint: 'Something went wrong opening the camera. Try again, or use the phone camera instead.',
+        });
+      }
+      setStateSync('error');
     }
-  }, [handleFileFallback, setStateSync]);
+  }, [background, setStateSync]);
 
   // Mount / open / close
   useEffect(() => {
@@ -204,6 +273,7 @@ export default function LiveCameraCapture({
       setStateSync('requesting');
       setCapturedResult(null);
       setQuality(null);
+      setCameraError(null);
       setTorchOn(false);
       setStableProgress(0);
       setIsStable(false);
@@ -612,6 +682,32 @@ export default function LiveCameraCapture({
             >
               {countdownNum}
             </span>
+          </div>
+        )}
+
+        {/* ── Camera error — loud, actionable, never a silent hang ── */}
+        {state === 'error' && cameraError && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/90 px-8 text-center">
+            <AlertTriangle className="w-11 h-11 text-amber-400 mb-4" />
+            <h3 className="text-white font-bold text-lg">{cameraError.title}</h3>
+            <p className="text-white/70 text-sm leading-relaxed mt-2 mb-7">{cameraError.hint}</p>
+            <div className="w-full max-w-xs space-y-3">
+              <button
+                onClick={() => { void startStream(); }}
+                className="w-full py-3.5 rounded-xl bg-white text-black font-bold active:scale-[0.98] transition-transform"
+              >
+                Try again
+              </button>
+              <button
+                onClick={() => { void handleFileFallback(); }}
+                className="w-full py-3.5 rounded-xl bg-white/10 text-white font-semibold border border-white/25 active:scale-[0.98] transition-transform"
+              >
+                Use phone camera instead
+              </button>
+              <button onClick={onClose} className="w-full py-2.5 text-white/60 font-medium">
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
