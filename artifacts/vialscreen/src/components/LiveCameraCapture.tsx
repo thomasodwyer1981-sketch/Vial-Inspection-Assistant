@@ -310,8 +310,8 @@ export default function LiveCameraCapture({
     void hapticLight(); // shutter feedback on device (no-op on web)
 
     try {
-      // 400 ms AF settle before grabbing first frame
-      await new Promise<void>((r) => setTimeout(r, 400));
+      // 250 ms AF settle before grabbing first frame
+      await new Promise<void>((r) => setTimeout(r, 250));
 
       // Wait until the pipeline actually delivers frames — on Android WebView
       // videoWidth can be 0 right after play(), and drawing a 0×0 frame
@@ -348,8 +348,11 @@ export default function LiveCameraCapture({
         if (i > 0) await new Promise<void>((r) => setTimeout(r, 220));
         if (isStale()) return;
 
-        // High-res frame for the final output dataUrl
-        const frame = captureFrameFromVideo(video, 1600);
+        // High-res frame for the final output dataUrl.
+        // 800 px max dimension: the analysis engine works at 512 px, so 800 is
+        // more than enough quality. Encoding a 1600×1200 canvas blocks the
+        // main thread for ~1–3 s on mid-range Android; 800×600 is 4× faster.
+        const frame = captureFrameFromVideo(video, 800);
 
         // Analysis-size frame drawn directly from live video — no round-trip
         const aScale = Math.min(1, 512 / Math.max(video.videoWidth, video.videoHeight, 1));
@@ -531,12 +534,15 @@ export default function LiveCameraCapture({
   }, [state]);
 
   // ── Shutter tap handler ──────────────────────────────────────
+  // Fire the burst immediately on tap — the 400 ms AF settle inside runBurst
+  // is enough for shake to subside.  The old 1.5 s countdown delay caused
+  // users to believe the button wasn't responding at all.
   const handleShutterTap = useCallback(() => {
     if (stateRef.current !== 'streaming') return;
     stableStartRef.current = null;
     setStableProgress(0);
-    setStateSync('countdown');
-  }, [setStateSync]);
+    void runBurstRef.current();
+  }, []);
 
   const handleRetake = () => {
     setCapturedResult(null);
