@@ -11,6 +11,7 @@
  *  3. Fallback → download the PNG to device
  */
 
+import QRCode from 'qrcode';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -53,7 +54,10 @@ const VERDICT = {
   },
 } as const;
 
-const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+const FONT        = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+const PLAY_URL    = 'https://play.google.com/store/apps/details?id=com.pepscan.app';
+const APP_SITE    = 'pepscan.app';
+const DISCLAIMER  = 'Visual screening only. Does not confirm safety, purity, identity or potency.';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -102,13 +106,30 @@ function clip(s: string, n: number) {
   return s.length > n ? s.slice(0, n - 1) + '…' : s;
 }
 
+/** Draw a QR code onto an existing canvas context at (qx, qy) with size px. */
+async function drawQr(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  qx: number, qy: number, size: number,
+): Promise<void> {
+  const qCanvas = document.createElement('canvas');
+  qCanvas.width  = size;
+  qCanvas.height = size;
+  await QRCode.toCanvas(qCanvas, text, {
+    width: size,
+    margin: 1,
+    color: { dark: '#0E1E35', light: '#ffffff' },
+  });
+  ctx.drawImage(qCanvas, qx, qy, size, size);
+}
+
 // ── Main generator ────────────────────────────────────────────────────────────
 
 export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   const S = 1080;
   const P = 80; // padding
   const canvas = document.createElement('canvas');
-  canvas.width = S;
+  canvas.width  = S;
   canvas.height = S;
   const ctx = canvas.getContext('2d')!;
 
@@ -118,18 +139,18 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.fillStyle = '#0E1E35';
   ctx.fillRect(0, 0, S, S);
 
-  // Very subtle grid lines for texture
+  // Subtle grid texture
   ctx.strokeStyle = 'rgba(255,255,255,0.025)';
   ctx.lineWidth = 1;
-  for (let y = 80; y < S; y += 80) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke();
+  for (let gridY = 80; gridY < S; gridY += 80) {
+    ctx.beginPath(); ctx.moveTo(0, gridY); ctx.lineTo(S, gridY); ctx.stroke();
   }
 
   // Top accent stripe
   ctx.fillStyle = v.color;
   ctx.fillRect(0, 0, S, 10);
 
-  // ── Branding ──────────────────────────────────────────────────
+  // ── Branding ──────────────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
   ctx.font = `bold 58px ${FONT}`;
   ctx.fillText('PepScan', P, 92);
@@ -138,7 +159,7 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.font = `30px ${FONT}`;
   ctx.fillText('Vial Screening Result', P, 136);
 
-  // ── Verdict badge ─────────────────────────────────────────────
+  // ── Verdict badge ──────────────────────────────────────────────────────────
   const bX = P, bY = 168, bW = S - P * 2, bH = 200;
 
   ctx.fillStyle = hexAlpha(v.color, 0.13);
@@ -160,7 +181,7 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.fillText(v.summary, S / 2, bY + 163);
   ctx.textAlign = 'left';
 
-  // ── Vial info ──────────────────────────────────────────────────
+  // ── Vial info ──────────────────────────────────────────────────────────────
   let y = bY + bH + 58;
 
   const vialName = clip(input.peptideName?.trim() || 'Unnamed Vial', 28);
@@ -183,25 +204,30 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.fillText(`Confidence: ${input.overallConfidence}%`, P, y);
   y += 18;
 
-  // ── Divider ───────────────────────────────────────────────────
+  // ── Divider ────────────────────────────────────────────────────────────────
   y += 36;
   ctx.strokeStyle = 'rgba(255,255,255,0.1)';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(P, y); ctx.lineTo(S - P, y); ctx.stroke();
   y += 38;
 
-  // ── Findings ──────────────────────────────────────────────────
+  // ── Findings ───────────────────────────────────────────────────────────────
+  // Reserve space at bottom for CTA panel (160px) + disclaimer (48px) + gaps
+  const BOTTOM_RESERVED = 230;
+  const findingsBottom  = S - BOTTOM_RESERVED;
+
   ctx.fillStyle = 'rgba(255,255,255,0.36)';
   ctx.font = `bold 24px ${FONT}`;
   ctx.fillText('KEY FINDINGS', P, y);
   y += 46;
 
-  const maxFindings = Math.min(input.primaryReasons.length, 3);
+  const maxFindW  = S - P * 2 - 44;
   ctx.font = `30px ${FONT}`;
-  const maxFindW = S - P * 2 - 44;
 
-  for (let i = 0; i < maxFindings; i++) {
-    const lines = wrapText(ctx, input.primaryReasons[i], maxFindW).slice(0, 2);
+  for (let i = 0; i < input.primaryReasons.length; i++) {
+    const lines    = wrapText(ctx, input.primaryReasons[i], maxFindW).slice(0, 2);
+    const blockH   = lines.length * 38 + 20;
+    if (y + blockH > findingsBottom) break;     // no more room
 
     ctx.fillStyle = hexAlpha(v.color, 0.8);
     ctx.fillText('•', P, y);
@@ -210,24 +236,73 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
     for (let l = 0; l < lines.length; l++) {
       ctx.fillText(lines[l], P + 40, y + l * 38);
     }
-    y += lines.length * 38 + 20;
+    y += blockH;
   }
 
-  // ── Bottom bar ────────────────────────────────────────────────
-  const botY = S - 60;
+  // ── Get the app — CTA panel ────────────────────────────────────────────────
+  // Dark teal panel sitting above the disclaimer strip.
+  const QR_SIZE = 130;         // px on the 1080px canvas
+  const panelY  = S - BOTTOM_RESERVED + 10;
+  const panelH  = 148;
+  const panelW  = S - P * 2;
+
+  ctx.fillStyle = 'rgba(12, 154, 122, 0.15)';
+  roundedRect(ctx, P, panelY, panelW, panelH, 16);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(12, 154, 122, 0.4)';
+  ctx.lineWidth = 1.5;
+  roundedRect(ctx, P, panelY, panelW, panelH, 16);
+  ctx.stroke();
+
+  // QR code (right side of panel)
+  const qrX = P + panelW - QR_SIZE - 16;
+  const qrY = panelY + (panelH - QR_SIZE) / 2;
+  try {
+    // White backing for QR
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(qrX - 6, qrY - 6, QR_SIZE + 12, QR_SIZE + 12, 8);
+    ctx.fill();
+    await drawQr(ctx, PLAY_URL, qrX, qrY, QR_SIZE);
+  } catch {
+    // QR failed — just show URL text
+  }
+
+  // Text (left side of panel)
+  const textX = P + 20;
+  const textW = qrX - textX - 20;
+
+  ctx.fillStyle = '#0C9A7A';
+  ctx.font = `bold 28px ${FONT}`;
+  ctx.fillText('FREE ON ANDROID', textX, panelY + 34);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.font = `bold 36px ${FONT}`;
+  ctx.fillText('Get PepScan', textX, panelY + 72);
+
+  const ctaLines = wrapText(ctx, 'AI-assisted vial screening on your phone', textW);
+  ctx.fillStyle = 'rgba(255,255,255,0.50)';
+  ctx.font = `26px ${FONT}`;
+  for (let l = 0; l < Math.min(ctaLines.length, 2); l++) {
+    ctx.fillText(ctaLines[l], textX, panelY + 106 + l * 32);
+  }
+
+  // ── Disclaimer + site strip ────────────────────────────────────────────────
+  const discY = S - 68;
 
   ctx.strokeStyle = 'rgba(255,255,255,0.07)';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(P, botY - 32); ctx.lineTo(S - P, botY - 32); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(P, discY - 10); ctx.lineTo(S - P, discY - 10); ctx.stroke();
 
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
   ctx.font = `22px ${FONT}`;
-  ctx.fillText('Visual screening only. Does not confirm safety, purity, identity or potency.', P, botY);
+  ctx.fillText(DISCLAIMER, P, discY + 6);
 
-  ctx.fillStyle = hexAlpha(v.color, 0.72);
+  ctx.fillStyle = hexAlpha(v.color, 0.8);
   ctx.font = `bold 28px ${FONT}`;
   ctx.textAlign = 'right';
-  ctx.fillText('pepscan.app', S - P, botY);
+  ctx.fillText(APP_SITE, S - P, discY + 6);
   ctx.textAlign = 'left';
 
   return new Promise<Blob>((resolve, reject) => {

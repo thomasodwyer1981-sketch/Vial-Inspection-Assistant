@@ -6,6 +6,7 @@
  */
 
 import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -32,14 +33,14 @@ export interface PdfReportInput {
 }
 
 // ── Colour palette ────────────────────────────────────────────────────────────
-const BRAND_TEAL = '#0C9A7A';
-const DARK_BG    = [13, 17, 23] as [number, number, number];   // #0d1117
-const WHITE      = [255, 255, 255] as [number, number, number];
+const BRAND_TEAL  = '#0C9A7A';
+const DARK_BG     = [13, 17, 23]   as [number, number, number];   // #0d1117
+const WHITE       = [255, 255, 255] as [number, number, number];
 
 const VERDICT_COLOURS: Record<string, [number, number, number]> = {
-  pass:        [34, 197, 94],   // green
-  review:      [245, 158, 11],  // amber
-  'do-not-use':[239, 68, 68],   // red
+  pass:        [34,  197, 94],   // green
+  review:      [245, 158, 11],   // amber
+  'do-not-use':[239, 68,  68],   // red
 };
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -47,6 +48,17 @@ const VERDICT_LABELS: Record<string, string> = {
   review:      '!  REVIEW',
   'do-not-use':'✕  DO NOT USE',
 };
+
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.pepscan.app';
+const APP_SITE_URL   = 'pepscan.app';
+
+const FULL_DISCLAIMER =
+  'PepScan is a visual screening tool only. It does not confirm the identity, ' +
+  'purity, potency, safety, or sterility of any substance. Results are based on ' +
+  'AI-assisted image analysis and are not a substitute for laboratory testing. ' +
+  'Never rely solely on visual inspection to determine whether a substance is safe ' +
+  'to use. Always obtain peptides from reputable, verified sources and consult a ' +
+  'qualified healthcare professional before use.';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,6 +99,19 @@ function addImageFit(
   const cx = x + (maxW - rw) / 2;
   doc.addImage(dataUrl, format, cx, y, rw, rh);
   return { renderedW: rw, renderedH: rh };
+}
+
+/** Generate a QR code as a PNG data URL using an offscreen canvas. */
+async function makeQrDataUrl(text: string, sizePx: number): Promise<string> {
+  const canvas = document.createElement('canvas');
+  canvas.width  = sizePx;
+  canvas.height = sizePx;
+  await QRCode.toCanvas(canvas, text, {
+    width: sizePx,
+    margin: 1,
+    color: { dark: '#0d1117', light: '#ffffff' },
+  });
+  return canvas.toDataURL('image/png');
 }
 
 // ── Main generator ────────────────────────────────────────────────────────────
@@ -184,11 +209,9 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
 
       try {
         const { w: nw, h: nh } = await loadImage(cap.dataUrl);
-        // Detect format from dataUrl
         const fmt = cap.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
         addImageFit(doc, cap.dataUrl, fmt, bx, y, imgW, imgH, nw, nh);
       } catch {
-        // If image fails to load, show placeholder text
         doc.setFontSize(7);
         doc.setTextColor(160, 170, 180);
         doc.text('Photo unavailable', bx + imgW / 2, y + imgH / 2 + 1, { align: 'center' });
@@ -208,8 +231,6 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
   const vc = VERDICT_COLOURS[input.triageResult] ?? [100, 100, 100];
   const verdictLabel = VERDICT_LABELS[input.triageResult] ?? input.triageResult.toUpperCase();
 
-  // Coloured badge background (GState lacks a construct signature in the
-  // bundled jsPDF types, so cast the constructor once)
   type GState = Parameters<jsPDF['setGState']>[0];
   const GStateCtor = doc.GState as unknown as new (opts: { opacity: number }) => GState;
   doc.setFillColor(vc[0], vc[1], vc[2]);
@@ -217,12 +238,10 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
   doc.roundedRect(ML, y, CW, 18, 3, 3, 'F');
   doc.setGState(new GStateCtor({ opacity: 1 }));
 
-  // Badge border
   doc.setDrawColor(vc[0], vc[1], vc[2]);
   doc.setLineWidth(0.5);
   doc.roundedRect(ML, y, CW, 18, 3, 3, 'S');
 
-  // Verdict text
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(vc[0], vc[1], vc[2]);
@@ -245,7 +264,6 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
       const lines = wrapText(doc, reason, CW - 6);
       const blockH = lines.length * 4.5 + 3;
 
-      // Check page overflow
       if (y + blockH > PH - 25) {
         doc.addPage();
         y = 20;
@@ -254,7 +272,6 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
       doc.setFillColor(245, 247, 250);
       doc.roundedRect(ML, y, CW, blockH, 1.5, 1.5, 'F');
 
-      // Bullet dot
       doc.setFillColor(...vc);
       doc.circle(ML + 3.5, y + blockH / 2, 1.2, 'F');
 
@@ -291,7 +308,120 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
     y += ocrH + 4;
   }
 
-  // ── Footer ──────────────────────────────────────────────────────────────────
+  // ── Full disclaimer box ─────────────────────────────────────────────────────
+  // Prominent, readable disclaimer — not hidden in the footer.
+  {
+    const footerStart = PH - 14;
+    const promoMinH   = 62; // height we need for the promo panel below
+    const disclaimerNeeded = 46;
+    const totalNeeded = disclaimerNeeded + promoMinH + 12;
+
+    if (y + totalNeeded > footerStart) {
+      doc.addPage();
+      y = 20;
+    } else {
+      y += 10;
+    }
+
+    // Separator before disclaimer
+    doc.setDrawColor(220, 225, 232);
+    doc.setLineWidth(0.3);
+    doc.line(ML, y, PW - MR, y);
+    y += 6;
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(130, 140, 150);
+    doc.text('IMPORTANT DISCLAIMER', ML, y);
+    y += 4;
+
+    // Disclaimer box
+    const dLines  = wrapText(doc, FULL_DISCLAIMER, CW - 8);
+    const dBoxH   = dLines.length * 4.0 + 8;
+    doc.setFillColor(255, 249, 235);
+    doc.setDrawColor(245, 158, 11);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(ML, y, CW, dBoxH, 2, 2, 'FD');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(90, 70, 20);
+    for (let l = 0; l < dLines.length; l++) {
+      doc.text(dLines[l], ML + 4, y + 5.5 + l * 4.0);
+    }
+    y += dBoxH + 10;
+  }
+
+  // ── Promotional panel — "Get PepScan" ───────────────────────────────────────
+  // Uses the remaining whitespace above the footer to promote the app.
+  {
+    const footerStart = PH - 14;
+    const spaceLeft   = footerStart - y - 4;
+    const QR_MM       = Math.min(38, spaceLeft - 20); // QR code size in mm
+
+    if (spaceLeft >= 30) {
+      // Background panel
+      doc.setFillColor(...DARK_BG);
+      doc.roundedRect(ML, y, CW, spaceLeft, 3, 3, 'F');
+
+      // Teal accent stripe on left
+      doc.setFillColor(...hexToRgb(BRAND_TEAL));
+      doc.roundedRect(ML, y, 3, spaceLeft, 1.5, 1.5, 'F');
+
+      const px = ML + 8; // text x inside panel
+      const qx = ML + CW - QR_MM - 4; // QR x position (right side)
+      const textMaxW = qx - px - 4;
+
+      let py = y + 7;
+
+      // "Get PepScan" heading
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...WHITE);
+      doc.text('Get PepScan — Free on Android', px, py);
+      py += 6;
+
+      // Tagline
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(160, 200, 190);
+      const tagLines = wrapText(doc, 'AI-assisted visual screening for peptide vials. Scan against white and black backgrounds, get instant results, and keep a full history of your checks — all on your phone.', textMaxW);
+      for (let l = 0; l < tagLines.length; l++) {
+        doc.text(tagLines[l], px, py + l * 4.2);
+      }
+      py += tagLines.length * 4.2 + 4;
+
+      // Play Store URL
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...hexToRgb(BRAND_TEAL));
+      doc.text(APP_SITE_URL, px, py);
+
+      // QR code
+      if (QR_MM >= 20) {
+        try {
+          const qrDataUrl = await makeQrDataUrl(PLAY_STORE_URL, 256);
+          const qy = y + (spaceLeft - QR_MM) / 2;
+          // White background behind QR
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(qx - 1, qy - 1, QR_MM + 2, QR_MM + 2, 2, 2, 'F');
+          doc.addImage(qrDataUrl, 'PNG', qx, qy, QR_MM, QR_MM);
+          // "Scan to download" caption
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(160, 170, 180);
+          doc.text('Scan to download', qx + QR_MM / 2, qy + QR_MM + 4, { align: 'center' });
+        } catch {
+          // QR generation failed — show URL text fallback
+          doc.setFontSize(7);
+          doc.setTextColor(...hexToRgb(BRAND_TEAL));
+          doc.text(APP_SITE_URL, qx, y + spaceLeft / 2, { align: 'left' });
+        }
+      }
+    }
+  }
+
+  // ── Footer — on every page ──────────────────────────────────────────────────
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
@@ -310,7 +440,7 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
     );
     doc.setTextColor(...hexToRgb(BRAND_TEAL));
     doc.setFont('helvetica', 'bold');
-    doc.text('pepscan.app', PW - MR, fy, { align: 'right' });
+    doc.text(APP_SITE_URL, PW - MR, fy, { align: 'right' });
   }
 
   return doc.output('blob');
@@ -323,8 +453,6 @@ export async function shareOrDownloadPdf(input: PdfReportInput): Promise<void> {
   const name  = (input.peptideName?.trim().replace(/\s+/g, '-') || 'vial') + '-pepscan.pdf';
 
   // ── Native Capacitor (Android / iOS) ────────────────────────────────────────
-  // Write to cache dir then share the file URI via the native share sheet.
-  // The browser download trick (a.click()) does not work in a Capacitor WebView.
   if (Capacitor.isNativePlatform()) {
     const base64 = await blobToBase64(blob);
     const saved = await Filesystem.writeFile({
