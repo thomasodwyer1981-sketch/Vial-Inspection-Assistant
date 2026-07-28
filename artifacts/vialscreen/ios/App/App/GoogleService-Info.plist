@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- PLACEHOLDER — replaced at build time by the GOOGLESERVICE_INFO_PLIST_BASE64 CI secret.
+     Do not commit real credentials here. -->
+<plist version="1.0">
+<dict>
+    <key>BUNDLE_ID</key>
+    <string>com.pepscan.app</string>
+</dict>
+</plist>

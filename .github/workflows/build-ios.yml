@@ -1,0 +1,151 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Extract version from build.gradle (shared source of truth)
+        id: version
+        working-directory: artifacts/vialscreen/android/app
+        run: |
+          VERSION=$(grep 'versionName' build.gradle | grep -oP '"[^"]+"' | tr -d '"')
+          BUILD=$(grep 'versionCode' build.gradle | grep -oP '[0-9]+')
+          echo "name=$VERSION" >> $GITHUB_OUTPUT
+          echo "code=$BUILD" >> $GITHUB_OUTPUT
+
+      - name: Build web app
+        run: pnpm --filter @workspace/vialscreen run build
+        env:
+          VITE_API_BASE_URL: https://pepscan.replit.app
+          VITE_REVENUECAT_API_KEY: ${{ secrets.VITE_REVENUECAT_API_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION: ${{ steps.version.outputs.name }}
+          PORT: "3000"
+          BASE_PATH: "/"
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods --no-document
+
+      - name: Sync Capacitor → iOS
+        working-directory: artifacts/vialscreen
+        run: npx cap sync ios
+
+      - name: Inject GoogleService-Info.plist (Firebase Analytics)
+        env:
+          GSVC_IOS: ${{ secrets.GOOGLESERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          if [ -n "$GSVC_IOS" ]; then
+            echo "$GSVC_IOS" | base64 -d \
+              > artifacts/vialscreen/ios/App/App/GoogleService-Info.plist
+            echo "GoogleService-Info.plist injected"
+          else
+            echo "GOOGLESERVICE_INFO_PLIST_BASE64 not set — Firebase Analytics disabled for this build"
+          fi
+
+      - name: Set version in Xcode project
+        working-directory: artifacts/vialscreen/ios/App
+        run: |
+          xcrun agvtool new-marketing-version ${{ steps.version.outputs.name }}
+          xcrun agvtool new-version -all ${{ steps.version.outputs.code }}
+
+      - name: Import signing certificate
+        env:
+          CERT_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/pepscan.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$CERT_BASE64" | base64 -d > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+
+      - name: Import provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_BASE64" | base64 -d > /tmp/pepscan.mobileprovision
+          # Extract UUID from profile and use it as filename (required by Xcode)
+          UUID=$(security cms -D -i /tmp/pepscan.mobileprovision 2>/dev/null | \
+            plutil -extract UUID raw - 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< \
+            "$(security cms -D -i /tmp/pepscan.mobileprovision)")
+          cp /tmp/pepscan.mobileprovision \
+            ~/Library/MobileDevice/Provisioning\ Profiles/${UUID}.mobileprovision
+          echo "PROVISIONING_UUID=$UUID" >> $GITHUB_ENV
+
+      - name: Build archive
+        working-directory: artifacts/vialscreen/ios/App
+        run: |
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/PepScan.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE="$PROVISIONING_UUID" \
+            | xcpretty || true
+          # Verify archive was created
+          test -d $RUNNER_TEMP/PepScan.xcarchive
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/PepScan.xcarchive \
+            -exportOptionsPlist artifacts/vialscreen/ios/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/export \
+            -allowProvisioningUpdates
+          ls $RUNNER_TEMP/export/
+
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_BASE64" | base64 -d \
+            > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          xcrun altool --upload-app \
+            --type ios \
+            --file $RUNNER_TEMP/export/App.ipa \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Upload IPA as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pepscan-ios-release
+          path: ${{ runner.temp }}/export/App.ipa
+          retention-days: 30
