@@ -87,6 +87,11 @@ export default defineConfig({
         ]
       : []),
   ],
+  optimizeDeps: {
+    // firebase is a peer dep of @capacitor-firebase/analytics.
+    // Pre-bundle it so Vite resolves the web plugin cleanly.
+    include: ['firebase/analytics', 'firebase/app'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),
