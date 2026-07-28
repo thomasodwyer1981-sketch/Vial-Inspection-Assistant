@@ -42,6 +42,33 @@ export function initSentry() {
   );
 }
 
+/**
+ * Tag the current Sentry scope with the result of the most recent scan.
+ * Any error that occurs after a scan (e.g. during share, save, or history)
+ * will now carry this context, making triage much faster.
+ */
+export function setScanContext(params: {
+  verdict: string;
+  profile: string | null;
+  confidence: number;
+  aiEnhanced: boolean;
+  scanMode: string;
+}) {
+  if (!dsn) return;
+  Sentry.withScope((scope) => {
+    scope.setTag('scan.verdict', params.verdict);
+    scope.setTag('scan.profile', params.profile ?? 'none');
+    scope.setTag('scan.mode', params.scanMode);
+    scope.setContext('last_scan', {
+      verdict: params.verdict,
+      profile: params.profile,
+      confidence: params.confidence,
+      ai_enhanced: params.aiEnhanced,
+      scan_mode: params.scanMode,
+    });
+  });
+}
+
 /** Report an exception from anywhere in the app */
 export function captureError(error: unknown, context?: Record<string, unknown>) {
   if (!dsn) return;

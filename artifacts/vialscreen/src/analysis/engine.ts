@@ -337,7 +337,64 @@ async function scoreClarityHaze(
       };
     }
 
-    // ── Standard Clear Peptide (default) ─────────────────────
+    // ── Melanotan II / PT-141 — slight amber tint acceptable ──
+    // Some batches legitimately have a very faint amber/tan hue.
+    // Reduce oxidation penalty to 5 (vs 12 for clear-standard).
+    // Significant discolouration is still flagged.
+    if (profile === 'melanotan') {
+      const melanotanAmberPenalty = oxidationSuspected ? 5 : 0;
+      const tintNote = oxidationSuspected
+        ? ' Faint amber tint detected. A very light tint is considered acceptable for some Melanotan II / PT-141 batches — significant discolouration should be verified with your supplier.'
+        : '';
+      const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+      const score = Math.round(Math.min(100, Math.max(0, blendScore(stdDevScore) - melanotanAmberPenalty)));
+      const status = scoreToStatus(score);
+      const explanation =
+        score >= 70
+          ? `No significant cloudiness or haze detected.` +
+            (differential ? ` Brightness delta of ${Math.round(differential.brightnessDelta)} supports a clear solution.` : '') +
+            sedimentNote + tintNote
+          : score >= 40
+          ? `Possible cloudiness or haze detected.` +
+            (differential ? ` Brightness delta of ${Math.round(differential.brightnessDelta)} suggests some light scattering.` : '') +
+            sedimentNote + tintNote
+          : `Significant turbidity detected.` + sedimentNote + tintNote;
+      return {
+        category, label, score, status, explanation,
+        method: `Melanotan profile: differential turbidity 65% + std dev 35%. Amber penalty=${melanotanAmberPenalty} (reduced). Delta=${differential ? Math.round(differential.brightnessDelta) : 'n/a'}.`,
+      };
+    }
+
+    // ── Sermorelin / Tesamorelin — transient opalescence allowed ─
+    // Mild cloudiness very shortly after reconstitution can be normal.
+    // Apply same scoring as clear-standard but with an informational note.
+    if (profile === 'sermorelin') {
+      const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
+      const score = Math.round(Math.min(100, Math.max(0, blendScore(stdDevScore) - oxidationPenalty)));
+      const status = scoreToStatus(score);
+      const opalNote = score < 70 && score >= 40
+        ? ' Note: mild transient opalescence can occur shortly after reconstitution for Sermorelin/Tesamorelin and may clear within a few minutes.'
+        : '';
+      const explanation =
+        score >= 70
+          ? `No significant cloudiness or haze detected.` +
+            (differential ? ` Brightness delta of ${Math.round(differential.brightnessDelta)} supports a clear solution.` : '') +
+            sedimentNote + oxidationNote
+          : score >= 40
+          ? `Possible cloudiness or haze detected.` +
+            (differential ? ` Brightness delta of ${Math.round(differential.brightnessDelta)} suggests light scattering.` : '') +
+            opalNote + sedimentNote + oxidationNote
+          : `Significant turbidity signal detected.` + sedimentNote + oxidationNote;
+      return {
+        category, label, score, status, explanation,
+        method: `Sermorelin profile: differential turbidity 65% + std dev 35%. Opalescence context added for borderline results. Delta=${differential ? Math.round(differential.brightnessDelta) : 'n/a'}.`,
+      };
+    }
+
+    // ── Standard Clear Peptide (default — covers all other named profiles) ───
+    // bpc157, tb500, ipamorelin, igf1, aod9604, epithalon, hcg all use these
+    // standard clear thresholds. The profile name is passed to the AI which
+    // applies compound-specific interpretation on top of the heuristic result.
     const stdDevScore = Math.max(0, 100 - stats.stdDevBrightness * 1.5);
     const blended = blendScore(stdDevScore);
     const score = Math.round(Math.min(100, Math.max(0, blended - oxidationPenalty)));

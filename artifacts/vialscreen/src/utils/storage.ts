@@ -379,6 +379,7 @@ export function createNewSession(): ScanSession {
       notes: '',
       appearanceProfile: null,
       scanMode: 'reconstituted',
+      reconstitutedAt: null,
     },
     captures: [],
     analysisResult: null,

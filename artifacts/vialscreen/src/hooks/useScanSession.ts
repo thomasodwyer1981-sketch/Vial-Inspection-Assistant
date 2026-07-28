@@ -17,6 +17,8 @@ import {
   generateId,
 } from '../utils/storage';
 import { runAnalysis } from '../analysis/engine';
+import { trackScanComplete } from '../lib/analytics';
+import { setScanContext } from '../lib/sentry';
 
 export interface UseScanSession {
   session: ScanSession | null;
@@ -263,6 +265,24 @@ export function useScanSession(): UseScanSession {
           },
         };
       }
+
+      // Fire analytics + Sentry context now that we have a result
+      trackScanComplete({
+        verdict: finalResult.triageResult,
+        confidence: finalResult.overallConfidence,
+        profile: current.metadata.appearanceProfile ?? null,
+        scanMode: current.metadata.scanMode ?? 'reconstituted',
+        aiEnhanced: finalResult.aiEnhanced ?? false,
+        hasBaseline: !!(opts?.baselineContext?.length),
+        reconstitutedAt: current.metadata.reconstitutedAt ?? null,
+      });
+      setScanContext({
+        verdict: finalResult.triageResult,
+        profile: current.metadata.appearanceProfile ?? null,
+        confidence: finalResult.overallConfidence,
+        aiEnhanced: finalResult.aiEnhanced ?? false,
+        scanMode: current.metadata.scanMode ?? 'reconstituted',
+      });
 
       setSession((prev) => {
         if (!prev) return prev;
