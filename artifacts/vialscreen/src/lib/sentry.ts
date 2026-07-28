@@ -122,6 +122,32 @@ export function captureMessage(
  *   // ... do capture work ...
  *   finish('success');   // or finish('failed', err)
  */
+/**
+ * Time an async operation and surface it as a Sentry performance span.
+ * If performance monitoring is not initialised (no DSN / sample rate = 0)
+ * the function runs normally — no overhead.
+ *
+ * Usage:
+ *   const result = await withSpan('analysis', 'heuristic_engine', () => runAnalysis(...));
+ */
+export async function withSpan<T>(
+  op: string,
+  name: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (!dsn) return fn();
+  return Sentry.startSpan({ op, name }, () => fn());
+}
+
+/**
+ * Add a breadcrumb that marks a scan wizard step transition.
+ * These show up in the Sentry event trail so you can see exactly
+ * where in the flow an error (or a slow AI call) occurred.
+ */
+export function breadcrumbStep(step: string, direction: 'enter' | 'exit' = 'enter') {
+  addBreadcrumb(`Scan step: ${step} (${direction})`, { step, direction }, 'info');
+}
+
 const SLOW_CAPTURE_THRESHOLD_MS = 5000;
 
 export function startCaptureTrace(background: string, where: string) {

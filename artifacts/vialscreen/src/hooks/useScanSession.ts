@@ -18,7 +18,7 @@ import {
 } from '../utils/storage';
 import { runAnalysis } from '../analysis/engine';
 import { trackScanComplete } from '../lib/analytics';
-import { setScanContext } from '../lib/sentry';
+import { setScanContext, withSpan, breadcrumbStep, addBreadcrumb } from '../lib/sentry';
 
 export interface UseScanSession {
   session: ScanSession | null;
@@ -168,6 +168,7 @@ export function useScanSession(): UseScanSession {
     setSession((prev) => {
       if (!prev) return prev;
       const nextStep = Math.min(prev.currentStep + 1, SCAN_STEPS.length - 1);
+      breadcrumbStep(SCAN_STEPS[nextStep] ?? 'end', 'enter');
       const updated = { ...prev, currentStep: nextStep, updatedAt: new Date().toISOString() };
       saveActiveSession(updated);
       return updated;
@@ -177,6 +178,7 @@ export function useScanSession(): UseScanSession {
   const goToStep = useCallback((step: ScanStep) => {
     const idx = SCAN_STEPS.indexOf(step);
     if (idx === -1) return;
+    breadcrumbStep(step, 'enter');
     setSession((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, currentStep: idx, updatedAt: new Date().toISOString() };
@@ -198,29 +200,49 @@ export function useScanSession(): UseScanSession {
 
     try {
       // ── Phase 1: heuristic engine (always runs) ──────────────
-      const result: AnalysisResult = await runAnalysis(
-        current.captures,
-        current.metadata.peptideName || undefined,
-        (phase) => setAnalysisStatus(phase),
-        current.metadata.appearanceProfile ?? null,
-        current.metadata.scanMode ?? 'reconstituted',
+      addBreadcrumb('Analysis started', {
+        profile: current.metadata.appearanceProfile ?? 'none',
+        scan_mode: current.metadata.scanMode ?? 'reconstituted',
+        captures: current.captures.length,
+        ai_requested: opts?.includeAiVision ?? false,
+      });
+
+      const result: AnalysisResult = await withSpan('analysis', 'heuristic_engine', () =>
+        runAnalysis(
+          current.captures,
+          current.metadata.peptideName || undefined,
+          (phase) => setAnalysisStatus(phase),
+          current.metadata.appearanceProfile ?? null,
+          current.metadata.scanMode ?? 'reconstituted',
+        ),
       );
+
+      addBreadcrumb('Heuristic engine complete', {
+        verdict: result.triageResult,
+        confidence: result.overallConfidence,
+      });
 
       // ── Phase 2: AI Vision (Pro only, best-effort) ───────────
       setAnalysisStatus(opts?.includeAiVision ? 'Running AI Vision analysis…' : '');
       let aiResult: import('../utils/visionAnalysis').AIVisionResult | null = null;
       if (opts?.includeAiVision) try {
         const { runVisionAnalysis } = await import('../utils/visionAnalysis');
-        aiResult = await runVisionAnalysis({
-          captures: current.captures,
-          peptideName: current.metadata.peptideName || null,
-          scanMode: current.metadata.scanMode ?? 'reconstituted',
-          appearanceProfile: current.metadata.appearanceProfile ?? null,
-          baselineContext: opts?.baselineContext?.length ? opts.baselineContext : undefined,
-          reconstitutedAt: current.metadata.reconstitutedAt ?? null,
+        aiResult = await withSpan('analysis', 'ai_vision', () =>
+          runVisionAnalysis({
+            captures: current.captures,
+            peptideName: current.metadata.peptideName || null,
+            scanMode: current.metadata.scanMode ?? 'reconstituted',
+            appearanceProfile: current.metadata.appearanceProfile ?? null,
+            baselineContext: opts?.baselineContext?.length ? opts.baselineContext : undefined,
+            reconstitutedAt: current.metadata.reconstitutedAt ?? null,
+          }),
+        );
+        addBreadcrumb('AI vision complete', {
+          ai_verdict: aiResult?.overallVerdict,
+          ai_confidence: aiResult?.confidence,
         });
       } catch (err) {
-        // AI vision is best-effort — fall back to heuristic only, but still report
+        addBreadcrumb('AI vision failed (best-effort fallback)', {}, 'error' as const);
         import('../lib/sentry').then(({ captureError }) => {
           captureError(err, { context: 'ai-vision-analysis' });
         }).catch(() => {});
