@@ -23,6 +23,11 @@ Best-of-3 at ≤1600px is the sweet spot. 5 high-res grabs in ~1.3s caused OOM-a
 **Why:** When the app *declares* CAMERA but the OS permission is denied (user denial or Android auto-reset after reinstall), WebView `getUserMedia` never settles AND the `<input capture>` chooser intent is blocked (declared-but-denied apps may not use ACTION_IMAGE_CAPTURE) — so both the live path and the fallback hung forever on "Opening camera…" / a spinning disabled button. Phone's own Camera app keeps working, which misleads debugging.
 **How to apply:** Keep the 12s getUserMedia timeout (stop late-arriving streams to avoid locking the camera), the error screen with per-error hints (NotAllowedError → Settings→Apps→PepScan→Permissions→Camera), and the visibility-based watchdog on file-chooser paths (if the app never backgrounds within ~7s of `input.click()`, the chooser never opened). First support question for "can't capture": check the app's camera permission in Android settings.
 
+## SVG overlays on buttons MUST have pointer-events-none on Android WebView
+**Rule:** Any SVG (or other absolutely-positioned decorative element) that sits over a tappable button must have `pointer-events-none` / `class="pointer-events-none"`.
+**Why:** On Android WebView (Capacitor), an SVG element intercepts pointer events across its full bounding box regardless of whether it has fill/stroke at the tap point. The stability-ring SVG was `absolute inset-0` over the shutter button — every tap was consumed by the SVG and `onClick` never fired. The symptom: button visually present, ring animating, taps do nothing.
+**How to apply:** Any decorative SVG or div that overlays a button: add `pointer-events-none`. Add `onTouchEnd` as a secondary fallback on important buttons in Capacitor overlays.
+
 ## Shutter tap must fire burst immediately — no countdown delay
 **Rule:** `handleShutterTap` must call `runBurst()` directly; never interpose a countdown state (1–2 s) between tap and visual feedback.
 **Why:** The 1.5 s countdown made the button feel completely broken — users saw no state change for up to 5 s (countdown + burst time) and assumed the tap hadn't registered. The burst's own 250 ms AF settle is sufficient; a visible countdown is unnecessary.
