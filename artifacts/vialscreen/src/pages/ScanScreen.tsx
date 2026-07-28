@@ -10,7 +10,7 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2, Clock } from 'lucide-react';
 import { shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { ScanStep } from '@/types';
@@ -50,9 +50,14 @@ const CAPTURE_TIPS = [
   'Avoid reflections on the vial face',
 ];
 
-// Appearance profile options in display order
-const PROFILE_OPTIONS: AppearanceProfile[] = ['clear-standard', 'glp1-clear', 'ghk-cu', 'unknown-custom'];
-/** Profiles gated behind Pro — niche professional compounds */
+// Appearance profile options in display order — named peptides first, specialty next, fallbacks last
+const PROFILE_OPTIONS: AppearanceProfile[] = [
+  'bpc157', 'tb500', 'ipamorelin', 'sermorelin', 'melanotan',
+  'igf1', 'aod9604', 'epithalon', 'hcg',
+  'glp1-clear', 'ghk-cu',
+  'clear-standard', 'unknown-custom',
+];
+/** Profiles gated behind Pro — specialty compounds with non-standard expected appearances */
 const PRO_ONLY_PROFILES: AppearanceProfile[] = ['ghk-cu', 'glp1-clear'];
 
 export default function ScanScreen() {
@@ -495,6 +500,41 @@ function PrepareStep() {
                 onChange={(e) => updateMetadata({ notes: e.target.value })}
               />
             </label>
+
+            {/* Reconstitution time — liquid mode only */}
+            {!isPowder && (
+              <div>
+                <span className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  When was it reconstituted?
+                  <span className="ml-1 font-normal opacity-70">(helps AI interpret appearance)</span>
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    ['just-now',  'Just now',     '< 1 hour'],
+                    ['1-8h',      '1–8 hours',    'same day'],
+                    ['1-2d',      '1–2 days',     'refrigerated'],
+                    ['2d-plus',   '2+ days',      'older stock'],
+                  ] as const).map(([val, label, sub]) => {
+                    const sel = session?.metadata.reconstitutedAt === val;
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => updateMetadata({ reconstitutedAt: sel ? null : val })}
+                        className={`text-left rounded-xl border p-3 transition-colors ${
+                          sel
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                            : 'border-border bg-card hover:bg-muted/50'
+                        }`}
+                      >
+                        <p className="font-semibold text-xs leading-snug">{label}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

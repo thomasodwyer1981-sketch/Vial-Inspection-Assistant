@@ -46,28 +46,68 @@ export const APPEARANCE_PROFILE_COPY: Record<
 > = {
   'clear-standard': {
     label: 'Standard Clear Peptide',
-    description: 'Expected to appear mostly clear and colorless after mixing.',
-    analysisNote: 'Color and clarity are evaluated against a clear/colorless baseline.',
+    description: 'Expected mostly clear and colorless. Use if your peptide is not listed.',
+    analysisNote: 'Color and clarity evaluated against a clear/colorless baseline.',
+  },
+  'bpc157': {
+    label: 'BPC-157',
+    description: 'Body Protective Compound. Clear, colourless solution after reconstitution.',
+    analysisNote: 'Expects crystal clear appearance. Any turbidity or discolouration is flagged.',
+  },
+  'tb500': {
+    label: 'TB-500 / Thymosin β-4',
+    description: 'Clear solution. Slight cloudiness immediately after reconstitution is normal — should clear within minutes.',
+    analysisNote: 'Slight transient cloudiness noted if visible. Persistent haze is flagged.',
+  },
+  'ipamorelin': {
+    label: 'Ipamorelin / CJC-1295 / GHRP',
+    description: 'Clear, colourless solution. Covers Ipamorelin, CJC-1295, GHRP-2, GHRP-6, and similar GH secretagogues.',
+    analysisNote: 'Expects clear, colourless appearance. Colour deviation flagged.',
+  },
+  'sermorelin': {
+    label: 'Sermorelin / Tesamorelin',
+    description: 'Clear solution. Slight transient opalescence after reconstitution can be normal — persistent cloudiness is not.',
+    analysisNote: 'Mild opalescence noted with lower severity. Persistent cloudiness still flagged.',
+  },
+  'melanotan': {
+    label: 'Melanotan II / PT-141',
+    description: 'Generally clear. Some batches may have a very slight amber tint — significant discolouration is a concern.',
+    analysisNote: 'Slight amber tint acknowledged as possible. Significant discolouration still flagged.',
+  },
+  'igf1': {
+    label: 'IGF-1 LR3 / IGF-1 DES',
+    description: 'Clear, colourless solution. Sensitive to degradation — any cloudiness warrants caution.',
+    analysisNote: 'Strict clarity threshold — IGF-1 is sensitive to degradation.',
+  },
+  'aod9604': {
+    label: 'AOD-9604 / HGH Fragment',
+    description: 'Clear, colourless solution after reconstitution with bacteriostatic water.',
+    analysisNote: 'Expects clear appearance. Standard clear-peptide thresholds applied.',
+  },
+  'epithalon': {
+    label: 'Epithalon / Selank / Semax',
+    description: 'Short peptides — clear and colourless. Selank/Semax nasal preparations may appear very slightly opalescent.',
+    analysisNote: 'Slight opalescence noted with lower severity for nasal prep variants.',
+  },
+  'hcg': {
+    label: 'HCG',
+    description: 'Should be crystal clear. Any turbidity or particulates are significant concerns for this compound.',
+    analysisNote: 'Strict thresholds — HCG should be crystal clear. Any deviation is significant.',
   },
   'ghk-cu': {
     label: 'GHK-Cu / Blue Peptide',
-    description: 'Blue coloration may be expected. Screens for haze, particles, or poor mixing.',
-    analysisNote:
-      'Blue coloration is not treated as a flag. Analysis focuses on turbidity, particles, and mixing quality.',
+    description: 'Blue coloration is expected. Screens for haze, particles, or poor mixing.',
+    analysisNote: 'Blue coloration is not treated as a flag. Focuses on turbidity and particles.',
   },
   'glp1-clear': {
-    label: 'GLP-1 / Peptide Hormone',
-    description:
-      'Semaglutide, tirzepatide, and similar. Colorless to slight yellow is normal — deeper yellow, cloudiness, or particles are concerns.',
-    analysisNote:
-      'A slight yellow/warm tint is not penalized. Analysis focuses on turbidity, particles, and fill level.',
+    label: 'GLP-1 / Semaglutide / Tirzepatide',
+    description: 'Colourless to slight yellow is normal. Deeper yellow, cloudiness, or particles are concerns.',
+    analysisNote: 'Slight yellow/warm tint not penalized. Focuses on turbidity, particles, fill level.',
   },
   'unknown-custom': {
     label: 'Unknown / Custom Appearance',
-    description:
-      'Use when colour alone should not drive interpretation. More conservative screening.',
-    analysisNote:
-      'Color is not used as a primary screening signal. This profile is deliberately conservative.',
+    description: 'Use when colour alone should not drive interpretation. More conservative screening.',
+    analysisNote: 'Color not used as primary signal. Deliberately conservative.',
   },
 };
 

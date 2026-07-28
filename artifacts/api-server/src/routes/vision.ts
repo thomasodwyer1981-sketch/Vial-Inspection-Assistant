@@ -20,7 +20,27 @@ const SYSTEM_PROMPT = `You are an expert pharmaceutical visual quality control s
 You will receive one or two photographs of the same vial taken against different backgrounds (white, black, or both). Analyse them with scientific rigour.
 
 WHITE BACKGROUND: best for detecting particles, foreign matter, colour deviations, fill level, cap integrity.
-BLACK BACKGROUND: best for detecting haze, turbidity, opalescence, and light-scattering particles.
+BLACK BACKGROUND: best for detecting haze, turbidity, opalescence, and light-scattering particles (Tyndall effect).
+
+COMPOUND-SPECIFIC EXPECTED APPEARANCES (critical — do not flag normal appearance as a defect):
+- BPC-157: crystal clear, colourless solution. Any turbidity or colour is abnormal.
+- TB-500 / Thymosin β-4: clear solution. Slight transient cloudiness immediately post-reconstitution can be normal but should resolve quickly.
+- Ipamorelin, CJC-1295, GHRP-2, GHRP-6: clear, colourless. Colour deviation is abnormal.
+- Sermorelin, Tesamorelin, MOD-GRF: clear solution. Mild opalescence shortly after reconstitution can be normal.
+- Melanotan II, PT-141 / Bremelanotide: generally clear; some batches show very slight amber tint which is acceptable. Significant discolouration is not.
+- IGF-1 LR3 / IGF-1 DES: clear, colourless. Sensitive to degradation — any cloudiness is concerning.
+- AOD-9604 / HGH Fragment 176-191: clear, colourless.
+- Epithalon / Selank / Semax: clear. Nasal preparations may appear very slightly opalescent.
+- HCG: must be crystal clear. Any turbidity or visible particulates are significant concerns.
+- GHK-Cu: blue coloration is EXPECTED and NORMAL. Do not flag blue colour. Focus on turbidity and particles.
+- GLP-1 / Semaglutide / Tirzepatide: colourless to slight yellow is NORMAL. Do not flag mild yellow. Flag deeper yellow, cloudiness, or particles.
+- Standard clear peptide (unlisted): colourless, clear solution expected.
+
+TEMPORAL CONTEXT — reconstitution age affects interpretation:
+- "Just reconstituted (< 1 hour)": minor cloudiness or swirling may still be settling — note it but apply lower severity.
+- "1–8 hours": solution should be fully clear by now; any cloudiness is more significant.
+- "1–2 days (refrigerated)": clarity should be maintained; particles or colour change suggest degradation.
+- "2+ days": increased scrutiny for degradation signs — cloudiness, colour shift, or new particles are meaningful concerns.
 
 Return ONLY a valid JSON object in this exact shape — no markdown, no commentary:
 {
@@ -42,7 +62,8 @@ SCORING RULES:
 - Overall verdict must be consistent with category scores
 - When uncertain, prefer "review" over "pass" — never falsely reassure
 - Poor image quality lowers confidence, never inflates verdict
-- Distinguish expected product appearance (e.g. GLP-1 peptides have slight yellow tint) from genuine concern`;
+- Always cite the specific compound by name in your findings when it was provided
+- If baseline comparison context is provided, explicitly compare and note any changes`;
 
 router.post('/vision/analyze', async (req, res) => {
   try {
@@ -52,12 +73,14 @@ router.post('/vision/analyze', async (req, res) => {
       scanMode,
       appearanceProfile,
       baselineContext,
+      reconstitutedAt,
     } = req.body as {
       captures: Array<{ background: string; dataUrl: string }>;
       peptideName?: string;
       scanMode?: string;
       appearanceProfile?: string;
       baselineContext?: string[];
+      reconstitutedAt?: string | null;
     };
 
     if (!captures || captures.length === 0) {
@@ -82,21 +105,35 @@ router.post('/vision/analyze', async (req, res) => {
     }
 
     const productType = scanMode === 'powder' ? 'lyophilised powder (pre-mix)' : 'reconstituted liquid solution';
-    const profileNote = appearanceProfile
-      ? `Expected appearance profile: "${appearanceProfile}".`
+
+    const nameNote = peptideName ? `Compound: ${peptideName}.` : '';
+
+    const profileNote = appearanceProfile && appearanceProfile !== 'unknown-custom'
+      ? `Appearance profile: "${appearanceProfile}" — apply compound-specific expected-appearance rules from your guidelines.`
+      : appearanceProfile === 'unknown-custom'
+        ? 'Appearance profile: unknown/custom — apply conservative screening; colour alone should not drive verdict.'
+        : '';
+
+    const reconNote = reconstitutedAt
+      ? `Reconstitution age: ${
+          reconstitutedAt === 'just-now' ? 'just reconstituted (< 1 hour) — minor cloudiness may still be settling'
+          : reconstitutedAt === '1-8h'   ? '1–8 hours ago — solution should be fully clear by now'
+          : reconstitutedAt === '1-2d'   ? '1–2 days ago (refrigerated) — any new cloudiness or colour change suggests degradation'
+          : '2+ days old — apply increased scrutiny for degradation signs'
+        }.`
       : '';
-    const nameNote = peptideName ? `Product name: ${peptideName}.` : '';
 
     const baselineNote = baselineContext?.length
-      ? `BASELINE COMPARISON — previous scans of this sample showed the following findings: ${baselineContext.map((f, i) => `(${i + 1}) ${f}`).join('; ')}. Compare the current images against this baseline and explicitly note any significant changes or deviations (e.g. increased cloudiness, new particles, colour shift). If this scan looks consistent with the baseline, state that clearly.`
+      ? `BASELINE COMPARISON — previous scans of this sample showed: ${baselineContext.map((f, i) => `(${i + 1}) ${f}`).join('; ')}. Explicitly compare and note any changes (increased cloudiness, new particles, colour shift). If consistent with baseline, state that clearly.`
       : '';
 
     const userText = [
       `Analyse this ${productType} vial for visual quality control.`,
       nameNote,
       profileNote,
-      `${captures.filter((c) => c.background === 'white').length > 0 ? 'White background image included.' : ''}`,
-      `${captures.filter((c) => c.background === 'black').length > 0 ? 'Black background image included.' : ''}`,
+      reconNote,
+      captures.filter((c) => c.background === 'white').length > 0 ? 'White background image included.' : '',
+      captures.filter((c) => c.background === 'black').length > 0 ? 'Black background image included.' : '',
       'Check for: particles/foreign matter, cloudiness/haze/turbidity, colour deviations, fill level, cap and stopper integrity.',
       baselineNote,
     ]

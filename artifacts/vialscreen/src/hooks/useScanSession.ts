@@ -215,6 +215,7 @@ export function useScanSession(): UseScanSession {
           scanMode: current.metadata.scanMode ?? 'reconstituted',
           appearanceProfile: current.metadata.appearanceProfile ?? null,
           baselineContext: opts?.baselineContext?.length ? opts.baselineContext : undefined,
+          reconstitutedAt: current.metadata.reconstitutedAt ?? null,
         });
       } catch (err) {
         // AI vision is best-effort — fall back to heuristic only, but still report

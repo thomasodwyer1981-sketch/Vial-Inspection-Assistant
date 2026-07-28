@@ -15,19 +15,22 @@ const PROFILE_BADGE: Record<
   AppearanceProfile,
   { label: string; className: string } | null
 > = {
+  // Named peptides — show the compound name as a badge
+  'bpc157':     { label: 'BPC-157',      className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'tb500':      { label: 'TB-500',       className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'ipamorelin': { label: 'Ipamorelin',   className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'sermorelin': { label: 'Sermorelin',   className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'melanotan':  { label: 'Melanotan',    className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'igf1':       { label: 'IGF-1',        className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'aod9604':    { label: 'AOD-9604',     className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'epithalon':  { label: 'Epithalon',    className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  'hcg':        { label: 'HCG',          className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  // Specialty — non-standard expected appearances
+  'ghk-cu':     { label: 'GHK-Cu',       className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
+  'glp1-clear': { label: 'GLP-1',        className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+  // Fallbacks — no badge needed (generic)
   'clear-standard': null,
-  'ghk-cu': {
-    label: 'GHK-Cu',
-    className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
-  },
-  'glp1-clear': {
-    label: 'GLP-1',
-    className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-  },
-  'unknown-custom': {
-    label: 'Custom',
-    className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-  },
+  'unknown-custom': { label: 'Custom',   className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
 };
 
 export default function HistoryScreen() {

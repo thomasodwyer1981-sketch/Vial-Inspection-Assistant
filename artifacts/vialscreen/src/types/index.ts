@@ -69,7 +69,16 @@ export type ScanMode = 'reconstituted' | 'powder';
  * engine interprets color, tint, and clarity findings.
  */
 export type AppearanceProfile =
-  | 'clear-standard'   // Standard clear/colorless peptide after mixing
+  | 'clear-standard'   // Generic clear/colorless — catch-all for unlisted clear peptides
+  | 'bpc157'           // BPC-157 (clear)
+  | 'tb500'            // TB-500 / Thymosin Beta-4 (clear)
+  | 'ipamorelin'       // Ipamorelin, CJC-1295, GHRP-2, GHRP-6 (clear)
+  | 'sermorelin'       // Sermorelin, Tesamorelin, MOD-GRF (clear, slight opalescence possible)
+  | 'melanotan'        // Melanotan II, PT-141 / Bremelanotide (clear to slight amber)
+  | 'igf1'             // IGF-1 LR3, IGF-1 DES (clear)
+  | 'aod9604'          // AOD-9604, HGH Fragment 176-191 (clear)
+  | 'epithalon'        // Epithalon, Selank, Semax, short neuropeptides (clear)
+  | 'hcg'              // HCG (clear, sterile water reconstituted — strict clarity)
   | 'ghk-cu'           // GHK-Cu or similar blue-tinted compound
   | 'glp1-clear'       // GLP-1 peptide hormones (semaglutide, tirzepatide) — slight yellow normal
   | 'unknown-custom';  // Unknown or non-standard appearance — conservative mode
@@ -80,22 +89,55 @@ export const APPEARANCE_PROFILES: Record<
 > = {
   'clear-standard': {
     label: 'Standard Clear Peptide',
-    description: 'Expected to appear mostly clear and colorless after mixing.',
+    description: 'Expected mostly clear and colorless. Use if your peptide is not listed.',
+  },
+  'bpc157': {
+    label: 'BPC-157',
+    description: 'Body Protective Compound. Clear, colourless solution after reconstitution.',
+  },
+  'tb500': {
+    label: 'TB-500 / Thymosin β-4',
+    description: 'Clear solution. Slight cloudiness immediately after reconstitution is normal — should clear within minutes.',
+  },
+  'ipamorelin': {
+    label: 'Ipamorelin / CJC-1295 / GHRP',
+    description: 'Clear, colourless solution. Covers Ipamorelin, CJC-1295, GHRP-2, GHRP-6, and similar GH secretagogues.',
+  },
+  'sermorelin': {
+    label: 'Sermorelin / Tesamorelin',
+    description: 'Clear solution. Slight transient opalescence after reconstitution can be normal — persistent cloudiness is not.',
+  },
+  'melanotan': {
+    label: 'Melanotan II / PT-141',
+    description: 'Generally clear. Some batches may have a very slight amber tint — significant discolouration is a concern.',
+  },
+  'igf1': {
+    label: 'IGF-1 LR3 / IGF-1 DES',
+    description: 'Clear, colourless solution. Sensitive to degradation — any cloudiness warrants caution.',
+  },
+  'aod9604': {
+    label: 'AOD-9604 / HGH Fragment',
+    description: 'Clear, colourless solution after reconstitution with bacteriostatic water.',
+  },
+  'epithalon': {
+    label: 'Epithalon / Selank / Semax',
+    description: 'Short peptides — clear and colourless. Selank and Semax nasal preparations may appear very slightly opalescent.',
+  },
+  'hcg': {
+    label: 'HCG',
+    description: 'Should be crystal clear. Any turbidity or particulates are significant concerns for this compound.',
   },
   'ghk-cu': {
     label: 'GHK-Cu / Blue Peptide',
-    description:
-      'Blue coloration may be expected. Screens for haze, particles, or poor mixing.',
+    description: 'Blue coloration is expected. Screens for haze, particles, or poor mixing.',
   },
   'glp1-clear': {
-    label: 'GLP-1 / Peptide Hormone',
-    description:
-      'Semaglutide, tirzepatide, and similar. Colorless to slight yellow is normal — deeper yellow, cloudiness, or particles are concerns.',
+    label: 'GLP-1 / Semaglutide / Tirzepatide',
+    description: 'Colourless to slight yellow is normal. Deeper yellow, cloudiness, or particles are concerns.',
   },
   'unknown-custom': {
     label: 'Unknown / Custom Appearance',
-    description:
-      'Use when colour alone should not drive interpretation. More conservative screening.',
+    description: 'Use when colour alone should not drive interpretation. More conservative screening.',
   },
 };
 
@@ -177,6 +219,14 @@ export interface ScanMetadata {
    * Optional for backward compatibility with pre-existing sessions.
    */
   scanMode?: ScanMode;
+
+  /**
+   * How long ago the vial was reconstituted with BAC water.
+   * Used to give the AI temporal context — freshly reconstituted vials may
+   * look different to those stored for days, and some degradation is time-dependent.
+   * Optional — not all users will fill this in.
+   */
+  reconstitutedAt?: 'just-now' | '1-8h' | '1-2d' | '2d-plus' | null;
 }
 
 // ---- Analysis Result --------------------------------------

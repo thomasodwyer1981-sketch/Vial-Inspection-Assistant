@@ -31,6 +31,8 @@ export interface VisionAnalysisInput {
   appearanceProfile?: string | null;
   /** Pro: previous scan findings for the same sample — drives baseline comparison. */
   baselineContext?: string[];
+  /** How long ago the vial was reconstituted — gives AI temporal context. */
+  reconstitutedAt?: 'just-now' | '1-8h' | '1-2d' | '2d-plus' | null;
 }
 
 export async function runVisionAnalysis(
@@ -50,6 +52,7 @@ export async function runVisionAnalysis(
         scanMode: input.scanMode ?? 'liquid',
         appearanceProfile: input.appearanceProfile ?? undefined,
         baselineContext: input.baselineContext?.length ? input.baselineContext : undefined,
+        reconstitutedAt: input.reconstitutedAt ?? undefined,
       }),
     });
 
@@ -63,10 +66,13 @@ export async function runVisionAnalysis(
 
 /**
  * Merge AI verdict with heuristic triage to produce the final call.
- * - If AI and heuristic agree → use that result with boosted confidence
- * - If AI is more severe → use AI (safety-first)
- * - If heuristic is more severe → use heuristic (safety-first)
- * - If AI unavailable → use heuristic only
+ * - If AI and heuristic agree → blend confidence (AI 60%, heuristic 40%)
+ * - If they disagree → use the confidence of the MORE SEVERE instrument,
+ *   reduced by 12% to reflect the disagreement between tools.
+ *   A simple average when the two instruments give different verdicts
+ *   produces misleading numbers (e.g. "DO NOT USE — 43% confidence").
+ * - Safety-first: the more severe verdict always wins.
+ * - If AI unavailable → use heuristic only.
  */
 export function mergeVerdicts(
   heuristic: { triage: 'pass' | 'review' | 'do-not-use'; confidence: number },
@@ -78,13 +84,22 @@ export function mergeVerdicts(
   const hSev = severity[heuristic.triage];
   const aSev = severity[ai.overallVerdict];
 
-  // Take the more severe verdict
+  // Take the more severe verdict (safety-first)
   const finalSev = Math.max(hSev, aSev);
   const triage = Object.entries(severity).find(([, v]) => v === finalSev)![0] as
     'pass' | 'review' | 'do-not-use';
 
-  // Blend confidence — weight AI at 60%, heuristic at 40%
-  const blended = Math.round(ai.confidence * 0.6 + heuristic.confidence * 0.4);
+  let confidence: number;
 
-  return { triage, confidence: blended, aiEnhanced: true };
+  if (hSev === aSev) {
+    // Both instruments agree — blend normally and allow slight boost
+    confidence = Math.min(95, Math.round(ai.confidence * 0.6 + heuristic.confidence * 0.4));
+  } else {
+    // Instruments disagree — use the confidence of whichever drove the worse verdict,
+    // reduced by 12% to reflect the genuine uncertainty from the disagreement.
+    const worseConfidence = hSev > aSev ? heuristic.confidence : ai.confidence;
+    confidence = Math.round(worseConfidence * 0.88);
+  }
+
+  return { triage, confidence, aiEnhanced: true };
 }

@@ -9,8 +9,11 @@ import {
   Tag,
   AlertTriangle,
   Palette,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from 'lucide-react';
-import { loadSession, deleteSession } from '@/utils/storage';
+import { loadSession, deleteSession, getHistoryForSampleName } from '@/utils/storage';
 import { RESULT_COPY } from '@/constants/copy';
 import { APPEARANCE_PROFILES } from '@/types';
 import { format } from 'date-fns';
@@ -59,6 +62,19 @@ export default function HistoryDetailScreen() {
     metadata.concentration || metadata.purchaseDate || metadata.notes ||
     profileUsed
   );
+
+  // Baseline comparison — previous scans of the same peptide, excluding this one
+  const baselineHistory = metadata.peptideName?.trim()
+    ? getHistoryForSampleName(metadata.peptideName, metadata.scanMode)
+        .filter((h) => h.id !== session.id)
+        .slice(0, 5)
+    : [];
+
+  // Trend: compare this result's confidence to the last scan's confidence
+  const lastScan = baselineHistory[0] ?? null;
+  const confidenceDelta = lastScan
+    ? result.overallConfidence - lastScan.overallConfidence
+    : null;
 
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative">
@@ -158,6 +174,88 @@ export default function HistoryDetailScreen() {
               {session.captures.filter((c) => c.dataUrl || c.thumbDataUrl).map((c) => (
                 <MediaPreview key={c.id} capture={c} />
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Baseline Comparison — only shown when previous scans exist for same peptide */}
+        {baselineHistory.length > 0 && (
+          <section>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+              Scan History — {metadata.peptideName}
+            </h2>
+            <div className="bg-card border rounded-xl overflow-hidden">
+              {/* Trend indicator */}
+              {confidenceDelta !== null && (
+                <div className="flex items-center gap-3 px-4 py-3 border-b bg-secondary/30">
+                  {confidenceDelta > 3 ? (
+                    <>
+                      <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                        Confidence up {confidenceDelta}% from last scan
+                      </span>
+                    </>
+                  ) : confidenceDelta < -3 ? (
+                    <>
+                      <TrendingDown className="w-4 h-4 text-red-500 shrink-0" />
+                      <span className="text-sm text-red-600 dark:text-red-400 font-medium">
+                        Confidence down {Math.abs(confidenceDelta)}% from last scan
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Minus className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm text-muted-foreground font-medium">
+                        Consistent with last scan
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+              {/* Previous scans list */}
+              {baselineHistory.map((h, i) => {
+                const isLast = i === baselineHistory.length - 1;
+                const color =
+                  h.triageResult === 'pass'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : h.triageResult === 'do-not-use'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-amber-600 dark:text-amber-400';
+                const bg =
+                  h.triageResult === 'pass'
+                    ? 'bg-emerald-500/10'
+                    : h.triageResult === 'do-not-use'
+                      ? 'bg-red-500/10'
+                      : 'bg-amber-500/10';
+                const label =
+                  h.triageResult === 'pass' ? 'Pass'
+                  : h.triageResult === 'do-not-use' ? 'Do Not Use'
+                  : 'Review';
+                return (
+                  <Link
+                    key={h.id}
+                    href={`/history/${h.id}`}
+                    className={`flex items-center justify-between px-4 py-3 hover:bg-muted/40 active:bg-muted transition-colors ${!isLast ? 'border-b' : ''}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${bg} ring-1 ${
+                        h.triageResult === 'pass' ? 'ring-emerald-400' : h.triageResult === 'do-not-use' ? 'ring-red-400' : 'ring-amber-400'
+                      }`} />
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(h.createdAt), 'MMM d, yyyy')}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60">
+                          {h.overallConfidence}% confidence
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${bg} ${color}`}>
+                      {label}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </section>
         )}
