@@ -852,9 +852,10 @@ export default function LiveCameraCapture({
         {/* Streaming — shutter button with stability ring */}
         {isStreaming && (
           <div className="relative w-24 h-24 flex items-center justify-center">
-            {/* Stability / auto-fire ring */}
+            {/* Stability / auto-fire ring — pointer-events-none so the SVG
+                bounding box never intercepts taps intended for the button below */}
             <svg
-              className="absolute inset-0 -rotate-90"
+              className="absolute inset-0 -rotate-90 pointer-events-none"
               viewBox="0 0 96 96"
               aria-hidden="true"
             >
@@ -879,6 +880,7 @@ export default function LiveCameraCapture({
             </svg>
             <button
               onClick={handleShutterTap}
+              onTouchEnd={(e) => { e.preventDefault(); handleShutterTap(); }}
               className="w-20 h-20 rounded-full border-4 border-white/40 bg-white/10 flex items-center justify-center active:scale-95 transition-transform shadow-lg"
               aria-label="Capture photo"
             >
@@ -891,7 +893,7 @@ export default function LiveCameraCapture({
         {isCountingDown && (
           <div className="relative w-24 h-24 flex items-center justify-center">
             <svg
-              className="absolute inset-0 -rotate-90"
+              className="absolute inset-0 -rotate-90 pointer-events-none"
               viewBox="0 0 96 96"
               aria-hidden="true"
             >
