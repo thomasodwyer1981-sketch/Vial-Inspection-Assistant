@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "214760327995",
+    "project_id": "pepscan-f78ce",
+    "storage_bucket": "pepscan-f78ce.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:214760327995:android:223d564eedcc455d6b851e",
+        "android_client_info": {
+          "package_name": "com.pepscan.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4dR682_GEvC263RMFnknUTENL8t-BDWk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

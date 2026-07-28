@@ -56,10 +56,16 @@ jobs:
         run: npx cap sync android
 
       - name: Inject google-services.json (Firebase Analytics)
-        if: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 != '' }}
+        env:
+          GSVC: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d \
-            > artifacts/vialscreen/android/app/google-services.json
+          if [ -n "$GSVC" ]; then
+            echo "$GSVC" | base64 -d \
+              > artifacts/vialscreen/android/app/google-services.json
+            echo "google-services.json injected"
+          else
+            echo "GOOGLE_SERVICES_JSON_BASE64 not set — Firebase Analytics disabled for this build"
+          fi
 
       - name: Decode keystore
         run: |
