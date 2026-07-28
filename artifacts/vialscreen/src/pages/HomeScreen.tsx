@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import {
   Camera,
@@ -45,8 +45,10 @@ function VialHeroIcon({ size = 52 }: { size?: number }) {
 
 export default function HomeScreen() {
   const [, setLocation] = useLocation();
-  const activeSession = loadActiveSession();
-  const scanCount = getScanHistory().length;
+  // Lazy-init so these localStorage reads only run once (on mount), never on
+  // re-renders, and never block React's synchronous render path.
+  const [activeSession] = useState<ReturnType<typeof loadActiveSession>>(() => loadActiveSession());
+  const [scanCount] = useState<number>(() => getScanHistory().length);
   const { theme, toggleTheme } = useTheme();
   const { isPro, isLoading: proLoading } = useProStatus();
 

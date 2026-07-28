@@ -5,7 +5,10 @@ import App from './App';
 
 import './index.css';
 
-// Must run before React renders so all subsequent errors are captured
-initSentry();
+// Defer Sentry init until after the first frame so it doesn't block the
+// WebView's synchronous startup path (which causes ANR on slow/cold launches).
+// Errors thrown synchronously during the very first render are extremely rare;
+// the tiny window of non-coverage is an acceptable trade-off vs. ANR risk.
+requestAnimationFrame(() => { initSentry(); });
 
 createRoot(document.getElementById('root')!).render(<App />);

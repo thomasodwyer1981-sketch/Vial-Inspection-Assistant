@@ -205,7 +205,16 @@ export function deleteSession(id: string): void {
 
 export function saveActiveSession(session: ScanSession): void {
   try {
-    localStorage.setItem(KEYS.ACTIVE_SESSION, JSON.stringify(session));
+    // Strip full-resolution dataUrls before persisting — an in-progress session
+    // can have 2–3 captures at 800px JPEG (≈200–400 KB each as base64).
+    // Parsing that back synchronously on next launch can stall the main thread
+    // long enough to trigger an Android ANR. The thumbnail is kept so the
+    // resume banner can show a preview; the full images are re-captured anyway.
+    const lean: ScanSession = {
+      ...session,
+      captures: session.captures.map((c) => ({ ...c, dataUrl: '' })),
+    };
+    localStorage.setItem(KEYS.ACTIVE_SESSION, JSON.stringify(lean));
   } catch {
     // quota exceeded — skip (best-effort only)
   }
