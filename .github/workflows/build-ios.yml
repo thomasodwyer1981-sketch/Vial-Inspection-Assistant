@@ -115,10 +115,7 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
             -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM=B6PJBT97RS
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           test -d $RUNNER_TEMP/PepScan.xcarchive
 
       - name: Export IPA
