@@ -87,18 +87,6 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
 
-      - name: Import provisioning profile
-        env:
-          PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
-        run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROFILE_BASE64" | base64 -d > /tmp/pepscan.mobileprovision
-          UUID=$(security cms -D -i /tmp/pepscan.mobileprovision 2>/dev/null | \
-            plutil -extract UUID raw -)
-          cp /tmp/pepscan.mobileprovision \
-            ~/Library/MobileDevice/Provisioning\ Profiles/${UUID}.mobileprovision
-          echo "PROVISIONING_UUID=$UUID" >> $GITHUB_ENV
-
       - name: Resolve Swift Package dependencies
         working-directory: artifacts/vialscreen/ios/App
         run: |
