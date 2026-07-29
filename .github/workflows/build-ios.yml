@@ -108,8 +108,15 @@ jobs:
             -clonedSourcePackagesDirPath $RUNNER_TEMP/SourcePackages
 
       - name: Build archive
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
         working-directory: artifacts/vialscreen/ios/App
         run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_BASE64" | base64 -d \
+            > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
           xcodebuild archive \
             -project App.xcodeproj \
             -scheme App \
@@ -117,11 +124,12 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath $RUNNER_TEMP/PepScan.xcarchive \
             -clonedSourcePackagesDirPath $RUNNER_TEMP/SourcePackages \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM=B6PJBT97RS \
-            PROVISIONING_PROFILE="$PROVISIONING_UUID" \
-            PROVISIONING_PROFILE_SPECIFIER="PepScan App Store"
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM=B6PJBT97RS
           test -d $RUNNER_TEMP/PepScan.xcarchive
 
       - name: Export IPA
