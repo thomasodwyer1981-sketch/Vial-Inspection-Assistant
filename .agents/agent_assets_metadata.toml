@@ -84,3 +84,33 @@ id = "bhjieXkRj6bMeE4fFidr8"
 uri = "file://attached_assets/pepscan-icon-final.png"
 type = "image"
 title = "PepScan Icon — teal background (512×512)"
+
+[[outputs]]
+id = "Jix2Z9OryNWCJrm_zzSL9"
+uri = "file://screenshots/screenshot-1-home.png"
+type = "image"
+title = "1 — Visual QC in Your Pocket"
+
+[[outputs]]
+id = "8K2UgGT070n_FLBwzxjpH"
+uri = "file://screenshots/screenshot-2-capture.png"
+type = "image"
+title = "2 — Dual-Background Capture"
+
+[[outputs]]
+id = "b2-ruJNXQlAA_vrkL1kCQ"
+uri = "file://screenshots/screenshot-3-results.png"
+type = "image"
+title = "3 — Instant AI Triage Results"
+
+[[outputs]]
+id = "Py4nTmWe3Ype15ID42Igw"
+uri = "file://screenshots/screenshot-4-history.png"
+type = "image"
+title = "4 — Full Vial History"
+
+[[outputs]]
+id = "8OFgJcY5rhfK_L_lANHV4"
+uri = "file://screenshots/screenshot-5-pro.png"
+type = "image"
+title = "5 — Go Pro $4.99/yr"
