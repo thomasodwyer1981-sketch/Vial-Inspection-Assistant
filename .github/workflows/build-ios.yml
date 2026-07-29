@@ -119,12 +119,18 @@ jobs:
           test -d $RUNNER_TEMP/PepScan.xcarchive
 
       - name: Export IPA
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/PepScan.xcarchive \
             -exportOptionsPlist artifacts/vialscreen/ios/ExportOptions.plist \
             -exportPath $RUNNER_TEMP/export \
-            -allowProvisioningUpdates
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           ls $RUNNER_TEMP/export/
 
       - name: Upload to TestFlight
