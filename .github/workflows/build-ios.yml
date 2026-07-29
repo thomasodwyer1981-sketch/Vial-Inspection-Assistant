@@ -118,7 +118,10 @@ jobs:
             -archivePath $RUNNER_TEMP/PepScan.xcarchive \
             -clonedSourcePackagesDirPath $RUNNER_TEMP/SourcePackages \
             CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE="$PROVISIONING_UUID"
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM=B6PJBT97RS \
+            PROVISIONING_PROFILE="$PROVISIONING_UUID" \
+            PROVISIONING_PROFILE_SPECIFIER="PepScan App Store"
           test -d $RUNNER_TEMP/PepScan.xcarchive
 
       - name: Export IPA
