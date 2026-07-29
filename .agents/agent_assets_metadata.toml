@@ -114,3 +114,33 @@ id = "8OFgJcY5rhfK_L_lANHV4"
 uri = "file://screenshots/screenshot-5-pro.png"
 type = "image"
 title = "5 — Go Pro $4.99/yr"
+
+[[outputs]]
+id = "6u84Ia_tagQLaxoXiLito"
+uri = "file://screenshots/ipad-1-home.png"
+type = "image"
+title = "iPad Screenshot 1 — Home"
+
+[[outputs]]
+id = "r0ejZSgOXajKmheawQu6h"
+uri = "file://screenshots/ipad-2-capture.png"
+type = "image"
+title = "iPad Screenshot 2 — Capture"
+
+[[outputs]]
+id = "cmMJ6aer6QxiZNT7wO24n"
+uri = "file://screenshots/ipad-3-results.png"
+type = "image"
+title = "iPad Screenshot 3 — Results"
+
+[[outputs]]
+id = "79NUfvgUMlUabu7cdduX1"
+uri = "file://screenshots/ipad-4-history.png"
+type = "image"
+title = "iPad Screenshot 4 — History"
+
+[[outputs]]
+id = "Wx5HqLOXY4AnzlYlbPK-t"
+uri = "file://screenshots/ipad-5-pro.png"
+type = "image"
+title = "iPad Screenshot 5 — Pro"
