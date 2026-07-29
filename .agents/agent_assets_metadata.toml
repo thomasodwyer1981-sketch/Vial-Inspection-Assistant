@@ -144,3 +144,33 @@ id = "Wx5HqLOXY4AnzlYlbPK-t"
 uri = "file://screenshots/ipad-5-pro.png"
 type = "image"
 title = "iPad Screenshot 5 — Pro"
+
+[[outputs]]
+id = "q9kjWfULBF0H2fxd663RY"
+uri = "file://screenshots/play-1-hero.png"
+type = "image"
+title = "Play Store — 1: Hero"
+
+[[outputs]]
+id = "RhjIIZSoR-TyfB8vDADRq"
+uri = "file://screenshots/play-2-capture.png"
+type = "image"
+title = "Play Store — 2: Capture"
+
+[[outputs]]
+id = "IVwZXk5WjvggHf8V1194E"
+uri = "file://screenshots/play-3-results.png"
+type = "image"
+title = "Play Store — 3: Results"
+
+[[outputs]]
+id = "iGKdRies_FY6tfgo6iEy9"
+uri = "file://screenshots/play-4-history.png"
+type = "image"
+title = "Play Store — 4: History"
+
+[[outputs]]
+id = "ZS6bbj_VyQqV4eSkJGqPm"
+uri = "file://screenshots/play-5-pro.png"
+type = "image"
+title = "Play Store — 5: Pro"
