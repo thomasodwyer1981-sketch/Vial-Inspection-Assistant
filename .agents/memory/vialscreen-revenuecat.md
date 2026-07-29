@@ -31,6 +31,15 @@ products' `app_id` against the store app's id before suspecting credentials or t
   `/packages/{pkg}/products` is 405.
 - Project `proj08d7d92d` (Pepscan); Play app `appbb4c6b1f97` (com.pepscan.app).
 
+## iOS RevenueCat setup (pending as of 2026-07-29)
+- Code updated to use platform-specific keys: `VITE_REVENUECAT_IOS_KEY` (appl_ prefix) for iOS,
+  `VITE_REVENUECAT_API_KEY` (goog_ prefix) for Android.
+- iOS product ID in App Store Connect: `com.pepscan.app.pro_annual` (1-year, $4.99)
+- RC iOS app not yet created — user needs to: add App Store app in RC dashboard,
+  upload P8 key from App Store Connect → Users and Access → Integrations → In-App Purchase,
+  get the appl_ SDK key, then set VITE_REVENUECAT_IOS_KEY secret.
+- iOS package lookup uses `current.annual`; Android uses `current.lifetime`.
+
 ## Device-side gotchas that mimic config errors
 - Debug APKs (from the push-triggered GitHub workflow) can NEVER purchase — always
   test billing with the Play internal-testing install.
