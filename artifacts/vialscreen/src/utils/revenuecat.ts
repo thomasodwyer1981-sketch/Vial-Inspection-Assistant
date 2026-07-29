@@ -1,7 +1,9 @@
 /**
  * RevenueCat integration — native (Capacitor) only.
  *
- * Used for Google Play Billing on Android. Web users go through Whop instead.
+ * Android uses Google Play Billing (VITE_REVENUECAT_API_KEY — goog_ prefix).
+ * iOS uses App Store Billing (VITE_REVENUECAT_IOS_KEY — appl_ prefix).
+ * Web users go through Whop instead.
  *
  * RC_ENTITLEMENT_ID must match the entitlement identifier in the RevenueCat
  * dashboard (Project → Entitlements → identifier column, NOT the display name).
@@ -18,9 +20,13 @@ let initialized = false;
 export async function initRevenueCat(): Promise<void> {
   if (!Capacitor.isNativePlatform() || initialized) return;
 
-  const apiKey = import.meta.env.VITE_REVENUECAT_API_KEY as string | undefined;
+  const platform = Capacitor.getPlatform(); // 'ios' | 'android'
+  const iosKey = import.meta.env.VITE_REVENUECAT_IOS_KEY as string | undefined;
+  const androidKey = import.meta.env.VITE_REVENUECAT_API_KEY as string | undefined;
+  const apiKey = platform === 'ios' ? iosKey : androidKey;
+
   if (!apiKey) {
-    console.warn('[RevenueCat] VITE_REVENUECAT_API_KEY not set');
+    console.warn(`[RevenueCat] API key not set for platform: ${platform}`);
     return;
   }
 
@@ -74,8 +80,13 @@ export async function purchaseRCPro(): Promise<boolean> {
 
   const current = offerings?.current;
 
-  // Prefer the annual package; fall back to the first available package
-  const pkg = current?.annual ?? current?.availablePackages?.[0] ?? null;
+  // iOS uses annual subscription; Android uses lifetime (one-time purchase).
+  // Fall back to first available package if the expected one is missing.
+  const platform = Capacitor.getPlatform();
+  const pkg =
+    (platform === 'ios' ? current?.annual : current?.lifetime) ??
+    current?.availablePackages?.[0] ??
+    null;
   if (!pkg) {
     console.error('[RevenueCat] No packages in offering:', JSON.stringify(offerings));
     throw new Error(
