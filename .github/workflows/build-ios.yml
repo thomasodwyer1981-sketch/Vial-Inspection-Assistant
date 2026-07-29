@@ -51,6 +51,10 @@ jobs:
         working-directory: artifacts/vialscreen
         run: npx cap sync ios
 
+      - name: Install CocoaPods dependencies
+        working-directory: artifacts/vialscreen/ios/App
+        run: pod install --repo-update
+
       - name: Inject GoogleService-Info.plist (Firebase Analytics)
         env:
           GSVC_IOS: ${{ secrets.GOOGLESERVICE_INFO_PLIST_BASE64 }}
