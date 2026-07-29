@@ -44,16 +44,9 @@ jobs:
           PORT: "3000"
           BASE_PATH: "/"
 
-      - name: Install CocoaPods
-        run: sudo gem install cocoapods --no-document
-
       - name: Sync Capacitor → iOS
         working-directory: artifacts/vialscreen
         run: npx cap sync ios
-
-      - name: Install CocoaPods dependencies
-        working-directory: artifacts/vialscreen/ios/App
-        run: pod install --repo-update
 
       - name: Inject GoogleService-Info.plist (Firebase Analytics)
         env:
@@ -100,27 +93,32 @@ jobs:
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$PROFILE_BASE64" | base64 -d > /tmp/pepscan.mobileprovision
-          # Extract UUID from profile and use it as filename (required by Xcode)
           UUID=$(security cms -D -i /tmp/pepscan.mobileprovision 2>/dev/null | \
-            plutil -extract UUID raw - 2>/dev/null || \
-            /usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< \
-            "$(security cms -D -i /tmp/pepscan.mobileprovision)")
+            plutil -extract UUID raw -)
           cp /tmp/pepscan.mobileprovision \
             ~/Library/MobileDevice/Provisioning\ Profiles/${UUID}.mobileprovision
           echo "PROVISIONING_UUID=$UUID" >> $GITHUB_ENV
+
+      - name: Resolve Swift Package dependencies
+        working-directory: artifacts/vialscreen/ios/App
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project App.xcodeproj \
+            -scheme App \
+            -clonedSourcePackagesDirPath $RUNNER_TEMP/SourcePackages
 
       - name: Build archive
         working-directory: artifacts/vialscreen/ios/App
         run: |
           xcodebuild archive \
-            -workspace App.xcworkspace \
+            -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -archivePath $RUNNER_TEMP/PepScan.xcarchive \
+            -clonedSourcePackagesDirPath $RUNNER_TEMP/SourcePackages \
             CODE_SIGN_STYLE=Manual \
             PROVISIONING_PROFILE="$PROVISIONING_UUID" \
             | xcpretty || true
-          # Verify archive was created
           test -d $RUNNER_TEMP/PepScan.xcarchive
 
       - name: Export IPA
