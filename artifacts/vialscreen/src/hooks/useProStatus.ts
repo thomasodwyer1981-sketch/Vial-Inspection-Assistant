@@ -18,7 +18,12 @@ interface ProStatus {
   recheck: () => Promise<void>;
 }
 
-async function verifyWithServer(membershipId: string): Promise<boolean> {
+/**
+ * @param failOpen - true (default) means a network error keeps existing Pro access;
+ *   false means a network error is treated as not-verified (used for first-time activation
+ *   so an offline device can't bootstrap Pro with a fake membership ID).
+ */
+async function verifyWithServer(membershipId: string, failOpen = true): Promise<boolean> {
   try {
     const res = await fetch(`${getApiBase()}/api/whop/verify`, {
       method: 'POST',
@@ -29,8 +34,10 @@ async function verifyWithServer(membershipId: string): Promise<boolean> {
     const data = (await res.json()) as { verified: boolean };
     return data.verified === true;
   } catch {
-    // Network error — fail open (don't revoke access just because the server is unreachable)
-    return true;
+    // Network error — behaviour depends on context:
+    // • Re-checks for existing users fail open (don't revoke access when server unreachable)
+    // • First-time activation fails closed (require successful server confirmation)
+    return failOpen;
   }
 }
 
@@ -122,7 +129,8 @@ export function useProStatus(): ProStatus {
  * Web-only — native uses RevenueCat.
  */
 export async function activateProUnlock(membershipId: string): Promise<boolean> {
-  const verified = await verifyWithServer(membershipId);
+  // Fail closed for first-time activation — network must succeed
+  const verified = await verifyWithServer(membershipId, false);
   if (verified) {
     storeProUnlock(membershipId);
   }

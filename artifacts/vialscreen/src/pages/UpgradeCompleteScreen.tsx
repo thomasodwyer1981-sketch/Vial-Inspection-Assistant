@@ -33,9 +33,11 @@ export default function UpgradeCompleteScreen() {
   const [, navigate] = useLocation();
   const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
   const [returningToScan, setReturningToScan] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     async function activate() {
+      setStatus('verifying');
       const params = new URLSearchParams(window.location.search);
 
       // Case 1: Whop gave us a membership_id directly
@@ -72,7 +74,7 @@ export default function UpgradeCompleteScreen() {
     }
 
     void activate();
-  }, [navigate]);
+  }, [navigate, retryCount]);
 
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col items-center justify-center px-6 text-center">
@@ -119,8 +121,14 @@ export default function UpgradeCompleteScreen() {
             View purchases on Whop →
           </a>
           <button
+            onClick={() => setRetryCount((n) => n + 1)}
+            className="w-full max-w-xs bg-secondary text-secondary-foreground px-6 py-3 rounded-xl font-semibold shadow-sm mb-2"
+          >
+            Try Again
+          </button>
+          <button
             onClick={() => navigate('/upgrade')}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold shadow-sm"
+            className="w-full max-w-xs bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold shadow-sm"
           >
             Restore Purchase
           </button>
