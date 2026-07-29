@@ -65,7 +65,7 @@ SCORING RULES:
 - Always cite the specific compound by name in your findings when it was provided
 - If baseline comparison context is provided, explicitly compare and note any changes`;
 
-router.post('/vision/analyze', async (req, res) => {
+router.post('/analyze', async (req, res) => {
   try {
     const {
       captures,
