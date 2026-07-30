@@ -8,7 +8,8 @@ import { Scene5 } from "./video_scenes/Scene5";
 import { Scene6 } from "./video_scenes/Scene6";
 
 // Scene durations in milliseconds
-const SCENE_DURATIONS = [3000, 3000, 5000, 4000, 3000, 3000];
+// Slowed for social — each scene gives the viewer time to read and absorb
+const SCENE_DURATIONS = [5000, 5000, 7000, 6000, 5000, 7000];
 
 export default function VideoTemplate() {
   const { currentScene } = useVideoPlayer(SCENE_DURATIONS);

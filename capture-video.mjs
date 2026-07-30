@@ -7,7 +7,7 @@ const FRAMES_DIR = '/tmp/video-frames';
 const OUT_FILE = '/home/runner/workspace/pepscan-demo.mp4';
 const VIDEO_URL = 'http://localhost:80/video.html';
 // Total video duration: 3+3+5+4+3+3 = 21 seconds. Add 1s buffer.
-const DURATION_MS = 22000;
+const DURATION_MS = 37000;
 const FPS = 30;
 
 if (fs.existsSync(FRAMES_DIR)) fs.rmSync(FRAMES_DIR, { recursive: true });

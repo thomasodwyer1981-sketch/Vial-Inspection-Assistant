@@ -7,9 +7,10 @@ export function Scene6() {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 300),
-      setTimeout(() => setPhase(2), 800),
-      setTimeout(() => setPhase(3), 1300),
+      setTimeout(() => setPhase(1), 400),
+      setTimeout(() => setPhase(2), 1000),
+      setTimeout(() => setPhase(3), 1800),
+      setTimeout(() => setPhase(4), 3000),
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
@@ -121,6 +122,29 @@ export function Scene6() {
           style={{ fontSize: "2.5vw" }}
         >
           PEPTIDE QUALITY ASSURANCE
+        </p>
+      </motion.div>
+
+      {/* Play Store CTA */}
+      <motion.div
+        className="mt-6 flex flex-col items-center gap-2"
+        initial={{ opacity: 0, y: 16 }}
+        animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {/* Google Play badge */}
+        <div className="flex items-center gap-2 bg-white/8 border border-white/15 rounded-2xl px-5 py-3 backdrop-blur-sm">
+          {/* Play Store icon */}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M3 20.5v-17c0-.83 1-.97 1.43-.43l14 8.5c.35.21.35.65 0 .86l-14 8.5C3.99 21.47 3 21.33 3 20.5z" fill="#00FF9D"/>
+          </svg>
+          <div>
+            <p className="font-body text-white/50 leading-none" style={{ fontSize: "2vw" }}>Download on</p>
+            <p className="font-display font-bold text-white leading-tight" style={{ fontSize: "3.5vw" }}>Google Play</p>
+          </div>
+        </div>
+        <p className="font-body text-white/30 tracking-wide" style={{ fontSize: "2vw" }}>
+          play.google.com/store/apps/details?id=com.pepscan.app
         </p>
       </motion.div>
     </motion.div>
