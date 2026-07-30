@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Capacitor } from '@capacitor/core';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -22,6 +24,40 @@ import DeleteData from '@/pages/DeleteData';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
+
+/** Handles Android hardware back button — navigate back or minimise to background. */
+function BackButtonHandler() {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let removed = false;
+    let removeHandle: (() => void) | null = null;
+
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('backButton', ({ canGoBack }) => {
+        if (canGoBack) {
+          window.history.back();
+        } else {
+          App.minimizeApp();
+        }
+      }).then(handle => {
+        // If the component already unmounted before the Promise resolved, remove immediately
+        if (removed) {
+          handle.remove();
+        } else {
+          removeHandle = () => handle.remove();
+        }
+      });
+    });
+
+    return () => {
+      removed = true;
+      removeHandle?.();
+    };
+  }, []);
+
+  return null;
+}
 
 function Router() {
   return (
@@ -52,6 +88,7 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+              <BackButtonHandler />
               <Router />
             </WouterRouter>
             <Toaster />

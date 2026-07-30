@@ -10,9 +10,10 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
-import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2, Clock, ClipboardCopy, RefreshCw, ChevronDown, ChevronUp, Send, XCircle, Star } from 'lucide-react';
 import { shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
+import { maybeRequestReview } from '@/utils/inAppReview';
 import { ScanStep } from '@/types';
 import { loadActiveSession, loadSession, getHistoryForSampleName } from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
@@ -1010,6 +1011,44 @@ function AnalysisStep() {
   );
 }
 
+// ── Next-steps checklists by triage outcome ─────────────────────────────────
+
+const NEXT_STEPS: Record<'review' | 'do-not-use', Array<{ icon: 'check' | 'x'; text: string }>> = {
+  review: [
+    { icon: 'check', text: 'Inspect the vial at arm\'s length against a plain white background in good light' },
+    { icon: 'check', text: 'Compare side-by-side with a known-good vial of the same compound if available' },
+    { icon: 'check', text: 'Retake the scan with better lighting if capture quality was flagged' },
+    { icon: 'check', text: 'Contact your supplier and share this report if the concern persists' },
+  ],
+  'do-not-use': [
+    { icon: 'x',     text: 'Set this vial aside — do not use until the findings are resolved' },
+    { icon: 'check', text: 'Save and share this scan report with your supplier as evidence' },
+    { icon: 'check', text: 'Request batch documentation (COA) from your supplier for this lot' },
+    { icon: 'check', text: 'Consider requesting a replacement or refund from your supplier' },
+  ],
+};
+
+// Compound-specific tips shown for review/DNU results when a peptide name is recognised
+const COMPOUND_TIPS: Array<{ match: RegExp; tip: string }> = [
+  { match: /bpc.?157/i,       tip: 'BPC-157 can appear slightly turbid after multiple freeze-thaw cycles. Check your storage and reconstitution history.' },
+  { match: /tb.?500|thymosin/i, tip: 'TB-500 should be completely clear in solution. Any cloudiness or particles are a concern worth investigating.' },
+  { match: /ipamorelin/i,      tip: 'Ipamorelin in solution should be colourless and clear. Yellowing typically indicates oxidation.' },
+  { match: /sermorelin/i,      tip: 'Sermorelin degrades faster than most peptides. Unexpected colour or turbidity may indicate degradation.' },
+  { match: /melanotan|mt.?2/i, tip: 'Melanotan II can develop a slight amber tint over time — compare with your expected appearance baseline.' },
+  { match: /ghk.?cu/i,         tip: 'GHK-Cu naturally has a blue tint — this is expected. Turbidity or particles are the concern here, not the blue colour.' },
+  { match: /glp.?1|semaglutide|tirzepatide/i, tip: 'GLP-1 analogues should be clear and colourless. Any cloudiness or visible particles warrants immediate investigation.' },
+  { match: /igf.?1/i,          tip: 'IGF-1 is sensitive to temperature. Turbidity after reconstitution may indicate thermal degradation.' },
+  { match: /hcg/i,             tip: 'hCG in solution degrades quickly. Check reconstitution date and storage temperature if turbidity appears.' },
+];
+
+function getCompoundTip(peptideName: string | null | undefined): string | null {
+  if (!peptideName?.trim()) return null;
+  for (const { match, tip } of COMPOUND_TIPS) {
+    if (match.test(peptideName)) return tip;
+  }
+  return null;
+}
+
 // ── Finding context lookup ──────────────────────────────────────────────────
 
 const FINDING_CONTEXT_MAP: Array<{ test: RegExp; context: string }> = [
@@ -1065,17 +1104,23 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [, setLocation] = useLocation();
   const { isPro } = useProStatus();
   const [copied, setCopied] = useState(false);
+  const [supplierCopied, setSupplierCopied] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [nextStepsOpen, setNextStepsOpen] = useState(true);
   const result = session?.analysisResult;
 
-  // Haptic verdict feedback when the result first appears (no-op on web)
+  // Haptic verdict feedback + in-app review trigger for PASS results
   useEffect(() => {
     if (!result) return;
-    if (result.triageResult === 'pass') void hapticSuccess();
-    else void hapticWarning();
+    if (result.triageResult === 'pass') {
+      void hapticSuccess();
+      void maybeRequestReview(session?.id);
+    } else {
+      void hapticWarning();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1153,6 +1198,56 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     } finally {
       setGeneratingPdf(false);
     }
+  };
+
+  // Supplier report — detailed plain-text report for forwarding to a supplier
+  const handleSupplierReport = async () => {
+    if (!result) return;
+    setShareError(null);
+    const name = session?.metadata.peptideName;
+    const vendor = session?.metadata.vendor;
+    const batchLot = session?.metadata.batchLot;
+    const scannedAt = session?.createdAt ? new Date(session.createdAt).toLocaleString() : 'Unknown';
+    const triageLabel = result.triageResult === 'do-not-use' ? 'DO NOT USE' : result.triageResult.toUpperCase();
+
+    const lines = [
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'PepScan QC Report',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      name   ? `Compound:   ${name}`   : null,
+      vendor ? `Supplier:   ${vendor}` : null,
+      batchLot ? `Batch/Lot:  ${batchLot}` : null,
+      `Scanned:    ${scannedAt}`,
+      `Result:     ${triageLabel}`,
+      `Confidence: ${result.overallConfidence}%`,
+      '',
+      'Findings:',
+      ...result.primaryReasons.map((r) => `  • ${r}`),
+      '',
+      'Category Scores:',
+      ...result.categories
+        .filter((c) => !['glareInterference'].includes(c.category))
+        .map((c) => `  • ${c.label}: ${c.score}/100 (${c.status})`),
+      result.ocrText ? `\nLabel Text: ${result.ocrText}` : null,
+      '',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      'Scanned with PepScan — visual QC for peptide research vials.',
+      '⚠️  Visual screening only. Does not confirm safety, identity, purity, or potency.',
+    ].filter((l): l is string => l !== null);
+
+    const text = lines.join('\n');
+
+    if ('share' in navigator) {
+      try {
+        await navigator.share({ title: 'PepScan QC Report', text });
+        return;
+      } catch { /* fall through to clipboard */ }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setSupplierCopied(true);
+      setTimeout(() => setSupplierCopied(false), 3000);
+    } catch { setShareError('Could not copy the report. Try the Share button instead.'); }
   };
 
   // Baseline score comparison — loads previous sessions so we can show per-category deltas.
@@ -1303,6 +1398,92 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
               })}
             </ul>
           </section>
+
+          {/* ── Rescan nudge — poor capture quality ── */}
+          {(() => {
+            const cq = result.categories.find(c => c.category === 'captureQuality');
+            if (!cq || cq.score >= 50) return null;
+            return (
+              <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <div className="flex items-start gap-3">
+                  <RefreshCw className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mb-1">Capture quality affected this result</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">Poor lighting or camera shake can skew scores. A rescan with diffused, even light and a steady hold will give a more reliable result.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={onRetake}
+                  className="mt-3 w-full flex items-center justify-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 text-sm font-bold py-2.5 rounded-xl transition-colors active:scale-[0.98]"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Rescan with Better Lighting
+                </button>
+              </section>
+            );
+          })()}
+
+          {/* ── What to do next (review / DNU only) ── */}
+          {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
+            <section>
+              <button
+                onClick={() => setNextStepsOpen(o => !o)}
+                className="w-full flex items-center justify-between mb-3 text-left"
+              >
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">What to Do Next</h2>
+                {nextStepsOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              {nextStepsOpen && (
+                <ul className="space-y-2.5">
+                  {NEXT_STEPS[result.triageResult].map((step, i) => (
+                    <li key={i} className={`flex items-start gap-3 rounded-xl border p-3.5 ${step.icon === 'x' ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-secondary/50'}`}>
+                      {step.icon === 'check'
+                        ? <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        : <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                      }
+                      <p className="text-sm text-foreground leading-relaxed">{step.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          {/* ── Compound-specific tip ── */}
+          {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (() => {
+            const tip = getCompoundTip(session?.metadata.peptideName);
+            if (!tip) return null;
+            return (
+              <section className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">{session?.metadata.peptideName} — Compound Note</p>
+                    <p className="text-sm text-foreground leading-relaxed">{tip}</p>
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
+
+          {/* ── Pro upsell — free users on review/DNU ── */}
+          {!isPro && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
+            <section className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/10 to-primary/5 p-5">
+              <div className="flex items-start gap-3 mb-3">
+                <Star className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-foreground mb-1">Get AI Vision for a second opinion</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Pro subscribers get GPT-4o Vision analysis that explains exactly which visual feature triggered this result — helping you decide whether to discard or investigate further.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
+                className="w-full bg-primary text-primary-foreground text-sm font-bold py-3 rounded-xl active:scale-[0.98] transition-all shadow-md shadow-primary/20"
+              >
+                Unlock Pro — {PRO_PRICE_DISPLAY}
+              </button>
+            </section>
+          )}
 
           {/* ── Baseline Vial Comparison ── */}
           {result.baselineUsed && baselineData && (
@@ -1458,6 +1639,19 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             {generatingCard ? 'Creating…' : generatingPdf ? 'PDF…' : copied ? 'Copied!' : 'Share'}
           </button>
         </div>
+        {/* Supplier report — shown for review/DNU results */}
+        {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
+          <button
+            onClick={handleSupplierReport}
+            className="w-full flex items-center justify-center gap-2 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]"
+          >
+            {supplierCopied ? (
+              <><CheckCircle2 className="w-4 h-4 text-primary" />Report Copied!</>
+            ) : (
+              <><Send className="w-4 h-4" />Send to Supplier</>
+            )}
+          </button>
+        )}
         <button onClick={() => setLocation('/limitations')} className="w-full text-center text-xs text-muted-foreground py-1">
           View Limitations →
         </button>

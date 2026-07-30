@@ -411,12 +411,18 @@ importers:
 
   artifacts/vialscreen:
     dependencies:
+      '@capacitor-community/in-app-review':
+        specifier: ^8.0.0
+        version: 8.0.0(@capacitor/core@8.4.2)
       '@capacitor-firebase/analytics':
         specifier: ^8.3.0
         version: 8.3.0(@capacitor/core@8.4.2)(firebase@12.16.0)
       '@capacitor/android':
         specifier: ^8.4.2
         version: 8.4.2(@capacitor/core@8.4.2)
+      '@capacitor/app':
+        specifier: ^8.1.1
+        version: 8.1.1(@capacitor/core@8.4.2)
       '@capacitor/core':
         specifier: ^8.4.2
         version: 8.4.2
@@ -1226,6 +1232,11 @@ packages:
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
+  '@capacitor-community/in-app-review@8.0.0':
+    resolution: {integrity: sha512-AYpEkIjdv27WGS3hnlc7xAQ1BhaBvD2svgQBfHF4P2Olw1N6a7MSCOQC6O4SuxmdBdJ2fM6uFeo1jyNjKLtIPw==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
   '@capacitor-firebase/analytics@8.3.0':
     resolution: {integrity: sha512-xgbhd79q/1dpWzQlGQZqv7wiEv6FQnkhQixE+YoAix5PiHQBnTjBql51tnprHUmEoqYCyS/U3NtllQMCQFDuNA==}
     peerDependencies:
@@ -1239,6 +1250,11 @@ packages:
     resolution: {integrity: sha512-bzf8XZ9C+ePgOQ+e+T0fnhHGH4aCNY494vvSQIF5w4AY07RwEmkFqZs1678DDSMH0hLSQpxEwXGFNUVcXO6bBA==}
     peerDependencies:
       '@capacitor/core': ^8.4.0
+
+  '@capacitor/app@8.1.1':
+    resolution: {integrity: sha512-xM2ZTX5jK60tFtmjsmJv+Cdj1Qsb6NcavkqmdEnCPQBeya9oKhamZJxYOnQNj1ZvcJM7sWfG6BEtSLx42pisbA==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@capacitor/cli@8.4.2':
     resolution: {integrity: sha512-hE4HmpMdr5T8eQ++kGa1BKkdG2JLEvo1y1cj1kmFK78VB9dBp538oe1EZvzwupNGOl0ZueALotzL5wcXRD9w1Q==}
@@ -5825,6 +5841,10 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
+  '@capacitor-community/in-app-review@8.0.0(@capacitor/core@8.4.2)':
+    dependencies:
+      '@capacitor/core': 8.4.2
+
   '@capacitor-firebase/analytics@8.3.0(@capacitor/core@8.4.2)(firebase@12.16.0)':
     dependencies:
       '@capacitor/core': 8.4.2
@@ -5832,6 +5852,10 @@ snapshots:
       firebase: 12.16.0
 
   '@capacitor/android@8.4.2(@capacitor/core@8.4.2)':
+    dependencies:
+      '@capacitor/core': 8.4.2
+
+  '@capacitor/app@8.1.1(@capacitor/core@8.4.2)':
     dependencies:
       '@capacitor/core': 8.4.2
 

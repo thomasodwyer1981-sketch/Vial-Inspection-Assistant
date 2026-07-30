@@ -42,7 +42,7 @@ export async function checkRCEntitlement(): Promise<boolean> {
     return RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
   } catch (e) {
     console.warn('[RevenueCat] entitlement check failed:', e);
-    // Fail open — don't lock out users due to a transient RC error
+    // Fail closed — deny on error to avoid granting Pro for free during outages
     return false;
   }
 }
