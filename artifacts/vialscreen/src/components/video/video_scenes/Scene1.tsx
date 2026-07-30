@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
-// Scene 1: Hook - "Know what's in your vial"
+// Scene 1: Hook - "Visual screening for research vials"
 export function Scene1() {
   const [phase, setPhase] = useState(0);
 
@@ -30,7 +30,7 @@ export function Scene1() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         >
-          Know what's
+          Visual screening
         </motion.h1>
         <motion.h1
           className="font-display font-bold text-[#00FF9D] leading-tight tracking-tight text-glow-green"
@@ -47,7 +47,7 @@ export function Scene1() {
             ease: [0.16, 1, 0.3, 1],
           }}
         >
-          in your vial
+          for research vials
         </motion.h1>
       </motion.div>
 

@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
-// Scene 2: Problem - "Don't inject uncertainty"
+// Scene 2: Problem - "Spot visible concerns before use"
 export function Scene2() {
   const [phase, setPhase] = useState(0);
 
@@ -58,7 +58,7 @@ export function Scene2() {
         animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        Don't inject
+        Spot visible
       </motion.h2>
       <motion.h2
         className="font-display font-bold text-[#FFB800] text-center leading-tight tracking-tight text-glow-amber"
@@ -71,7 +71,7 @@ export function Scene2() {
           ease: [0.16, 1, 0.3, 1],
         }}
       >
-        uncertainty
+        concerns early
       </motion.h2>
     </motion.div>
   );
