@@ -174,3 +174,9 @@ id = "ZS6bbj_VyQqV4eSkJGqPm"
 uri = "file://screenshots/play-5-pro.png"
 type = "image"
 title = "Play Store — 5: Pro"
+
+[[outputs]]
+id = "Eb00y1t_3PxhnozFDjc_w"
+uri = "file://pepscan-demo.mp4"
+type = "video"
+title = "PepScan Demo Video"
