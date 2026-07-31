@@ -201,15 +201,19 @@ export default function TermsScreen() {
         </section>
 
         {/* ── 7a. No Warranties ── */}
-        <section className="bg-muted rounded-2xl p-4 border">
+        <section className="bg-muted rounded-2xl p-4 border border-border">
           <h2 className="text-base font-bold mb-3 uppercase tracking-wide">7a. No Warranties</h2>
-          <p>
+          <p className="font-semibold mb-2">
             TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, PEPSCAN IS PROVIDED "AS IS" AND
             "AS AVAILABLE," WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, STATUTORY,
-            OR OTHERWISE. WITHOUT LIMITING THE FOREGOING, WE DISCLAIM ANY WARRANTIES OF ACCURACY,
+            OR OTHERWISE.
+          </p>
+          <p>
+            WITHOUT LIMITING THE FOREGOING, WE EXPRESSLY DISCLAIM ALL WARRANTIES OF ACCURACY,
             RELIABILITY, COMPLETENESS, FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY,
-            NON-INFRINGEMENT, AVAILABILITY, SECURITY, OR THAT THE APP WILL OPERATE WITHOUT
-            INTERRUPTION, ERROR, OR FALSE POSITIVES OR FALSE NEGATIVES.
+            NON-INFRINGEMENT, AVAILABILITY, SECURITY, TITLE, OR THAT THE APP WILL OPERATE WITHOUT
+            INTERRUPTION, ERROR, FALSE POSITIVES, OR FALSE NEGATIVES. NO ORAL OR WRITTEN INFORMATION
+            OR ADVICE GIVEN BY US OR OUR REPRESENTATIVES CREATES ANY WARRANTY.
           </p>
         </section>
 
@@ -227,7 +231,7 @@ export default function TermsScreen() {
         {/* ── 9. Subscription ── */}
         <section>
           <h2 className="text-base font-bold mb-2">9. PepScan Pro Subscription</h2>
-          <p>
+          <p className="mb-3">
             PepScan Pro is an optional paid subscription offered through Google Play. Payment will be
             charged to your Google Play account at confirmation of purchase. Unless cancelled at least
             24 hours before the end of the current billing period, your subscription will automatically
@@ -236,6 +240,14 @@ export default function TermsScreen() {
             introductory price, promotional offer, renewal pricing, taxes, and refund rights will be
             shown to you in Google Play before purchase and will be governed by applicable law and
             Google Play policies where relevant.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <strong>EU / Irish consumers:</strong> You may have a statutory right to withdraw from a
+            digital-content or digital-service contract within 14 days of purchase. By requesting that
+            delivery of PepScan Pro begin immediately upon purchase, you expressly consent to immediate
+            performance and acknowledge that your right of withdrawal will be lost once the service has
+            been fully performed or, where performance has begun, to the extent performance has occurred.
+            Nothing in these Terms affects non-excludable statutory rights under Irish or EU consumer law.
           </p>
         </section>
 
@@ -361,6 +373,17 @@ export default function TermsScreen() {
             If any provision of these Terms is held unenforceable, the remaining provisions will remain
             in effect. Our failure to enforce any provision is not a waiver. We may assign these Terms
             in connection with a merger, sale, restructuring, or transfer of the App or related business.
+          </p>
+        </section>
+
+        {/* ── 21. Entire Agreement ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">21. Entire Agreement</h2>
+          <p>
+            These Terms, together with the Privacy Policy and any other policies or notices incorporated
+            by reference, constitute the entire agreement between you and us regarding PepScan and
+            supersede all prior or contemporaneous agreements, representations, understandings, or
+            communications, whether written or oral, relating to the App.
           </p>
         </section>
 
