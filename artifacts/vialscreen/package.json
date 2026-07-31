@@ -92,6 +92,7 @@
     "@revenuecat/purchases-capacitor": "^13.2.3",
     "@sentry/capacitor": "^4.2.0",
     "@sentry/react": "^10.67.0",
+    "appsflyer-capacitor-plugin": "^6.18.0",
     "firebase": "^12.16.0",
     "jspdf": "^4.2.1",
     "qrcode": "^1.5.4",

@@ -6,6 +6,7 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { Capacitor } from '@capacitor/core';
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { initAppsFlyer } from '@/utils/appsflyer';
 import { ThemeProvider } from '@/context/ThemeContext';
 import OnboardingGate from '@/pages/OnboardingGate';
 import OnboardingScreen from '@/pages/OnboardingScreen';
@@ -82,6 +83,8 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => { initAppsFlyer(); }, []);
+
   return (
     <ThemeProvider>
       <ErrorBoundary>
