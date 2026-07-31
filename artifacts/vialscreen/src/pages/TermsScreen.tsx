@@ -23,8 +23,7 @@ export default function TermsScreen() {
         {/* ── Operator ── */}
         <section className="bg-muted/60 rounded-xl p-4 text-xs text-muted-foreground">
           <p>
-            PepScan is operated by <strong>[LEGAL ENTITY NAME — TO BE CONFIRMED]</strong>,{' '}
-            <strong>[REGISTERED ADDRESS — TO BE CONFIRMED]</strong> ("we", "us", or "our").
+            PepScan is operated by <strong>Peptilog Ltd</strong>, Gorey, Co. Wexford, Ireland ("we", "us", or "our").
           </p>
         </section>
 
@@ -277,15 +276,10 @@ export default function TermsScreen() {
         {/* ── 13. Governing Law ── */}
         <section>
           <h2 className="text-base font-bold mb-2">13. Governing Law</h2>
-          <p className="mb-2">
-            These Terms are governed by the laws of{' '}
-            <strong>[Ireland / England and Wales — confirm intended choice]</strong>,
-            excluding conflict of laws principles. Nothing in these Terms limits any non-excludable
-            consumer rights or mandatory protections that apply to you under the laws of your country,
-            state, or place of residence.
-          </p>
-          <p className="text-xs text-muted-foreground bg-warning/10 border border-warning/20 rounded-lg p-2">
-            ⚠ Governing jurisdiction to be confirmed with legal counsel before publication.
+          <p>
+            These Terms are governed by the laws of Ireland, excluding conflict of laws principles.
+            Nothing in these Terms limits any non-excludable consumer rights or mandatory protections
+            that apply to you under the laws of your country, state, or place of residence.
           </p>
         </section>
 
