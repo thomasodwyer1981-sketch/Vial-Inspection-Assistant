@@ -180,3 +180,9 @@ id = "Eb00y1t_3PxhnozFDjc_w"
 uri = "file://pepscan-demo.mp4"
 type = "video"
 title = "PepScan Demo Video — Final"
+
+[[outputs]]
+id = "UAbUTnS5JtFDeEYZNKu4B"
+uri = "file://PepScan_Legal_Review_31July2026.md"
+type = "text"
+title = "PepScan Legal Disclaimers — Review Document"
