@@ -45,7 +45,7 @@ export async function logAFEvent(
   if (!Capacitor.isNativePlatform()) return;
   try {
     const { AppsFlyer } = await import('appsflyer-capacitor-plugin');
-    await AppsFlyer.logEvent({ eventName, eventValues: eventValues ?? {} });
+    await AppsFlyer.logEvent({ eventName, eventValue: eventValues ?? {} });
   } catch (err) {
     console.error('[AppsFlyer] logEvent failed:', err);
   }

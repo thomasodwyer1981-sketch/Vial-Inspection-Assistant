@@ -20,6 +20,7 @@ import { useProStatus } from '@/hooks/useProStatus';
 import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
 import { captureError } from '@/lib/sentry';
+import { logAFEvent } from '@/utils/appsflyer';
 
 /** Format a stored ISO date as a compact relative label ("3d ago", "2w ago"). */
 function fmtDate(iso: string): string {
@@ -1113,6 +1114,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const result = session?.analysisResult;
 
   // Haptic verdict feedback + in-app review trigger for PASS results
+  // Also fires the AppsFlyer scan_complete event so X Ads can optimise toward real users.
   useEffect(() => {
     if (!result) return;
     if (result.triageResult === 'pass') {
@@ -1121,6 +1123,16 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     } else {
       void hapticWarning();
     }
+
+    const afResult =
+      result.triageResult === 'pass'       ? 'PASS' :
+      result.triageResult === 'do-not-use' ? 'DNU'  : 'FAIL';
+    const compound =
+      session?.metadata.peptideName?.trim() ||
+      session?.metadata.appearanceProfile  ||
+      'unknown';
+    void logAFEvent('scan_complete', { result: afResult, compound });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
