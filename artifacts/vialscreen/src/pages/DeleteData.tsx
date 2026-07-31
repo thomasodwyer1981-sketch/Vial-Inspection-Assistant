@@ -43,8 +43,8 @@ export default function DeleteData() {
       <h2 className="text-lg font-semibold mt-6 mb-2">Contact us</h2>
       <p>
         If you have any questions about your data, email us at{" "}
-        <a href="mailto:support@pepscan.app" className="text-primary underline">
-          support@pepscan.app
+        <a href="mailto:pepscan@peptilog.ie" className="text-primary underline">
+          pepscan@peptilog.ie
         </a>{" "}
         and we will respond within 30 days.
       </p>

@@ -369,8 +369,8 @@ export default function TermsScreen() {
           <h2 className="text-base font-bold mb-2">21. Contact</h2>
           <p>
             Questions about these Terms? Contact us at{' '}
-            <a href="mailto:support@pepscan.app" className="text-primary underline underline-offset-2">
-              support@pepscan.app
+            <a href="mailto:pepscan@peptilog.ie" className="text-primary underline underline-offset-2">
+              pepscan@peptilog.ie
             </a>
           </p>
         </section>

@@ -159,8 +159,8 @@ export default function PrivacyPolicy() {
       <h2 className="text-lg font-semibold mt-6 mb-2">Contact / Data Controller</h2>
       <p className="mb-4">
         For all privacy and data enquiries, including exercising your rights, contact:{' '}
-        <a href="mailto:support@pepscan.app" className="text-primary underline">
-          support@pepscan.app
+        <a href="mailto:pepscan@peptilog.ie" className="text-primary underline">
+          pepscan@peptilog.ie
         </a>
       </p>
 
