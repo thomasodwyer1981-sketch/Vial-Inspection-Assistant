@@ -47,6 +47,11 @@ sentry {
     uploadNativeSymbols = false
     includeNativeSources = false
 
+    // ProGuard/R8 mappings upload disabled — Sentry project lookup returns 404
+    // in CI (org/project slug mismatch). Crash stack traces are still symbolicated
+    // via the JS source maps uploaded separately; re-enable once Sentry project is confirmed.
+    autoUploadProguardMapping = false
+
     // Disable auto-instrumentation overhead — we use manual Sentry.captureException calls
     tracingInstrumentation {
         enabled = false
