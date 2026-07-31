@@ -19,22 +19,26 @@ export const APP_VERSION = '1.0.0-mvp';
 // Primary Disclaimer (shown on onboarding + limitations screen)
 // ----------------------------------------------------------------
 
-export const PRIMARY_DISCLAIMER = `PepScan is a consumer visual screening assistant only.
+export const PRIMARY_DISCLAIMER = `PepScan is a consumer visual screening assistant only. It is NOT a medical device, diagnostic instrument, safety certification system, or laboratory test.
 
-It screens for obvious visible presentation issues using photographs taken under controlled background conditions. It does not:
+PepScan is intended strictly for educational and personal research reference purposes. It is NOT intended for human use and must NOT be used to support any decision to administer any substance to yourself or any other person.
 
-• Confirm identity, purity, potency, or concentration
-• Test for sterility, endotoxins, or other biological contaminants
-• Detect submicron particles or chemical degradation
-• Provide medical or safety advice
-• Replace laboratory or pharmacopeial testing
+Results depend entirely on device camera quality, lighting conditions, background, user technique, and capture conditions at the time of the scan. The same vial may produce different results under different conditions.
 
-A "Pass" result means no obvious visual issue was detected under these capture conditions. It does not guarantee the vial is safe, authentic, uncontaminated, or fit for any use.
+This tool CANNOT and DOES NOT:
 
-Use this tool as one part of a broader visual inspection routine. Never rely solely on this app before making any decision about a research compound.`;
+• Confirm identity, purity, potency, or concentration of any substance
+• Detect sterility issues, endotoxins, pathogens, or biological contaminants
+• Identify submicron particles, chemical degradation products, or adulterants
+• Guarantee that a vial is safe, authentic, uncontaminated, or fit for any purpose
+• Replace laboratory analysis, pharmacopeial testing, or professional advice of any kind
+
+A "Pass" result means only that no obvious visual issue was detected under these specific capture conditions at this point in time. It does NOT mean the vial is safe, sterile, pure, correctly dosed, authentic, or suitable for any use whatsoever.
+
+YOU BEAR SOLE RESPONSIBILITY for any decision made in connection with any result produced by this app. By using this app you voluntarily assume all risks, including personal injury, adverse reactions, illness, or death.`;
 
 export const SHORT_DISCLAIMER =
-  'Visual screening only. Does not confirm identity, purity, potency, or safety.';
+  'Visual screening only · Not for human use · Does not confirm safety, purity, identity, or sterility · Use at your own risk.';
 
 // ----------------------------------------------------------------
 // Appearance Profile Copy
@@ -288,25 +292,25 @@ export const SCAN_COPY = {
 
 export const RESULT_COPY = {
   pass: {
-    label: 'No Obvious Issues Detected',
-    summary: 'No significant visual red flags were detected under these capture conditions.',
-    caveat: 'A pass does not confirm safety, identity, purity, potency, or freedom from contamination.',
+    label: 'No Obvious Visual Issues Detected',
+    summary: 'No significant visual red flags were detected under these specific capture conditions.',
+    caveat: 'THIS IS NOT A SAFETY CLEARANCE. A Pass result does NOT mean this vial is safe, sterile, pure, authentic, correctly dosed, or fit for any use. Results are affected by lighting, camera quality, background, and technique. Invisible contamination, degradation, pathogens, endotoxins, and incorrect compounds cannot be detected by this app under any circumstances.',
     action:
-      'Physically inspect the vial directly before any use — examine under good lighting for particles, cloudiness, or damage. This result is a negative screen only and does not replace direct examination.',
+      'This is a negative visual screen only. Always conduct a direct physical inspection under good lighting. Never rely on this result alone. This app is not intended for human use and must not be used to justify administering any substance to yourself or any other person.',
   },
   review: {
     label: 'Review Recommended',
-    summary: 'One or more findings require closer manual inspection before any use.',
-    caveat: 'Suspicious findings or poor capture quality were detected. Do not rely on this result alone.',
+    summary: 'One or more findings require closer manual inspection.',
+    caveat: 'Suspicious findings or reduced capture quality detected. Do not rely on this result. This app cannot confirm safety, purity, sterility, or identity under any circumstances.',
     action:
-      'Inspect the vial directly under good lighting. Consider retaking with improved lighting and focus. If in doubt, do not use.',
+      'Inspect the vial directly under good lighting. Retake with improved lighting and focus if possible. If any doubt exists, do not use. This app is not intended for human use.',
   },
   'do-not-use': {
     label: 'Visible Issues Flagged',
-    summary: 'Multiple concerning visual findings were detected in these captures.',
-    caveat: 'Multiple red flags detected. Do not proceed without thorough investigation.',
+    summary: 'Concerning visual findings were detected in these captures.',
+    caveat: 'Multiple visual red flags detected. Do not proceed. Note: even if no visual issues were present, this app cannot confirm safety, purity, sterility, or identity.',
     action:
-      'Do not use this vial until the concerns are resolved. Contact your supplier, review your documentation, or discard according to your protocols.',
+      'Do not use this vial. Contact your supplier, review your documentation, and discard according to your protocols. This result does not constitute professional advice.',
   },
 };
 

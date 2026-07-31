@@ -1341,10 +1341,15 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         <div className="bg-card border-b px-6 py-10 text-center">
           <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
           <h1 className="text-2xl font-bold tracking-tight mb-3">{resultCopy.summary}</h1>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed mb-4">{resultCopy.caveat}</p>
+
+          {/* Prominent statutory warning — shown on every result */}
+          <div className="mt-2 mb-4 bg-destructive/8 border border-destructive/30 rounded-xl p-4 text-left">
+            <p className="text-xs font-bold uppercase tracking-wider text-destructive mb-1.5">⚠ Important Limitation</p>
+            <p className="text-xs text-destructive/90 leading-relaxed">{resultCopy.caveat}</p>
+          </div>
 
           {/* Recommended action */}
-          <div className="mt-4 bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">
+          <div className="bg-secondary/70 rounded-xl p-4 text-sm text-foreground text-left border">
             <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">Recommended Action</p>
             <p className="leading-relaxed">{resultCopy.action}</p>
           </div>

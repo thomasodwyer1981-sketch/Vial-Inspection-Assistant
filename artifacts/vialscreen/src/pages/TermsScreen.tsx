@@ -18,7 +18,7 @@ export default function TermsScreen() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8 text-sm text-foreground leading-relaxed space-y-7">
-        <p className="text-xs text-muted-foreground">Last updated: 27 July 2026</p>
+        <p className="text-xs text-muted-foreground">Last updated: 31 July 2026</p>
 
         {/* ── 1. Acceptance ── */}
         <section>
@@ -38,9 +38,30 @@ export default function TermsScreen() {
             image analysis to screen for obvious visible presentation issues in peptide and research compound
             vials — such as visible particles, haze, fill anomalies, and label readability.
           </p>
-          <p>
+          <p className="mb-3">
             PepScan is provided for <strong>educational and personal research reference purposes only</strong>.
             It is not a medical device, diagnostic tool, laboratory instrument, or safety certification system.
+          </p>
+          <p className="font-semibold text-destructive">
+            PepScan is NOT intended for human use. It must not be used to support, justify, or inform any
+            decision to administer any substance to yourself or any other person.
+          </p>
+        </section>
+
+        {/* ── 2b. Accuracy Depends on Conditions ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">2a. Results Depend on Device and Conditions</h2>
+          <p className="mb-3">
+            PepScan's analysis is based entirely on images captured by your device camera under conditions
+            you control. Results are directly affected by — and may vary significantly based on — camera
+            quality and resolution, ambient lighting, background material, capture angle, user technique,
+            vial glass type and tint, and other environmental factors.
+          </p>
+          <p>
+            <strong>The same vial may produce different results under different conditions.</strong> A result
+            produced under suboptimal conditions (poor lighting, motion blur, incorrect background, low camera
+            resolution) may be unreliable regardless of its outcome. We make no representation that any result
+            accurately reflects the true condition of any vial.
           </p>
         </section>
 
@@ -59,6 +80,7 @@ export default function TermsScreen() {
             <li>Identify submicron particles, chemical degradation products, or adulterants</li>
             <li>Guarantee that a vial is safe, authentic, or fit for any purpose</li>
             <li>Replace direct physical inspection, laboratory testing, or medical consultation</li>
+            <li>Be used to support any decision to administer any substance to any person</li>
           </ul>
         </section>
 

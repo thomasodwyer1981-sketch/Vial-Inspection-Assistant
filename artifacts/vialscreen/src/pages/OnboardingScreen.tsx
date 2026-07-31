@@ -12,9 +12,11 @@ const DOES: string[] = [
 ];
 
 const DOES_NOT: string[] = [
-  'Confirm compound identity or authenticity',
-  'Verify purity, potency, or sterility',
-  'Replace lab analysis or professional testing',
+  'Confirm compound identity, authenticity, purity, potency, or sterility',
+  'Detect endotoxins, pathogens, or invisible contamination',
+  'Guarantee a vial is safe or fit for any use',
+  'Replace laboratory analysis or professional testing',
+  'Support any decision to administer any substance to yourself or others',
 ];
 
 const HARD_CASES: string[] = [
@@ -101,7 +103,7 @@ export default function OnboardingScreen() {
             className="mt-0.5 shrink-0"
           />
           <span className="text-sm text-muted-foreground leading-snug">
-            I understand this is a visual screening tool and does not confirm safety or authenticity.
+            I confirm I am 18 or over. I understand PepScan is a visual screening tool only, is NOT intended for human use, and does not confirm safety, purity, sterility, or identity. A Pass result is not a safety clearance. I use this app entirely at my own risk and will not rely on it to make any decision about administering any substance.
           </span>
         </label>
         {/* T&C links kept outside the label so tapping them never toggles the checkbox */}
