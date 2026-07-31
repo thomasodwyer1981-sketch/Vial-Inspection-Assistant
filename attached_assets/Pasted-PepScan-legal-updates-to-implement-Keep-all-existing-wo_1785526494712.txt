@@ -1,0 +1,81 @@
+PepScan legal updates to implement
+Keep all existing wording on:
+Not for human use
+Not a medical device
+Pass result is not a safety clearance
+Results depend on lighting, camera quality, and user technique
+Assumption of risk
+Limitation of liability
+Indemnity
+Add the following new sections to the full Terms of Use.
+1) Add new section after “Intended Users and Permitted Use”
+Title: Prohibited Use
+You may use PepScan only for lawful, personal, non-commercial, educational, and research-reference purposes. You must not use PepScan:
+to diagnose, treat, cure, prevent, monitor, or assess any disease, condition, injury, or medical issue;
+to support, justify, or inform any decision to inject, ingest, inhale, administer, prescribe, dispense, sell, supply, or distribute any substance for human or animal use;
+in any clinical, healthcare, pharmacy, laboratory certification, quality assurance, manufacturing, resale, regulatory, or other high-risk or regulated setting;
+in violation of any applicable law, regulation, export control law, sanctions restriction, or third-party right;
+to bypass or interfere with app safeguards, subscriptions, access controls, security features, or technical protections;
+to copy, scrape, reverse engineer, decompile, extract source code from, or create derivative works from the App except where such restriction is prohibited by applicable law.
+2) Add new section after medical device disclaimer
+Title: No Medical Advice or Emergency Use
+PepScan does not provide medical advice, clinical advice, pharmaceutical advice, laboratory certification, or emergency guidance. PepScan is not intended for use in any emergency or urgent safety situation. If you suspect contamination, mislabelling, adverse reaction, injury, poisoning, or any other health or safety issue, do not rely on the App and seek appropriate professional, medical, laboratory, poison-control, or emergency assistance immediately.
+3) Add new section after limitation language
+Title: No Warranties
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, PEPSCAN IS PROVIDED “AS IS” AND “AS AVAILABLE,” WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE. WITHOUT LIMITING THE FOREGOING, WE DISCLAIM ANY WARRANTIES OF ACCURACY, RELIABILITY, COMPLETENESS, FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY, NON-INFRINGEMENT, AVAILABILITY, SECURITY, OR THAT THE APP WILL OPERATE WITHOUT INTERRUPTION, ERROR, OR FALSE POSITIVES OR FALSE NEGATIVES.
+4) Add new section near the end
+Title: Suspension and Termination
+We may suspend, restrict, or terminate your access to PepScan at any time, with or without notice, if we reasonably believe that:
+you have violated these Terms;
+your use creates legal, regulatory, security, fraud, abuse, or reputational risk;
+continued access could harm us, other users, or third parties; or
+we are required to do so by law, platform rules, or a request from a competent authority.
+On termination, the rights granted to you under these Terms will immediately cease. Sections intended by their nature to survive termination, including disclaimers, limitation of liability, indemnity, intellectual property, governing law, and dispute-related provisions, will survive.
+5) Add new section
+Title: Third-Party Services and Platforms
+PepScan may rely on third-party services, platforms, and infrastructure, including mobile operating systems, device hardware, app stores, payment processors, analytics providers, crash reporting tools, hosting providers, and other service providers. We are not responsible for the availability, performance, acts, omissions, security, or policies of third-party services. Purchases, billing, cancellations, and refunds may also be subject to the applicable app store’s terms and policies.
+6) Add short section
+Title: Account Accuracy
+You agree to provide accurate, current, and complete information and to keep it updated. We may suspend access where information provided is false, misleading, or incomplete.
+7) Add short section
+Title: Export and Sanctions Compliance
+You may not use the App if you are subject to applicable sanctions or export restrictions, or if such use would violate applicable export control laws.
+8) Add short section
+Title: Feedback
+If you provide suggestions, ideas, or feedback regarding PepScan, you grant us a worldwide, perpetual, irrevocable, royalty-free licence to use, modify, and incorporate that feedback without compensation or obligation.
+9) Add short section
+Title: Electronic Communications
+By using the App, you agree that we may provide notices and communications electronically, including through the App, website, or by email where provided.
+10) Add short section
+Title: Severability, Waiver, and Assignment
+If any provision of these Terms is held unenforceable, the remaining provisions will remain in effect. Our failure to enforce any provision is not a waiver. We may assign these Terms in connection with a merger, sale, restructuring, or transfer of the App or related business.
+Replace existing clauses
+A few current clauses should be upgraded rather than left as-is �.
+Replace the current Privacy and Data clause with:
+Our collection and use of personal data is described in our Privacy Policy, which is incorporated into these Terms by reference. You acknowledge that the App may process account information, device information, usage information, subscription information, support communications, and image-related data as described in the Privacy Policy. You are responsible for ensuring that you have the right to provide any data or content you submit to the App.
+Replace or expand the current subscription clause with:
+PepScan Pro is an optional paid subscription offered through Google Play. Payment will be charged to your Google Play account at confirmation of purchase. Unless cancelled at least 24 hours before the end of the current billing period, your subscription will automatically renew for the same term and Google Play will charge your account for renewal. You can manage or cancel your subscription through your Google Play account settings. Any free trial, introductory price, promotional offer, renewal pricing, taxes, and refund rights will be shown to you in Google Play before purchase and will be governed by applicable law and Google Play policies where relevant.
+Replace the current governing law clause with:
+These Terms are governed by the laws of [Ireland / England and Wales — confirm intended choice], excluding conflict of laws principles. Nothing in these Terms limits any non-excludable consumer rights or mandatory protections that apply to you under the laws of your country, state, or place of residence.
+Also update the operator details so the Terms name the correct legal entity and registered business address, because the current document only refers generally to the developers of PepScan �.
+Privacy policy brief
+Your separate Privacy Policy should clearly state the categories of data collected and how each category is used, because the current Terms only reference the policy at a high level without that detail �.
+Tell the drafter to cover:
+Account data, including email, login details, subscription status, and support messages.
+Device and app data, including device model, OS version, analytics, crash data, identifiers, and IP-related data.
+Image data, including whether scans stay on-device, are uploaded, cached, stored, or reviewed.
+AI/model disclosures, including whether scans are logged or used for service improvement.
+Third-party processors, including Google Play, hosting, analytics, crash reporting, support, email, and AI providers.
+Retention periods, deletion rights, lawful basis, international transfers, and 18+ only use.
+UI copy changes
+Your visible legal screens are already strong, but three small copy changes would tighten the risk framing materially �.
+Use these exact replacements:
+Onboarding checkbox
+Current text is already solid, but expand it to:
+I confirm I am 18 or over. I understand PepScan is a visual screening tool only, is NOT intended for human use, and does not confirm safety, purity, sterility, or identity. A Pass result is not a safety clearance. PepScan does not provide medical, laboratory, or safety advice and must not be used in any clinical or emergency situation. I use this app entirely at my own risk and will not rely on it to make any decision about administering any substance.
+Pass result screen
+Add this sentence to the recommended action box:
+Do not inject, ingest, inhale, or otherwise use any substance based on this result.
+Persistent footer disclaimer
+Replace with:
+Visual screening only · Not for human use · Not medical or laboratory advice · Does not confirm safety, identity, purity, potency, or sterility.

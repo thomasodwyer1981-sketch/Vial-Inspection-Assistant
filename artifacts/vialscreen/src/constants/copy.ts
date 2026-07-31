@@ -38,7 +38,7 @@ A "Pass" result means only that no obvious visual issue was detected under these
 YOU BEAR SOLE RESPONSIBILITY for any decision made in connection with any result produced by this app. By using this app you voluntarily assume all risks, including personal injury, adverse reactions, illness, or death.`;
 
 export const SHORT_DISCLAIMER =
-  'Visual screening only · Not for human use · Does not confirm safety, purity, identity, or sterility · Use at your own risk.';
+  'Visual screening only · Not for human use · Not medical or laboratory advice · Does not confirm safety, identity, purity, potency, or sterility.';
 
 // ----------------------------------------------------------------
 // Appearance Profile Copy
@@ -296,7 +296,7 @@ export const RESULT_COPY = {
     summary: 'No significant visual red flags were detected under these specific capture conditions.',
     caveat: 'THIS IS NOT A SAFETY CLEARANCE. A Pass result does NOT mean this vial is safe, sterile, pure, authentic, correctly dosed, or fit for any use. Results are affected by lighting, camera quality, background, and technique. Invisible contamination, degradation, pathogens, endotoxins, and incorrect compounds cannot be detected by this app under any circumstances.',
     action:
-      'This is a negative visual screen only. Always conduct a direct physical inspection under good lighting. Never rely on this result alone. This app is not intended for human use and must not be used to justify administering any substance to yourself or any other person.',
+      'This is a negative visual screen only. Always conduct a direct physical inspection under good lighting. Never rely on this result alone. This app is not intended for human use and must not be used to justify administering any substance to yourself or any other person. Do not inject, ingest, inhale, or otherwise use any substance based on this result.',
   },
   review: {
     label: 'Review Recommended',

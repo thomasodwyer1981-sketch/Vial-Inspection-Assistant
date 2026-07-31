@@ -20,13 +20,21 @@ export default function TermsScreen() {
       <div className="max-w-2xl mx-auto px-6 py-8 text-sm text-foreground leading-relaxed space-y-7">
         <p className="text-xs text-muted-foreground">Last updated: 31 July 2026</p>
 
+        {/* ── Operator ── */}
+        <section className="bg-muted/60 rounded-xl p-4 text-xs text-muted-foreground">
+          <p>
+            PepScan is operated by <strong>[LEGAL ENTITY NAME — TO BE CONFIRMED]</strong>,{' '}
+            <strong>[REGISTERED ADDRESS — TO BE CONFIRMED]</strong> ("we", "us", or "our").
+          </p>
+        </section>
+
         {/* ── 1. Acceptance ── */}
         <section>
           <h2 className="text-base font-bold mb-2">1. Acceptance of These Terms</h2>
           <p>
             By downloading, installing, or using PepScan ("the App"), you agree to be bound by these Terms
             of Use ("Terms"). If you do not agree, do not use the App. These Terms form a legally binding
-            agreement between you and the developers of PepScan ("we", "us", or "our").
+            agreement between you and us.
           </p>
         </section>
 
@@ -48,7 +56,7 @@ export default function TermsScreen() {
           </p>
         </section>
 
-        {/* ── 2b. Accuracy Depends on Conditions ── */}
+        {/* ── 2a. Accuracy Depends on Conditions ── */}
         <section>
           <h2 className="text-base font-bold mb-2">2a. Results Depend on Device and Conditions</h2>
           <p className="mb-3">
@@ -82,6 +90,18 @@ export default function TermsScreen() {
             <li>Replace direct physical inspection, laboratory testing, or medical consultation</li>
             <li>Be used to support any decision to administer any substance to any person</li>
           </ul>
+        </section>
+
+        {/* ── 3a. No Medical Advice or Emergency Use ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">3a. No Medical Advice or Emergency Use</h2>
+          <p>
+            PepScan does not provide medical advice, clinical advice, pharmaceutical advice, laboratory
+            certification, or emergency guidance. PepScan is not intended for use in any emergency or urgent
+            safety situation. If you suspect contamination, mislabelling, adverse reaction, injury, poisoning,
+            or any other health or safety issue, do not rely on the App and seek appropriate professional,
+            medical, laboratory, poison-control, or emergency assistance immediately.
+          </p>
         </section>
 
         {/* ── 4. A "Pass" Result Does Not Mean Safe ── */}
@@ -120,6 +140,23 @@ export default function TermsScreen() {
           </ul>
         </section>
 
+        {/* ── 5a. Prohibited Use ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">5a. Prohibited Use</h2>
+          <p className="mb-3">
+            You may use PepScan only for lawful, personal, non-commercial, educational, and
+            research-reference purposes. You must not use PepScan:
+          </p>
+          <ul className="space-y-1.5 pl-4 list-disc text-muted-foreground">
+            <li>to diagnose, treat, cure, prevent, monitor, or assess any disease, condition, injury, or medical issue;</li>
+            <li>to support, justify, or inform any decision to inject, ingest, inhale, administer, prescribe, dispense, sell, supply, or distribute any substance for human or animal use;</li>
+            <li>in any clinical, healthcare, pharmacy, laboratory certification, quality assurance, manufacturing, resale, regulatory, or other high-risk or regulated setting;</li>
+            <li>in violation of any applicable law, regulation, export control law, sanctions restriction, or third-party right;</li>
+            <li>to bypass or interfere with app safeguards, subscriptions, access controls, security features, or technical protections;</li>
+            <li>to copy, scrape, reverse engineer, decompile, extract source code from, or create derivative works from the App except where such restriction is prohibited by applicable law.</li>
+          </ul>
+        </section>
+
         {/* ── 6. Assumption of Risk ── */}
         <section>
           <h2 className="text-base font-bold mb-2">6. Assumption of Risk</h2>
@@ -135,7 +172,7 @@ export default function TermsScreen() {
           </p>
         </section>
 
-        {/* ── 7. LIMITATION OF LIABILITY — the core clause ── */}
+        {/* ── 7. LIMITATION OF LIABILITY ── */}
         <section className="bg-muted rounded-2xl p-4 border">
           <h2 className="text-base font-bold mb-3 uppercase tracking-wide">7. Limitation of Liability</h2>
           <p className="mb-3 font-semibold">
@@ -164,6 +201,19 @@ export default function TermsScreen() {
           </p>
         </section>
 
+        {/* ── 7a. No Warranties ── */}
+        <section className="bg-muted rounded-2xl p-4 border">
+          <h2 className="text-base font-bold mb-3 uppercase tracking-wide">7a. No Warranties</h2>
+          <p>
+            TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, PEPSCAN IS PROVIDED "AS IS" AND
+            "AS AVAILABLE," WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, STATUTORY,
+            OR OTHERWISE. WITHOUT LIMITING THE FOREGOING, WE DISCLAIM ANY WARRANTIES OF ACCURACY,
+            RELIABILITY, COMPLETENESS, FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY,
+            NON-INFRINGEMENT, AVAILABILITY, SECURITY, OR THAT THE APP WILL OPERATE WITHOUT
+            INTERRUPTION, ERROR, OR FALSE POSITIVES OR FALSE NEGATIVES.
+          </p>
+        </section>
+
         {/* ── 8. Indemnification ── */}
         <section>
           <h2 className="text-base font-bold mb-2">8. Indemnification</h2>
@@ -178,13 +228,16 @@ export default function TermsScreen() {
         {/* ── 9. Subscription ── */}
         <section>
           <h2 className="text-base font-bold mb-2">9. PepScan Pro Subscription</h2>
-          <ul className="space-y-2 pl-4 list-disc text-muted-foreground">
-            <li>PepScan Pro is an optional paid subscription billed annually via Google Play.</li>
-            <li>Your subscription will automatically renew at the end of each annual period unless cancelled at least 24 hours before the renewal date.</li>
-            <li>You may cancel at any time via your Google Play account. Cancellation takes effect at the end of the current billing period; no partial refunds are issued except as required by applicable law or Google Play's refund policy.</li>
-            <li>Prices are shown in USD and may vary by region. The price at the time of purchase is confirmed in Google Play before you complete the transaction.</li>
-            <li>We reserve the right to change the subscription price; any change will be notified to you in advance and will not affect your current billing period.</li>
-          </ul>
+          <p>
+            PepScan Pro is an optional paid subscription offered through Google Play. Payment will be
+            charged to your Google Play account at confirmation of purchase. Unless cancelled at least
+            24 hours before the end of the current billing period, your subscription will automatically
+            renew for the same term and Google Play will charge your account for renewal. You can manage
+            or cancel your subscription through your Google Play account settings. Any free trial,
+            introductory price, promotional offer, renewal pricing, taxes, and refund rights will be
+            shown to you in Google Play before purchase and will be governed by applicable law and
+            Google Play policies where relevant.
+          </p>
         </section>
 
         {/* ── 10. Intellectual Property ── */}
@@ -202,10 +255,12 @@ export default function TermsScreen() {
         <section>
           <h2 className="text-base font-bold mb-2">11. Privacy and Data</h2>
           <p>
-            Our collection and use of your personal information is governed by our{' '}
+            Our collection and use of personal data is described in our{' '}
             <Link href="/privacy" className="text-primary underline underline-offset-2">Privacy Policy</Link>,
-            which is incorporated into these Terms by reference. By using PepScan you consent to our
-            data practices as described in the Privacy Policy.
+            which is incorporated into these Terms by reference. You acknowledge that the App may process
+            account information, device information, usage information, subscription information, support
+            communications, and image-related data as described in the Privacy Policy. You are responsible
+            for ensuring that you have the right to provide any data or content you submit to the App.
           </p>
         </section>
 
@@ -222,17 +277,102 @@ export default function TermsScreen() {
         {/* ── 13. Governing Law ── */}
         <section>
           <h2 className="text-base font-bold mb-2">13. Governing Law</h2>
-          <p>
-            These Terms are governed by and construed in accordance with the laws of England and Wales.
-            You agree to submit to the exclusive jurisdiction of the courts of England and Wales for
-            resolution of any dispute arising from these Terms or your use of the App, except where
-            mandatory local consumer protection laws in your jurisdiction provide otherwise.
+          <p className="mb-2">
+            These Terms are governed by the laws of{' '}
+            <strong>[Ireland / England and Wales — confirm intended choice]</strong>,
+            excluding conflict of laws principles. Nothing in these Terms limits any non-excludable
+            consumer rights or mandatory protections that apply to you under the laws of your country,
+            state, or place of residence.
+          </p>
+          <p className="text-xs text-muted-foreground bg-warning/10 border border-warning/20 rounded-lg p-2">
+            ⚠ Governing jurisdiction to be confirmed with legal counsel before publication.
           </p>
         </section>
 
-        {/* ── 14. Contact ── */}
+        {/* ── 14. Third-Party Services ── */}
         <section>
-          <h2 className="text-base font-bold mb-2">14. Contact</h2>
+          <h2 className="text-base font-bold mb-2">14. Third-Party Services and Platforms</h2>
+          <p>
+            PepScan may rely on third-party services, platforms, and infrastructure, including mobile
+            operating systems, device hardware, app stores, payment processors, analytics providers,
+            crash reporting tools, hosting providers, and other service providers. We are not responsible
+            for the availability, performance, acts, omissions, security, or policies of third-party
+            services. Purchases, billing, cancellations, and refunds may also be subject to the applicable
+            app store's terms and policies.
+          </p>
+        </section>
+
+        {/* ── 15. Suspension and Termination ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">15. Suspension and Termination</h2>
+          <p className="mb-3">
+            We may suspend, restrict, or terminate your access to PepScan at any time, with or without
+            notice, if we reasonably believe that:
+          </p>
+          <ul className="space-y-1.5 pl-4 list-disc text-muted-foreground mb-3">
+            <li>you have violated these Terms;</li>
+            <li>your use creates legal, regulatory, security, fraud, abuse, or reputational risk;</li>
+            <li>continued access could harm us, other users, or third parties; or</li>
+            <li>we are required to do so by law, platform rules, or a request from a competent authority.</li>
+          </ul>
+          <p>
+            On termination, the rights granted to you under these Terms will immediately cease. Sections
+            intended by their nature to survive termination — including disclaimers, limitation of
+            liability, indemnity, intellectual property, governing law, and dispute-related provisions —
+            will survive.
+          </p>
+        </section>
+
+        {/* ── 16. Account Accuracy ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">16. Account Accuracy</h2>
+          <p>
+            You agree to provide accurate, current, and complete information and to keep it updated.
+            We may suspend access where information provided is false, misleading, or incomplete.
+          </p>
+        </section>
+
+        {/* ── 17. Export and Sanctions Compliance ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">17. Export and Sanctions Compliance</h2>
+          <p>
+            You may not use the App if you are subject to applicable sanctions or export restrictions,
+            or if such use would violate applicable export control laws.
+          </p>
+        </section>
+
+        {/* ── 18. Feedback ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">18. Feedback</h2>
+          <p>
+            If you provide suggestions, ideas, or feedback regarding PepScan, you grant us a worldwide,
+            perpetual, irrevocable, royalty-free licence to use, modify, and incorporate that feedback
+            without compensation or obligation.
+          </p>
+        </section>
+
+        {/* ── 19. Electronic Communications ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">19. Electronic Communications</h2>
+          <p>
+            By using the App, you agree that we may provide notices and communications electronically,
+            including through the App, website, or by email where provided.
+          </p>
+        </section>
+
+        {/* ── 20. Severability, Waiver, and Assignment ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">20. Severability, Waiver, and Assignment</h2>
+          <p>
+            If any provision of these Terms is held unenforceable, the remaining provisions will remain
+            in effect. Our failure to enforce any provision is not a waiver. We may assign these Terms
+            in connection with a merger, sale, restructuring, or transfer of the App or related business.
+          </p>
+        </section>
+
+        {/* ── 21. Contact ── */}
+        <section>
+          <h2 className="text-base font-bold mb-2">21. Contact</h2>
           <p>
             Questions about these Terms? Contact us at{' '}
             <a href="mailto:support@pepscan.app" className="text-primary underline underline-offset-2">
