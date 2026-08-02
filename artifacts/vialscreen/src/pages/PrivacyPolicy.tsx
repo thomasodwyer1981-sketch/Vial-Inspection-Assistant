@@ -119,8 +119,11 @@ export default function PrivacyPolicy() {
             </p>
             <p className="text-xs text-muted-foreground">
               <strong>Lawful basis:</strong> Legitimate interests (measuring advertising performance and
-              improving the App). You may opt out of personalised advertising via your device's advertising
-              settings (Settings → Privacy → Ads → Opt out of Ads Personalisation on Android).
+              improving the App). Under GDPR Article 21 you have the right to object to this processing
+              at any time.{' '}
+              <strong>You can disable in-app analytics events in the app's Privacy Settings screen</strong>{' '}
+              (Home → Privacy Settings). You may also opt out via your device advertising settings
+              (Settings → Privacy → Ads → Opt out of Ads Personalisation on Android).
               <br /><strong>Retention:</strong> Attribution and event data retained by AppsFlyer for up
               to 24 months; see{' '}
               <a href="https://www.appsflyer.com/legal/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-primary underline">appsflyer.com/legal/privacy-policy</a>.

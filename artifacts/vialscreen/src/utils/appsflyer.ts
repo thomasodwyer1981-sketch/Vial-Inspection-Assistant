@@ -1,5 +1,29 @@
 import { Capacitor } from '@capacitor/core';
 
+const OPT_OUT_KEY = 'vialscreen:analyticsOptOut';
+
+/** Returns true if the user has opted out of in-app analytics events. */
+export function getAnalyticsOptOut(): boolean {
+  try {
+    return localStorage.getItem(OPT_OUT_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Persist the user's analytics opt-out preference. */
+export function setAnalyticsOptOut(optOut: boolean): void {
+  try {
+    if (optOut) {
+      localStorage.setItem(OPT_OUT_KEY, 'true');
+    } else {
+      localStorage.removeItem(OPT_OUT_KEY);
+    }
+  } catch {
+    // localStorage unavailable — silently ignore
+  }
+}
+
 let initialised = false;
 
 /**
@@ -36,13 +60,14 @@ export async function initAppsFlyer(): Promise<void> {
 
 /**
  * Log a custom in-app event to AppsFlyer.
- * Silently no-ops on web or before init.
+ * Silently no-ops on web, before init, or when the user has opted out.
  */
 export async function logAFEvent(
   eventName: string,
   eventValues?: Record<string, string | number | boolean>,
 ): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
+  if (getAnalyticsOptOut()) return; // respect GDPR Article 21 objection
   try {
     const { AppsFlyer } = await import('appsflyer-capacitor-plugin');
     await AppsFlyer.logEvent({ eventName, eventValue: eventValues ?? {} });

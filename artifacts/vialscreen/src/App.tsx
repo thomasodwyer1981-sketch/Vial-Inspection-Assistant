@@ -20,6 +20,7 @@ import CalculatorScreen from '@/pages/CalculatorScreen';
 import UpgradeScreen from '@/pages/UpgradeScreen';
 import UpgradeCompleteScreen from '@/pages/UpgradeCompleteScreen';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import PrivacySettingsScreen from '@/pages/PrivacySettingsScreen';
 import TermsScreen from '@/pages/TermsScreen';
 import DeleteData from '@/pages/DeleteData';
 import NotFound from '@/pages/not-found';
@@ -75,6 +76,7 @@ function Router() {
       <Route path="/upgrade" component={UpgradeScreen} />
       <Route path="/upgrade-complete" component={UpgradeCompleteScreen} />
       <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/privacy-settings" component={PrivacySettingsScreen} />
       <Route path="/terms" component={TermsScreen} />
       <Route path="/delete-data" component={DeleteData} />
       <Route component={NotFound} />

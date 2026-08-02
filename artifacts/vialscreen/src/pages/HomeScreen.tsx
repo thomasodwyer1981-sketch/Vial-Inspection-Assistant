@@ -12,6 +12,7 @@ import {
   Moon,
   Sun,
   Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { useProStatus } from '@/hooks/useProStatus';
@@ -224,6 +225,18 @@ export default function HomeScreen() {
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-4 h-4 text-muted-foreground/70" />
             <span className="text-sm text-muted-foreground font-medium">Limitations &amp; Disclaimers</span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+        </Link>
+
+        {/* Privacy Settings */}
+        <Link
+          href="/privacy-settings"
+          className="rounded-2xl px-4 py-3.5 flex items-center justify-between active:scale-[0.98] transition-transform bg-card/60 border"
+        >
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="w-4 h-4 text-muted-foreground/70" />
+            <span className="text-sm text-muted-foreground font-medium">Privacy Settings</span>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
         </Link>
