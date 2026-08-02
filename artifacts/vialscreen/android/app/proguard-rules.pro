@@ -1,3 +1,16 @@
+# ─── Android rendering / threading safety ────────────────────────────────────
+# Prevents R8 from inlining or rewriting synchronisation primitives that back
+# RenderProxy::setStopped — aggressive optimisation caused an ANR deadlock on
+# the render thread (nSetStopped → future<T>::get → pthread_cond_wait).
+-keep class android.view.** { *; }
+-keep class android.graphics.** { *; }
+-keepclassmembers class * {
+    synchronized *;
+}
+-keep class java.util.concurrent.** { *; }
+-keepclassmembers class java.util.concurrent.** { *; }
+-keep class java.util.concurrent.atomic.** { *; }
+
 # ─── Capacitor / WebView JS bridge ───────────────────────────────────────────
 -keep class com.getcapacitor.** { *; }
 -keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }

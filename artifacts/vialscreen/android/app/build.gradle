@@ -23,7 +23,9 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Use non-optimize base rules — the -optimize variant rewrites threading/sync
+            // primitives aggressively and caused a RenderProxy::setStopped ANR (PEPSCAN-3).
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
