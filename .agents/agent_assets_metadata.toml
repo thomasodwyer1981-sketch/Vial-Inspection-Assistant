@@ -36,48 +36,56 @@ id = "qZLfzskl49Z96V928jiw3"
 uri = "file://attached_assets/screenshots/phone-home.jpg"
 type = "image"
 title = "Phone — Home screen"
+description = "Phone store screenshot: Home screen"
 
 [[outputs]]
 id = "_YPLh1FlIz3z5-PD8h3CO"
 uri = "file://attached_assets/screenshots/phone-scan.jpg"
 type = "image"
 title = "Phone — Scan screen"
+description = "Phone store screenshot: Scan screen"
 
 [[outputs]]
 id = "PeEIDI3ARapj6aOliTlEN"
 uri = "file://attached_assets/screenshots/phone-history.jpg"
 type = "image"
-title = "Phone — History"
+title = "Phone — History screen"
+description = "Phone store screenshot: History screen"
 
 [[outputs]]
 id = "JX5mTDiJLPeD2-N2Fff9h"
 uri = "file://attached_assets/screenshots/phone-upgrade.jpg"
 type = "image"
-title = "Phone — Pro upgrade"
+title = "Phone — Upgrade screen"
+description = "Phone store screenshot: Upgrade screen"
 
 [[outputs]]
 id = "s2X1hVj4CIArqcwU5a4uo"
 uri = "file://attached_assets/screenshots/tablet7-home.jpg"
 type = "image"
 title = "7\" Tablet — Home"
+description = "7-inch tablet store screenshot: Home screen"
 
 [[outputs]]
 id = "44Rdgxh3svj6n0mXGvcfa"
 uri = "file://attached_assets/screenshots/tablet7-scan.jpg"
 type = "image"
 title = "7\" Tablet — Scan"
+description = "7-inch tablet store screenshot: Scan screen"
 
 [[outputs]]
 id = "PiqQHpoYufQha3c4O8u-5"
 uri = "file://attached_assets/screenshots/tablet10-home.jpg"
 type = "image"
 title = "10\" Tablet — Home"
+description = "10-inch tablet store screenshot: Home screen"
 
 [[outputs]]
 id = "sIybb-9ci_I8zzCAGh-yk"
 uri = "file://attached_assets/screenshots/tablet10-scan.jpg"
 type = "image"
 title = "10\" Tablet — Scan"
+description = "10-inch tablet store screenshot: Scan screen"
 
 [[outputs]]
 id = "bhjieXkRj6bMeE4fFidr8"
