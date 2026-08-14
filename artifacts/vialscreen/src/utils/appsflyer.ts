@@ -41,6 +41,8 @@ export async function initAppsFlyer(): Promise<void> {
     return;
   }
 
+  const appleAppID = import.meta.env.VITE_APPSFLYER_APPLE_APP_ID as string | undefined;
+
   try {
     const { AppsFlyer } = await import('appsflyer-capacitor-plugin');
     await AppsFlyer.initSDK({
@@ -50,6 +52,7 @@ export async function initAppsFlyer(): Promise<void> {
       waitForATTUserAuthorization: 10, // seconds (iOS ATT prompt grace period)
       registerOnDeepLink: true,
       registerConversionListener: true,
+      ...(Capacitor.getPlatform() === 'ios' && appleAppID ? { appleAppID } : {}),
     });
     initialised = true;
     console.log('[AppsFlyer] SDK initialised');

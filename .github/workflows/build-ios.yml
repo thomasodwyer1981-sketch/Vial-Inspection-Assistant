@@ -41,6 +41,7 @@ jobs:
           VITE_REVENUECAT_API_KEY: ${{ secrets.VITE_REVENUECAT_API_KEY }}
           VITE_REVENUECAT_IOS_KEY: ${{ secrets.VITE_REVENUECAT_IOS_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APPSFLYER_APPLE_APP_ID: ${{ secrets.VITE_APPSFLYER_APPLE_APP_ID }}
           VITE_APP_VERSION: ${{ steps.version.outputs.name }}
           PORT: "3000"
           BASE_PATH: "/"
