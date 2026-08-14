@@ -1,0 +1,154 @@
+
+
+Hello Thomas,
+
+Thank you for submitting your items for review. We noticed an issue with your submission that requires your attention.
+
+Submitted: Jul 29, 2026 at 11:24 AM Pacific Daylight Time
+Submitted by: Thomas O Dwyer
+Number of items submitted: 1
+Submission ID: 34db5861-fc65-4fc8-a08c-4a049d2a575a
+App Name: PepScan by Peptilog
+
+
+We look forward to working with you to resolve the issues with the following items:
+
+App Version
+1.2.3 for iOS
+
+Hello,
+
+We noticed this is your first app submission and want to congratulate you on joining the Apple Developer Program. We look forward to working together on your submissions.
+
+When App Review identifies an issue with a submission, we’ll contact you with a message in App Store Connect with details about what we found and how to resolve the issue. Learn more about App Review and tips for a smooth review experience.
+
+See below for additional information about the issues that require your attention for this submission. If you have any questions, we are here to help. Reply to this message in App Store Connect and let us know.
+
+Review Environment
+Submission ID: 34db5861-fc65-4fc8-a08c-4a049d2a575a
+Review date: August 13, 2026
+Review Device: iPad Air 11-inch (M3)
+Version reviewed: 1.2.3 (29)
+
+Guideline 2.3.7 - Performance - Accurate Metadata
+
+Issue Description
+
+The app screenshots include references to the price of the app or the service it provides, which is not considered an appropriate part of these metadata items.
+
+Next Steps
+
+To resolve this issue, remove any references to pricing from the app's metadata. If you would like to advertise changes to the app's price, consider including this information in the app description.
+
+Resources
+
+For information on how to revise the app name, please review Renaming a Project or App.
+Guideline 5 - Legal
+
+Issue Description
+
+As you may know, the Chinese government has been tightening regulations associated with deep synthesis technologies (DST) and generative AI services, including ChatGPT. DST must fulfill permitting requirements to operate in China, including securing a license from the Ministry of Industry and Information Technology (MIIT) if the services are provided while connected to the Internet.
+
+Based on our review, the app appears to be associated with ChatGPT, which does not have requisite permits to operate in China. Specifically, the app's metadata includes the following references to ChatGPT and/or OpenAI: GPT.
+
+Accordingly, pursuant to local Chinese law, this functionality must be deactivated in the version of the app that you make available on the China App Store and all references to ChatGPT or OpenAI must be removed from metadata fields such as app name, subtitle, promotional text, app description, and screenshots.
+
+Next Steps
+
+Since this app cannot be approved with ChatGPT functionality and/or metadata references in China, it would be appropriate to make the necessary changes, update the Review Notes to confirm you've suppressed this functionality, and resubmit the app for review.
+
+If you do not wish to make these changes, you can choose to not distribute this app in China by deselecting the China mainland storefront in the Availability settings in App Store Connect.
+
+If you believe you are already in compliance with the above-mentioned local law, you may reply to this message in App Store Connect and provide additional information. Apps with ChatGPT functionality or metadata references can continue to be used in apps outside of China.
+
+To offer the app in China with this functionality, please seek professional advice on compliance with the Administrative Provisions on Deep Synthesis of Internet-based Information Services.
+
+Resources
+
+- See how to change the app's Availability setting in App Store Connect.
+- Learn more about legal requirements for apps on the App Store in guideline 5.
+Guideline 3.1.2(c) - Business - Payments - Subscriptions
+Issue Description
+
+The submission did not include all the required information for apps offering auto-renewable subscriptions.
+
+The following information needs to be included in the App Store metadata: a functional link to the Terms of Use (EULA) (if you are using the standard Apple Terms of Use (EULA), include a link in the App Description, and if you are using a custom EULA, add it in App Store Connect) and a functional link to the privacy policy in the Privacy Policy field in App Store Connect.
+
+Next Steps
+
+Update the App Store metadata to include the information specified above.
+
+Once the app and metadata includes all of the required information, or if they already do, reply to this message with a screen recording to confirm. Include this information in the Notes field of the App Review Information section in App Store Connect for future submissions.
+
+Resources
+
+Apps offering auto-renewable subscriptions must include all of the following required information in the app itself:
+
+- Title of auto-renewing subscription (this may be the same as the In-App Purchase product name)
+- Length of subscription
+- Price of subscription, and price per unit if appropriate
+- Functional links to the privacy policy and Terms of Use (EULA)
+
+The app metadata must also include functional links to the privacy policy in the Privacy Policy field in App Store Connect and the Terms of Use (EULA) in the App Description or EULA field in App Store Connect.
+
+Review Schedule 2 of the Apple Developer Program License Agreement to learn more.
+Guideline 2.1(a) - Performance - App Completeness
+
+Issue Description
+
+We were unable to review the app because it crashed on launch. We have attached detailed crash logs to help troubleshoot this issue.
+
+Review device details:
+
+- Device type: iPad Air 11-inch (M3)
+- OS version: iPadOS 26.6
+
+Next Steps
+
+To address the crash in the app, follow these steps:
+
+1. Fully symbolicate the crash report. See Adding Identifiable Symbol Names to a Crash Report for an explanation of the symbolication process.
+2. Match the crash report to a common pattern. Based on the pattern, take specific actions to further investigate the crash. See Identifying the Cause of Common Crashes.
+3. Test the app on a device to ensure that it now runs as expected.
+4. Once the crash is addressed, create and submit a new build for review.
+
+Note that users expect apps they download to function on all the devices where they are available. For example, apps that may be downloaded onto iPad devices should function as expected for iPad users.
+
+Resources
+
+For additional information on crash reports, see Diagnosing Issues Using Crash Reports and Device Logs.
+Guideline 2.3.6 - Performance - Accurate Metadata
+
+The capability selected for the app's Age Rating is inconsistent with the content of the app. Since the app includes content related to health or wellness topics, you must select "Yes" for "Health or Wellness Topics" in App Store Connect.
+
+The app's age rating must accurately reflect the kinds of content and features users are able to access in the app.
+
+Next Steps
+
+Update the Age Rating selections to select "Yes" for "Health or Wellness Topics." The Age Rating selections can be found on the App Information page after selecting the app in App Store Connect.
+
+Resources
+
+- See how to set the app age rating in App Store Connect.
+- Review the age ratings values and definitions.
+- Learn more about age rating requirements in guideline 2.3.6.
+Support
+- Reply to this message in your preferred language if you need assistance. If you need additional support, use the Contact Us module.
+- Consult with fellow developers and Apple engineers on the Apple Developer Forums.
+- Provide feedback on this message and your review experience by completing a short survey.
+
+Test on the latest betas
+Betas of iOS 27, iPadOS 27, macOS 27, tvOS 27 and visionOS 27 are now available. Download the latest betas to prepare your app for upcoming software releases. Learn more about installing and using Apple beta software.
+
+
+
+For details, next steps, and to ask questions about these issues, please visit the App Review page in App Store Connect.
+
+Best regards,
+App Review
+
+TM and © 2026 Apple Inc.
+One Apple Park Way, Cupertino, CA 95014.
+
+Terms of Service | Privacy Policy | Contact Us | App Store Connect
+
