@@ -38,6 +38,12 @@ Importing a provisioning profile into `~/Library/MobileDevice/Provisioning Profi
 - `APP_STORE_CONNECT_ISSUER_ID` — ASC issuer ID
 - `GOOGLESERVICE_INFO_PLIST_BASE64` — optional; workflow skips if missing
 
+## App Store / App ID
+- Apple ID (numeric): **6795666262** — confirmed from App Store Connect and matches `adam_id` in crash logs
+- Bundle ID: com.pepscan.app  |  Team ID: B6PJBT97RS
+
+## iOS 26 launch crash (1.2.3 build 29 — rejected)
+Crash: `SIGABRT` / `-[NSException initWithCoder:]` thrown inside Capacitor bridge during `UIViewController loadViewIfRequired`, ~150–350 ms after launch. All three Apple review crash logs are identical. Capacitor 8.4.2 is in use so not a framework version issue. Most likely suspect: a Capacitor plugin (`@capacitor-firebase/analytics`, `@sentry/capacitor`, or `@revenuecat/purchases-capacitor`) decoding NSCoding-archived state that is incompatible with iPadOS 26. Fix: build a fresh IPA from current main (which has all recent dependency updates), test on iOS 26 simulator, and bisect plugin init order if crash persists.
+
 ## Outstanding
 - Firebase iOS: Thomas needs to add iOS app to Firebase `pepscan-f78ce`, download `GoogleService-Info.plist`, base64-encode → `GOOGLESERVICE_INFO_PLIST_BASE64` secret
-- Play Console AD_ID declaration still needed to unblock Android build 25 rollout
