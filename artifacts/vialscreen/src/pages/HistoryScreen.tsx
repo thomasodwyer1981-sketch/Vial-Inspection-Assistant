@@ -403,7 +403,6 @@ type VialProfile = ReturnType<typeof buildVialProfiles>[0];
 type HistoryItem = ReturnType<typeof getScanHistory>[0];
 
 function groupHistoryByDate(items: HistoryItem[]) {
-  const now = Date.now();
   const todayStart = new Date(new Date().toDateString()).getTime();
   const weekStart  = todayStart - 6 * 24 * 60 * 60 * 1000;
 
