@@ -1341,6 +1341,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         <div className="bg-card border-b px-6 py-10 text-center">
           <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
           <h1 className="text-2xl font-bold tracking-tight mb-3">{resultCopy.summary}</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4 max-w-xs mx-auto">
+            {resultCopy.explanation}
+          </p>
 
           {/* Prominent statutory warning — shown on every result */}
           <div className="mt-2 mb-4 bg-destructive/8 border border-destructive/30 rounded-xl p-4 text-left">
@@ -1483,22 +1486,63 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             );
           })()}
 
-          {/* ── Pro upsell — free users on review/DNU ── */}
-          {!isPro && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
-            <section className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/10 to-primary/5 p-5">
-              <div className="flex items-start gap-3 mb-3">
-                <Star className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-foreground mb-1">Get AI Vision for a second opinion</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Pro subscribers get GPT-4o Vision analysis that explains exactly which visual feature triggered this result — helping you decide whether to discard or investigate further.</p>
+          {/* ── AI Vision teaser — all free users ── */}
+          {!isPro && !result.aiEnhanced && (
+            <section>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
+                AI Vision Analysis
+              </h2>
+              <div className="relative rounded-2xl overflow-hidden border border-primary/20">
+                {/* Blurred skeleton preview of what an AI analysis looks like */}
+                <div
+                  className="select-none pointer-events-none p-4 space-y-3 bg-card"
+                  style={{ filter: 'blur(4px)', opacity: 0.45 }}
+                  aria-hidden
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-primary/20 rounded-lg shrink-0" />
+                    <div className="space-y-1.5 flex-1">
+                      <div className="h-3 bg-muted rounded-full w-3/4" />
+                      <div className="h-2.5 bg-muted/60 rounded-full w-1/2" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-2.5 bg-muted rounded-full w-full" />
+                    <div className="h-2.5 bg-muted rounded-full w-5/6" />
+                    <div className="h-2.5 bg-muted/60 rounded-full w-2/3" />
+                    <div className="h-2.5 bg-muted/40 rounded-full w-4/5" />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-primary/20 rounded-lg flex-1" />
+                    <div className="h-8 bg-muted rounded-lg flex-1" />
+                  </div>
+                </div>
+
+                {/* Lock overlay */}
+                <div className="absolute inset-0 bg-background/75 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 p-5 text-center">
+                  <div className="w-11 h-11 bg-primary/15 border border-primary/25 rounded-2xl flex items-center justify-center">
+                    <Lock className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground leading-tight">
+                      {result.triageResult === 'pass'
+                        ? 'See the full AI Vision breakdown'
+                        : 'Find out exactly why this vial flagged'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed max-w-[220px] mx-auto">
+                      {result.triageResult === 'pass'
+                        ? 'Pro unlocks a written explanation of every visual factor assessed — not just the verdict.'
+                        : 'Pro gives you a written AI analysis of which specific anomaly triggered this result and how significant it is.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
+                    className="bg-primary text-primary-foreground text-xs font-bold px-5 py-2.5 rounded-xl active:scale-[0.98] transition-all shadow-md shadow-primary/25"
+                  >
+                    Unlock Pro — {PRO_PRICE_DISPLAY}
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
-                className="w-full bg-primary text-primary-foreground text-sm font-bold py-3 rounded-xl active:scale-[0.98] transition-all shadow-md shadow-primary/20"
-              >
-                Unlock Pro — {PRO_PRICE_DISPLAY}
-              </button>
             </section>
           )}
 

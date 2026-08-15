@@ -294,6 +294,8 @@ export const RESULT_COPY = {
   pass: {
     label: 'No Obvious Visual Issues Detected',
     summary: 'No significant visual red flags were detected under these specific capture conditions.',
+    explanation:
+      'The visual analysis found no particles, cloudiness, unexpected colour, or fill-level anomalies in your captures. This is a negative screen — nothing obvious was flagged, not a confirmation that the vial is safe.',
     caveat: 'THIS IS NOT A SAFETY CLEARANCE. A Pass result does NOT mean this vial is safe, sterile, pure, authentic, correctly dosed, or fit for any use. Results are affected by lighting, camera quality, background, and technique. Invisible contamination, degradation, pathogens, endotoxins, and incorrect compounds cannot be detected by this app under any circumstances.',
     action:
       'This is a negative visual screen only. Always conduct a direct physical inspection under good lighting. Never rely on this result alone. This app is not intended for human use and must not be used to justify administering any substance to yourself or any other person. Do not inject, ingest, inhale, or otherwise use any substance based on this result.',
@@ -301,6 +303,8 @@ export const RESULT_COPY = {
   review: {
     label: 'Review Recommended',
     summary: 'One or more findings require closer manual inspection.',
+    explanation:
+      'Something in the images was ambiguous — a possible particle, borderline turbidity, or a colour variation outside the expected range. A direct physical inspection under good lighting is the right next step.',
     caveat: 'Suspicious findings or reduced capture quality detected. Do not rely on this result. This app cannot confirm safety, purity, sterility, or identity under any circumstances.',
     action:
       'Inspect the vial directly under good lighting. Retake with improved lighting and focus if possible. If any doubt exists, do not use. This app is not intended for human use.',
@@ -308,6 +312,8 @@ export const RESULT_COPY = {
   'do-not-use': {
     label: 'Visible Issues Flagged',
     summary: 'Concerning visual findings were detected in these captures.',
+    explanation:
+      'The analysis flagged clear visual anomalies — visible particles, significant cloudiness, or a colour inconsistent with what is expected for this type of vial.',
     caveat: 'Multiple visual red flags detected. Do not proceed. Note: even if no visual issues were present, this app cannot confirm safety, purity, sterility, or identity.',
     action:
       'Do not use this vial. Contact your supplier, review your documentation, and discard according to your protocols. This result does not constitute professional advice.',

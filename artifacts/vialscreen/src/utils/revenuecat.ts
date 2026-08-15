@@ -109,6 +109,29 @@ export async function purchaseRCPro(): Promise<boolean> {
 }
 
 /**
+ * Returns the localised price string for the Pro package (e.g. "$4.99") from
+ * RevenueCat. Returns null on web or if the offering cannot be fetched.
+ */
+export async function getProPrice(): Promise<string | null> {
+  if (!Capacitor.isNativePlatform()) return null;
+  try {
+    await initRevenueCat();
+    const offerings = await Purchases.getOfferings();
+    const current = offerings?.current;
+    const platform = Capacitor.getPlatform();
+    const pkg =
+      (platform === 'ios' ? current?.annual : current?.lifetime) ??
+      current?.availablePackages?.[0] ??
+      null;
+    // RevenueCat exposes the store-formatted price string on the product object
+    const price = (pkg?.product as Record<string, unknown> | undefined)?.priceString;
+    return typeof price === 'string' && price.length > 0 ? price : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Restores previous Play Store purchases.
  * Returns true if a Pro entitlement was restored.
  */

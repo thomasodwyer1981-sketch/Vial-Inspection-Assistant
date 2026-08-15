@@ -220,86 +220,86 @@ export default function HistoryScreen() {
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
-            {visibleHistory.map((item) => {
-              const profileBadge =
-                item.appearanceProfile
-                  ? PROFILE_BADGE[item.appearanceProfile]
-                  : null;
-
-              return (
-                <div key={item.id} className="relative">
-                  <Link
-                    href={`/history/${item.id}`}
-                    className="block bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform"
-                  >
-                    <div className="flex gap-4">
-                      {/* Thumbnail */}
-                      {item.thumbnailDataUrl ? (
-                        <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0 border">
-                          <img
-                            src={item.thumbnailDataUrl}
-                            alt=""
-                            className="w-full h-full object-cover opacity-80"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 bg-secondary rounded-lg shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
-                          No Image
-                        </div>
-                      )}
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between items-start mb-1">
-                            <h3 className="font-bold text-sm truncate pr-2">
-                              {item.peptideName || 'Unnamed Vial'}
-                            </h3>
-                            <TriageBadge
-                              result={item.triageResult}
-                              size="sm"
-                              className="shrink-0"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-muted-foreground truncate">
-                              {item.vendor || 'No vendor'}
-                            </p>
-                            {item.scanMode === 'powder' && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                                Powder
-                              </span>
+          <div className="space-y-5">
+            {groupHistoryByDate(visibleHistory).map(({ label, items: groupItems }) => (
+              <div key={label}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-2">
+                  {label}
+                </p>
+                <div className="space-y-3">
+                  {groupItems.map((item) => {
+                    const profileBadge =
+                      item.appearanceProfile
+                        ? PROFILE_BADGE[item.appearanceProfile]
+                        : null;
+                    return (
+                      <div key={item.id} className="relative">
+                        <Link
+                          href={`/history/${item.id}`}
+                          className="block bg-card border rounded-xl p-4 shadow-sm active:scale-[0.98] transition-transform"
+                        >
+                          <div className="flex gap-4">
+                            {/* Thumbnail */}
+                            {item.thumbnailDataUrl ? (
+                              <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0 border">
+                                <img
+                                  src={item.thumbnailDataUrl}
+                                  alt=""
+                                  className="w-full h-full object-cover opacity-80"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-16 h-16 bg-secondary rounded-lg shrink-0 border flex items-center justify-center text-xs text-muted-foreground">
+                                No Image
+                              </div>
                             )}
-                            {profileBadge && (
-                              <span
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 ${profileBadge.className}`}
-                              >
-                                {profileBadge.label}
-                              </span>
-                            )}
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <div>
+                                <div className="flex justify-between items-start mb-1">
+                                  <h3 className="font-bold text-sm truncate pr-2">
+                                    {item.peptideName || 'Unnamed Vial'}
+                                  </h3>
+                                  <TriageBadge result={item.triageResult} size="sm" className="shrink-0" />
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {item.vendor || 'No vendor'}
+                                  </p>
+                                  {item.scanMode === 'powder' && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                                      Powder
+                                    </span>
+                                  )}
+                                  {profileBadge && (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide shrink-0 ${profileBadge.className}`}>
+                                      {profileBadge.label}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex justify-between items-center mt-2">
+                                <span>{format(new Date(item.createdAt), 'MMM d, yyyy · HH:mm')}</span>
+                                <span>{item.overallConfidence}% Conf</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex justify-between items-center mt-2">
-                          <span>
-                            {format(new Date(item.createdAt), 'MMM d, yyyy · HH:mm')}
-                          </span>
-                          <span>{item.overallConfidence}% Conf</span>
-                        </div>
+                        </Link>
+
+                        <button
+                          onClick={(e) => handleDelete(item.id, e)}
+                          className="absolute top-1.5 right-1.5 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-2.5 rounded-lg transition-colors shadow-sm"
+                          aria-label="Delete scan"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                    </div>
-                  </Link>
-
-                  <button
-                    onClick={(e) => handleDelete(item.id, e)}
-                    className="absolute top-1.5 right-1.5 bg-background border text-muted-foreground hover:text-destructive hover:border-destructive p-2.5 rounded-lg transition-colors shadow-sm"
-                    aria-label="Delete scan"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
 
             {/* Locked scans (free tier only) */}
             {lockedCount > 0 && (
@@ -397,6 +397,31 @@ export default function HistoryScreen() {
 // ── Vial Profile Card ─────────────────────────────────────────────────────────
 
 type VialProfile = ReturnType<typeof buildVialProfiles>[0];
+
+// ── Date grouping ─────────────────────────────────────────────────────────────
+
+type HistoryItem = ReturnType<typeof getScanHistory>[0];
+
+function groupHistoryByDate(items: HistoryItem[]) {
+  const now = Date.now();
+  const todayStart = new Date(new Date().toDateString()).getTime();
+  const weekStart  = todayStart - 6 * 24 * 60 * 60 * 1000;
+
+  const groups = [
+    { label: 'Today',     items: [] as HistoryItem[] },
+    { label: 'This Week', items: [] as HistoryItem[] },
+    { label: 'Earlier',   items: [] as HistoryItem[] },
+  ];
+
+  for (const item of items) {
+    const t = new Date(item.createdAt).getTime();
+    if (t >= todayStart)  groups[0].items.push(item);
+    else if (t >= weekStart) groups[1].items.push(item);
+    else                  groups[2].items.push(item);
+  }
+
+  return groups.filter((g) => g.items.length > 0);
+}
 
 function buildVialProfiles(
   history: ReturnType<typeof getScanHistory>,
