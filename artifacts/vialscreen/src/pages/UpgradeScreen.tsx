@@ -264,11 +264,17 @@ export default function UpgradeScreen() {
                   </p>
                 </>
               ) : (
-                <div className="rounded-2xl border bg-muted/40 p-5 text-center space-y-2">
+                <div className="rounded-2xl border bg-muted/40 p-5 text-center space-y-3">
                   <p className="font-semibold text-sm">Available on Android</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     PepScan Pro is purchased through the Android app via Google Play.
                     Download the app to upgrade.
+                  </p>
+                  <p className="text-center text-xs text-muted-foreground/70">
+                    By purchasing you agree to our{' '}
+                    <Link href="/terms" className="underline underline-offset-2">Terms of Use</Link>
+                    {' '}and{' '}
+                    <Link href="/privacy" className="underline underline-offset-2">Privacy Policy</Link>.
                   </p>
                 </div>
               )}
