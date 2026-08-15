@@ -1,49 +1,33 @@
 ---
 name: iOS build pipeline
-description: How the GitHub Actions iOS build works, key signing decisions, and known gotchas.
+description: Signing approach, SPM cascade root cause, iOS 26 NSCoding crash, required secrets.
 ---
 
-## Final working approach (as of 2026-07-29)
+## Signing approach
 
-### Archive signing (project.pbxproj)
-The App target Release config has these settings baked in directly (NOT as CLI flags — CLI flags cascade to SPM packages and break them):
-- `CODE_SIGN_STYLE = Manual`
-- `CODE_SIGN_IDENTITY = "Apple Distribution"`
-- `PROVISIONING_PROFILE_SPECIFIER = "PepScan App Store"`
-- `DEVELOPMENT_TEAM = B6PJBT97RS`
+Release target build settings (baked into project.pbxproj — do NOT pass as CLI flags; CLI flags cascade to SPM packages and break signing):
+- `CODE_SIGN_STYLE = Manual`, `CODE_SIGN_IDENTITY = "Apple Distribution"`, `PROVISIONING_PROFILE_SPECIFIER = "PepScan App Store"`, `DEVELOPMENT_TEAM = B6PJBT97RS`
 
-xcodebuild archive uses `-allowProvisioningUpdates` + ASC key flags to download the distribution certificate and profile on demand. No profile is pre-imported before archive.
+With `destination=upload`, xcodebuild uploads directly to App Store Connect. No local export folder is written — do not assert that directory exists.
 
-### Export / upload
-ExportOptions.plist: `method=app-store-connect`, `destination=upload`, `signingStyle=manual`, `provisioningProfiles={com.pepscan.app: "PepScan App Store"}`.
+**SPM cascade rule:** Import a provisioning profile into `~/Library/MobileDevice/Provisioning Profiles/` only AFTER archive completes. Importing before archive causes Xcode to apply the profile to all SPM package targets, which do not support provisioning → signing errors on every library target.
 
-**The provisioning profile IS imported** — but only AFTER the archive step completes (a separate workflow step runs `security cms -D` + `cp` to `~/Library/MobileDevice/Provisioning Profiles/`). Importing before archive cascades to SPM package targets and causes signing errors on every library target.
-
-xcodebuild exportArchive also passes ASC key flags so it can resolve the certificate during export.
-
-### destination=upload behavior
-With `destination=upload`, xcodebuild uploads directly to App Store Connect and does NOT write a local export folder. Do NOT run `ls $RUNNER_TEMP/export/` after export — the directory won't exist. The separate "Upload to TestFlight" (altool) step is not needed.
-
-### SPM cascade root cause
-Importing a provisioning profile into `~/Library/MobileDevice/Provisioning Profiles/` before `xcodebuild archive` causes Xcode to attempt to apply that profile to ALL targets including SPM packages (Firebase, RevenueCat, etc.) which don't support provisioning profiles. Solution: only import the profile after archive completes.
-
-**Why:** SPM-resolved packages are compiled during `xcodebuild archive`. If a profile is present in the system profile store, Xcode tries to apply it globally to satisfy the `CODE_SIGN_STYLE = Manual` setting inherited from the workspace.
-
-## Secrets required (GitHub repo secrets)
-- `APPLE_CERTIFICATE_BASE64` — distribution certificate p12
-- `APPLE_CERTIFICATE_PASSWORD` — p12 password
-- `APPLE_PROVISIONING_PROFILE_BASE64` — "PepScan App Store" profile
-- `APP_STORE_CONNECT_KEY_BASE64` — ASC API key p8
-- `APP_STORE_CONNECT_KEY_ID` — ASC key ID
-- `APP_STORE_CONNECT_ISSUER_ID` — ASC issuer ID
-- `GOOGLESERVICE_INFO_PLIST_BASE64` — optional; workflow skips if missing
+## Secrets required
+`APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_PROVISIONING_PROFILE_BASE64`, `APP_STORE_CONNECT_KEY_BASE64`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `GOOGLESERVICE_INFO_PLIST_BASE64` (optional — CI skips Firebase plist injection if absent).
 
 ## App Store / App ID
-- Apple ID (numeric): **6795666262** — confirmed from App Store Connect and matches `adam_id` in crash logs
-- Bundle ID: com.pepscan.app  |  Team ID: B6PJBT97RS
+Apple ID: **6795666262** | Bundle ID: `com.pepscan.app` | Team ID: `B6PJBT97RS`
 
-## iOS 26 launch crash (1.2.3 build 29 — rejected)
-Crash: `SIGABRT` / `-[NSException initWithCoder:]` thrown inside Capacitor bridge during `UIViewController loadViewIfRequired`, ~150–350 ms after launch. All three Apple review crash logs are identical. Capacitor 8.4.2 is in use so not a framework version issue. Most likely suspect: a Capacitor plugin (`@capacitor-firebase/analytics`, `@sentry/capacitor`, or `@revenuecat/purchases-capacitor`) decoding NSCoding-archived state that is incompatible with iPadOS 26. Fix: build a fresh IPA from current main (which has all recent dependency updates), test on iOS 26 simulator, and bisect plugin init order if crash persists.
+## iOS 26 launch crash — durable lessons
 
-## Outstanding
-- Firebase iOS: Thomas needs to add iOS app to Firebase `pepscan-f78ce`, download `GoogleService-Info.plist`, base64-encode → `GOOGLESERVICE_INFO_PLIST_BASE64` secret
+**Root cause pattern:** iOS 26 changed `-[NSException initWithCoder:]` to raise instead of decode. Any plugin reading NSCoding archives (written by an older SDK/iOS) that reference NSException crashes at `UIViewController loadViewIfRequired`, before any UI is shown.
+
+**Which plugin load() methods do real work:** Only `FirebaseAnalyticsPlugin.load()` calls `FirebaseApp.configure()` during plugin registration. All other plugins in this project (Sentry, AppsFlyer, RevenueCat) only register notification observers in their `load()` methods and defer native SDK init to JavaScript calls.
+
+**Why a ObjC @try/@catch subclass does not work:** `CAPBridgeViewController` is implemented in Swift. ObjC exceptions from Swift frames cannot safely unwind to an ObjC `@catch` in a subclass — the barrier does not catch the exception. Do not attempt this pattern.
+
+**Mitigation in place:** `AppDelegate.purgeNSCodingCachesAfterOSUpgrade()` deletes Firebase and Sentry cache directories before UIKit loads the view hierarchy, runs only on the first launch after an iOS major version change, and only records the purge as complete when all deletions succeed (retry on next launch if any fail).
+
+**Permanent fix:** Update `@sentry/capacitor` and Firebase iOS SDK to versions that do not use NSException + NSCoding. Tracked in follow-up tasks.
+
+**Validation required:** iOS 26 device/simulator validation cannot be performed from a CI environment. Physical hardware is needed to install build 32 over a build with persisted Firebase/Sentry state and verify repeated launches succeed.
