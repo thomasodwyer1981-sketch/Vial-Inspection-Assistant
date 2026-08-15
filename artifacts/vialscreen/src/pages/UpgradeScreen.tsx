@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ArrowLeft, CheckCircle2, History, Download, Zap, Shield, Sparkles, RotateCcw, Loader2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+
+const isIOS = Capacitor.getPlatform() === 'ios';
 import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY, buildUpgradeCompleteUrl, consumeUpgradeReturnPath, peekUpgradeReturnPath } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
 import { useProStatus, activateProUnlock } from '@/hooks/useProStatus';
@@ -75,7 +77,11 @@ export default function UpgradeScreen() {
       if (restored) {
         celebrate(true);
       } else {
-        setRestoreError('No previous purchase found for this Google account.');
+        setRestoreError(
+          isIOS
+            ? 'No previous purchase found for this Apple ID.'
+            : 'No previous purchase found for this Google account.',
+        );
       }
     } catch {
       setRestoreError('Restore failed. Please try again.');
@@ -254,10 +260,15 @@ export default function UpgradeScreen() {
                     {loading ? 'Processing…' : `Unlock Pro — ${PRO_PRICE_DISPLAY}`}
                   </button>
                   <p className="text-center text-xs text-muted-foreground">
-                    Secure payment via Google Play. Billed annually. Cancel anytime.{' '}
-                    Subscription renews automatically unless cancelled 24 hours before renewal.
+                    PepScan Pro — {PRO_PRICE_DISPLAY}, billed annually.{' '}
+                    Subscription renews automatically each year unless cancelled at least 24 hours
+                    before the renewal date.{' '}
+                    {isIOS
+                      ? 'Manage or cancel in your Apple ID subscription settings.'
+                      : 'Manage or cancel in Google Play.'}
                   </p>
                   <p className="text-center text-xs text-muted-foreground/70">
+                    Payment processed via {isIOS ? 'Apple App Store' : 'Google Play'}.{' '}
                     By purchasing you agree to our{' '}
                     <Link href="/terms" className="underline underline-offset-2">Terms of Use</Link>
                     {' '}and{' '}
