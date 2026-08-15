@@ -7,6 +7,7 @@ import { getApiBase } from '@/utils/api';
 import { useProStatus, activateProUnlock } from '@/hooks/useProStatus';
 import { purchaseRCPro, restoreRCPurchases } from '@/utils/revenuecat';
 import { hapticSuccess } from '@/utils/haptics';
+import { logAFEvent } from '@/utils/appsflyer';
 
 const isNative = Capacitor.isNativePlatform();
 
@@ -54,6 +55,7 @@ export default function UpgradeScreen() {
     try {
       const purchased = await purchaseRCPro();
       if (purchased) {
+        void logAFEvent('purchase_complete', { plan: 'pro', revenue: 4.99 });
         celebrate(false);
       }
       // If false the user cancelled — just reset loading, no error
