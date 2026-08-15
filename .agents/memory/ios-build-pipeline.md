@@ -28,6 +28,10 @@ Apple ID: **6795666262** | Bundle ID: `com.pepscan.app` | Team ID: `B6PJBT97RS`
 
 **Mitigation in place:** `AppDelegate.purgeNSCodingCachesAfterOSUpgrade()` deletes Firebase and Sentry cache directories before UIKit loads the view hierarchy, runs only on the first launch after an iOS major version change, and only records the purge as complete when all deletions succeed (retry on next launch if any fail).
 
-**Permanent fix:** Update `@sentry/capacitor` and Firebase iOS SDK to versions that do not use NSException + NSCoding. Tracked in follow-up tasks.
+**Permanent fix (applied):** `@sentry/capacitor` bumped to `^4.3.0` (Sentry Cocoa 9.16.1, up from 9.8.0). Cocoa 9.13.0 fixed crash-loop from malformed recrash reports; 9.16.x includes explicit iOS 26 crash fixes. `@sentry/react` pinned to exact `10.69.0` to match `@sentry/capacitor@4.3.0`'s embedded JS SDK; `cap sync ios` was run to update `CapApp-SPM/Package.swift` to the new pnpm path.
+
+**iOS native integration uses SPM (not CocoaPods):** The tracked Xcode project resolves Capacitor plugins via `ios/App/CapApp-SPM/Package.swift` (a local Swift package with pnpm-path references). CocoaPods is not used. After any `pnpm install` that changes a plugin version, `cap sync ios` must be run and `Package.swift` committed so the native path stays valid.
+
+**CocoaPods deprecation note:** `@sentry/capacitor@4.3.0` deprecates its `.podspec`; it will be removed in the next minor release. Since the project already uses SPM this has no immediate impact, but confirms SPM is the correct long-term path.
 
 **Validation required:** iOS 26 device/simulator validation cannot be performed from a CI environment. Physical hardware is needed to install build 32 over a build with persisted Firebase/Sentry state and verify repeated launches succeed.
