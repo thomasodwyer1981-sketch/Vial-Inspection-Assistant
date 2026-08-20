@@ -13,7 +13,9 @@ With `destination=upload`, xcodebuild uploads directly to App Store Connect. No 
 **SPM cascade rule:** Import a provisioning profile into `~/Library/MobileDevice/Provisioning Profiles/` only AFTER archive completes. Importing before archive causes Xcode to apply the profile to all SPM package targets, which do not support provisioning → signing errors on every library target.
 
 ## Secrets required
-`APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_PROVISIONING_PROFILE_BASE64`, `APP_STORE_CONNECT_KEY_BASE64`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `GOOGLESERVICE_INFO_PLIST_BASE64` (optional — CI skips Firebase plist injection if absent).
+`APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_PROVISIONING_PROFILE_BASE64`, `APP_STORE_CONNECT_KEY_BASE64`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `GOOGLESERVICE_INFO_PLIST_BASE64`.
+
+`GOOGLESERVICE_INFO_PLIST_BASE64` is a runtime requirement while the native Firebase Analytics plugin is installed: its plugin registration calls `FirebaseApp.configure()` during launch, and a missing/placeholder plist aborts the app before UI appears. CI must not treat it as optional.
 
 ## App Store / App ID
 Apple ID: **6795666262** | Bundle ID: `com.pepscan.app` | Team ID: `B6PJBT97RS`
