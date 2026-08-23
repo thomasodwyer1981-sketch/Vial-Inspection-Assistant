@@ -21,19 +21,19 @@ export default function CategoryScoreCard({ category }: CategoryScoreCardProps) 
       statusIcon = <CheckCircle2 className="w-5 h-5 text-success" />;
       statusColor = 'text-success';
       barColor = 'bg-success';
-      statusLabel = 'Pass';
+      statusLabel = 'No visual issue detected';
       break;
     case 'review':
       statusIcon = <AlertCircle className="w-5 h-5 text-warning" />;
       statusColor = 'text-warning';
       barColor = 'bg-warning';
-      statusLabel = 'Review';
+      statusLabel = 'Manual inspection recommended';
       break;
     case 'flag':
       statusIcon = <AlertCircle className="w-5 h-5 text-destructive" />;
       statusColor = 'text-destructive';
       barColor = 'bg-destructive';
-      statusLabel = 'Concern Flagged';
+      statusLabel = 'Visible issue flagged';
       break;
     case 'unable':
       statusIcon = <HelpCircle className="w-5 h-5 text-muted-foreground" />;

@@ -8,7 +8,7 @@ import { Link } from 'wouter';
 const DOES: string[] = [
   'Guides a standardised two-background visual inspection',
   'Screens for visible particles, haze, fill anomalies & label readability',
-  'Returns a structured triage: Pass, Review, or Do Not Use',
+  'Returns a visual outcome with observed findings and practical next steps',
 ];
 
 const DOES_NOT: string[] = [
@@ -103,7 +103,7 @@ export default function OnboardingScreen() {
             className="mt-0.5 shrink-0"
           />
           <span className="text-sm text-muted-foreground leading-snug">
-            I confirm I am 18 or over. I understand PepScan is a visual screening tool only, is NOT intended for human use, and does not confirm safety, purity, sterility, or identity. A Pass result is not a safety clearance. PepScan does not provide medical, laboratory, or safety advice and must not be used in any clinical or emergency situation. I use this app entirely at my own risk and will not rely on it to make any decision about administering any substance.
+            I confirm I am 18 or over. I understand PepScan is a visual screening tool only, is NOT intended for human use, and does not confirm safety, purity, sterility, or identity. “No visible anomaly detected” is not a safety clearance. PepScan does not provide medical, laboratory, or safety advice and must not be used in any clinical or emergency situation. I use this app entirely at my own risk and will not rely on it to make any decision about administering any substance.
           </span>
         </label>
         {/* T&C links kept outside the label so tapping them never toggles the checkbox */}

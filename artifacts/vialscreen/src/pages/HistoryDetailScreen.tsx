@@ -227,10 +227,7 @@ export default function HistoryDetailScreen() {
                     : h.triageResult === 'do-not-use'
                       ? 'bg-red-500/10'
                       : 'bg-amber-500/10';
-                const label =
-                  h.triageResult === 'pass' ? 'Pass'
-                  : h.triageResult === 'do-not-use' ? 'Do Not Use'
-                  : 'Review';
+                const label = RESULT_COPY[h.triageResult].label;
                 return (
                   <Link
                     key={h.id}

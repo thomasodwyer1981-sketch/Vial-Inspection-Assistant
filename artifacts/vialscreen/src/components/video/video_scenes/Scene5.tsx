@@ -53,7 +53,7 @@ export function Scene5() {
             animate={phase >= 1 ? { opacity: 1 } : { opacity: 0 }}
             transition={{ duration: 0.3, delay: 0.3 }}
           >
-            PASS
+            NO VISIBLE ANOMALY DETECTED
           </motion.p>
         </div>
       </motion.div>
@@ -66,7 +66,7 @@ export function Scene5() {
         animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
         transition={{ duration: 0.5 }}
       >
-        Safe for research use
+        No visible anomaly in this image
       </motion.p>
 
       {/* Checkmark indicators */}

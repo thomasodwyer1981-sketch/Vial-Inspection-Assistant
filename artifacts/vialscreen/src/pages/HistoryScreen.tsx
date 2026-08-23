@@ -505,19 +505,19 @@ function VialProfileCard({ profile }: { profile: VialProfile }) {
           {profile.passCount > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-              {profile.passCount} pass
+              {profile.passCount} no visible anomaly detected
             </span>
           )}
           {profile.reviewCount > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-              {profile.reviewCount} review
+              {profile.reviewCount} manual inspection recommended
             </span>
           )}
           {profile.doNotUseCount > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-              {profile.doNotUseCount} fail
+              {profile.doNotUseCount} visible issue flagged
             </span>
           )}
           <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-primary">View latest →</span>

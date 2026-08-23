@@ -1089,32 +1089,32 @@ async function runPowderAnalysis(
   if (flaggedCategories.length >= 2) {
     triageResult = 'do-not-use';
     primaryReasons.push(
-      `${flaggedCategories.length} category(ies) flagged: ` +
+      `${flaggedCategories.length} visual factor(s) showed a visible issue: ` +
       flaggedCategories.map((c) => c.label).join(', '),
     );
   } else if (flaggedCategories.length === 1) {
     triageResult = 'review';
-    primaryReasons.push(`Flagged: ${flaggedCategories[0].label} — ${flaggedCategories[0].explanation}`);
+    primaryReasons.push(`Visible issue in ${flaggedCategories[0].label}: ${flaggedCategories[0].explanation}`);
   } else if (reviewCategories.length >= 3 || qualityDegraded) {
     triageResult = 'review';
     primaryReasons.push(
       reviewCategories.length >= 3
-        ? `${reviewCategories.length} categories require review: ` +
+        ? `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
           reviewCategories.map((c) => c.label).join(', ')
-        : 'Capture quality is insufficient for reliable screening. Retake with better lighting and focus.',
+        : 'Capture quality limited the visual assessment. Retake with better lighting and focus.',
     );
   } else if (reviewCategories.length > 0) {
     triageResult = 'review';
     primaryReasons.push(
-      `${reviewCategories.length} category(ies) uncertain: ` +
+      `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
       reviewCategories.map((c) => c.label).join(', '),
     );
   } else {
     triageResult = 'pass';
     primaryReasons.push(
-      'No obvious visual anomalies detected in the lyophilized powder. ' +
+      'No visible anomaly detected in the captured powder appearance. ' +
       'Verify appearance matches your supplier certificate of analysis. ' +
-      'A pass does not confirm purity, identity, or potency.',
+      'This visual screen does not confirm purity, identity, or potency.',
     );
   }
 
@@ -1221,37 +1221,37 @@ export async function runAnalysis(
   if (flaggedCategories.length >= 2) {
     triageResult = 'do-not-use';
     primaryReasons.push(
-      `${flaggedCategories.length} category(ies) flagged: ` +
+      `${flaggedCategories.length} visual factor(s) showed a visible issue: ` +
       flaggedCategories.map((c) => c.label).join(', '),
     );
   } else if (flaggedCategories.length === 1) {
     // Single flag → review (bias toward caution)
     triageResult = 'review';
-    primaryReasons.push(`Flagged: ${flaggedCategories[0].label} — ${flaggedCategories[0].explanation}`);
+    primaryReasons.push(`Visible issue in ${flaggedCategories[0].label}: ${flaggedCategories[0].explanation}`);
   } else if (reviewCategories.length >= 3) {
     triageResult = 'review';
     primaryReasons.push(
-      `${reviewCategories.length} categories require review: ` +
+      `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
       reviewCategories.map((c) => c.label).join(', '),
     );
   } else if (qualityDegraded) {
     // Poor capture → never pass; force review
     triageResult = 'review';
     primaryReasons.push(
-      'Capture quality is insufficient for reliable screening. ' +
-      'Results may be unreliable — retake with better lighting and focus.',
+      'Capture quality limited the visual assessment. ' +
+      'Retake with better lighting and focus.',
     );
   } else if (reviewCategories.length > 0) {
     triageResult = 'review';
     primaryReasons.push(
-      `${reviewCategories.length} category(ies) uncertain: ` +
+      `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
       reviewCategories.map((c) => c.label).join(', '),
     );
   } else {
     triageResult = 'pass';
     primaryReasons.push(
-      'No obvious visual issues detected under these capture conditions. ' +
-      'A pass does not confirm safety, identity, purity, or potency.',
+      'No visible anomaly detected under these capture conditions. ' +
+      'This visual screen does not confirm safety, identity, purity, or potency.',
     );
   }
 
@@ -1272,7 +1272,7 @@ export async function runAnalysis(
     triageResult = 'review';
     primaryReasons.push(
       'Unknown/Custom Appearance profile selected — result is conservative. ' +
-      'Uncertain findings default to Review when the appearance profile is not specified.',
+      'Uncertain findings default to manual inspection when the appearance profile is not specified.',
     );
   }
 

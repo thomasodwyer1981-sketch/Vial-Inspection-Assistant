@@ -27,6 +27,11 @@ export interface PdfReportInput {
   peptideName?: string | null;
   vendor?: string | null;
   primaryReasons: string[];
+  categories?: Array<{
+    label: string;
+    status: 'pass' | 'review' | 'flag' | 'unable';
+    explanation: string;
+  }>;
   ocrText?: string | null;
   captures?: Array<{ background: string; dataUrl: string }>;
   scannedAt?: string | Date | null;
@@ -44,9 +49,9 @@ const VERDICT_COLOURS: Record<string, [number, number, number]> = {
 };
 
 const VERDICT_LABELS: Record<string, string> = {
-  pass:        '✓  PASS',
-  review:      '!  REVIEW',
-  'do-not-use':'✕  DO NOT USE',
+  pass:        '✓  NO VISIBLE ANOMALY DETECTED',
+  review:      '!  MANUAL INSPECTION RECOMMENDED',
+  'do-not-use':'✕  VISIBLE ISSUE FLAGGED',
 };
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.pepscan.app';
@@ -55,7 +60,7 @@ const APP_SITE_URL   = 'pepscan.app';
 const FULL_DISCLAIMER =
   'PepScan is a visual screening tool only. It does not confirm the identity, ' +
   'purity, potency, safety, or sterility of any substance. Results are based on ' +
-  'AI-assisted image analysis and are not a substitute for laboratory testing. ' +
+  'image-based visual analysis and are not a substitute for laboratory testing. ' +
   'Never rely solely on visual inspection to determine whether a substance is safe ' +
   'to use. Always obtain peptides from reputable, verified sources and consult a ' +
   'qualified healthcare professional before use.';
@@ -284,6 +289,50 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
     }
   }
 
+  // ── Visual factors assessed ─────────────────────────────────────────────────
+  if (input.categories?.length) {
+    y += 3;
+    if (y + 15 > PH - 25) { doc.addPage(); y = 20; }
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 90, 100);
+    doc.text('VISUAL FACTORS ASSESSED', ML, y);
+    y += 5;
+
+    const statusLabels: Record<string, string> = {
+      pass: 'No visual issue detected',
+      review: 'Manual inspection recommended',
+      flag: 'Visible issue flagged',
+      unable: 'Unable to assess',
+    };
+
+    for (const category of input.categories) {
+      const title = `${category.label} — ${statusLabels[category.status] ?? 'Assessment unavailable'}`;
+      const lines = wrapText(doc, category.explanation, CW - 10);
+      const blockH = Math.max(12, lines.length * 3.8 + 8);
+
+      if (y + blockH > PH - 25) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFillColor(245, 247, 250);
+      doc.roundedRect(ML, y, CW, blockH, 1.5, 1.5, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 35, 40);
+      doc.text(title, ML + 4, y + 4.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(70, 80, 90);
+      for (let l = 0; l < lines.length; l++) {
+        doc.text(lines[l], ML + 4, y + 8.5 + l * 3.8);
+      }
+      y += blockH + 2.5;
+    }
+  }
+
   // ── OCR label text ──────────────────────────────────────────────────────────
   if (input.ocrText?.trim()) {
     y += 3;
@@ -385,7 +434,7 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(160, 200, 190);
-      const tagLines = wrapText(doc, 'AI-assisted visual screening for peptide vials. Scan against white and black backgrounds, get instant results, and keep a full history of your checks — all on your phone.', textMaxW);
+      const tagLines = wrapText(doc, 'Two-background visual screening for peptide vials. Record the visible factors in your photos and keep a history of your checks — all on your phone.', textMaxW);
       for (let l = 0; l < tagLines.length; l++) {
         doc.text(tagLines[l], px, py + l * 4.2);
       }

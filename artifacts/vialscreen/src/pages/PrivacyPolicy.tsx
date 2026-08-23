@@ -108,7 +108,7 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-5 space-y-1 text-muted-foreground mb-2">
               <li>
                 <strong>scan_complete</strong> — fired when a scan finishes. Includes the scan outcome
-                (Pass / Fail / Do Not Use) and the compound profile selected (e.g. "BPC-157"). No vial
+                (No Visible Anomaly Detected / Manual Inspection Recommended / Visible Issue Flagged) and the compound profile selected (e.g. "BPC-157"). No vial
                 image, scan image, or health data is included.
               </li>
             </ul>

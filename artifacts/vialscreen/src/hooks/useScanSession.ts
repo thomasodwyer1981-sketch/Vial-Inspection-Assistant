@@ -222,8 +222,8 @@ export function useScanSession(): UseScanSession {
         confidence: result.overallConfidence,
       });
 
-      // ── Phase 2: AI Vision (Pro only, best-effort) ───────────
-      setAnalysisStatus(opts?.includeAiVision ? 'Running AI Vision analysis…' : '');
+      // ── Phase 2: additional visual analysis (Pro only, best-effort) ───────────
+      setAnalysisStatus(opts?.includeAiVision ? 'Reviewing additional visual factors…' : '');
       let aiResult: import('../utils/visionAnalysis').AIVisionResult | null = null;
       if (opts?.includeAiVision) try {
         const { runVisionAnalysis } = await import('../utils/visionAnalysis');

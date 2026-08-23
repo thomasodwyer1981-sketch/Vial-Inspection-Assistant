@@ -35,22 +35,22 @@ export interface ShareCardInput {
 
 const VERDICT = {
   pass: {
-    label: 'PASS',
+    label: 'NO VISIBLE ANOMALY DETECTED',
     icon: '✓',
     color: '#22c55e',
-    summary: 'No obvious visual issues detected',
+    summary: 'No visible anomaly detected in these photos',
   },
   review: {
-    label: 'REVIEW',
+    label: 'MANUAL INSPECTION RECOMMENDED',
     icon: '!',
     color: '#f59e0b',
-    summary: 'Review recommended before use',
+    summary: 'One or more visual factors need a closer check',
   },
   'do-not-use': {
-    label: 'DO NOT USE',
+    label: 'VISIBLE ISSUE FLAGGED',
     icon: '✕',
     color: '#ef4444',
-    summary: 'Visible concerns flagged — investigate',
+    summary: 'A visible finding needs documenting and resolving',
   },
 } as const;
 
@@ -172,7 +172,8 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.stroke();
 
   ctx.fillStyle = v.color;
-  ctx.font = `bold 82px ${FONT}`;
+  const verdictFontSize = v.label.length > 24 ? 40 : 52;
+  ctx.font = `bold ${verdictFontSize}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.fillText(`${v.icon}  ${v.label}`, S / 2, bY + 113);
 
@@ -281,7 +282,7 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.font = `bold 36px ${FONT}`;
   ctx.fillText('Get PepScan', textX, panelY + 72);
 
-  const ctaLines = wrapText(ctx, 'AI-assisted vial screening on your phone', textW);
+  const ctaLines = wrapText(ctx, 'Visual vial screening on your phone', textW);
   ctx.fillStyle = 'rgba(255,255,255,0.50)';
   ctx.font = `26px ${FONT}`;
   for (let l = 0; l < Math.min(ctaLines.length, 2); l++) {
