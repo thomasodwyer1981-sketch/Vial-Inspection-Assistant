@@ -4,6 +4,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  inspection-records:
+    name: Inspection record regression checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run inspection record regression checks
+        run: pnpm --filter @workspace/vialscreen run test:e2e
+        env:
+          CI: "true"
+
   # ────────────────────────────────────────────────────────────────────────────
   # SMOKE TEST — boot iOS 26 simulator, install the app, verify it stays alive
   # for 5 seconds.  The archive/upload job is gated on this job succeeding, so
@@ -11,6 +41,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   smoke-test:
     name: iOS 26 launch smoke test
+    needs: inspection-records
     # macos-26 ships with Xcode 26 and the iOS 26 simulator runtime pre-installed.
     # Do NOT use macos-latest here — it is a mutable label that currently resolves
     # to macOS 15 / Xcode 16, which only carries iOS 18 simulators.
