@@ -9,7 +9,7 @@ import { APPEARANCE_PROFILES } from '@/types';
 import type { AppearanceProfile } from '@/types';
 import { format } from 'date-fns';
 import { useProStatus } from '@/hooks/useProStatus';
-import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY } from '@/utils/pro';
+import { FREE_HISTORY_LIMIT, PRO_HISTORY_RECORD_LIMIT, PRO_PRICE_DISPLAY } from '@/utils/pro';
 
 const PROFILE_BADGE: Record<
   AppearanceProfile,
@@ -170,7 +170,7 @@ export default function HistoryScreen() {
                   {FREE_HISTORY_LIMIT} scan limit reached
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Upgrade for unlimited history — {PRO_PRICE_DISPLAY}
+                  Pro reveals up to {PRO_HISTORY_RECORD_LIMIT} saved records on this device — {PRO_PRICE_DISPLAY}
                 </p>
               </div>
               <div className="bg-primary text-primary-foreground text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1">

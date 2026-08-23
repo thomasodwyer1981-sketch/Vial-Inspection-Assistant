@@ -10,6 +10,7 @@ import QRCode from 'qrcode';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { APPEARANCE_PROFILES, type AppearanceProfile, type ScanMode } from '@/types';
 
 /** Blob → bare base64 string (no data:… prefix). */
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -27,6 +28,13 @@ export interface PdfReportInput {
   overallConfidence: number;
   peptideName?: string | null;
   vendor?: string | null;
+  batchLot?: string | null;
+  concentration?: string | null;
+  purchaseDate?: string | null;
+  notes?: string | null;
+  scanMode?: ScanMode;
+  appearanceProfile?: AppearanceProfile | null;
+  reconstitutedAt?: 'just-now' | '1-8h' | '1-2d' | '2d-plus' | null;
   primaryReasons: string[];
   qualityBlockers?: Array<{ title: string; instruction: string }>;
   categories?: Array<{
@@ -35,8 +43,14 @@ export interface PdfReportInput {
     explanation: string;
   }>;
   ocrText?: string | null;
-  captures?: Array<{ background: string; dataUrl: string }>;
+  captures?: Array<{ background: string; dataUrl: string; isThumbnail?: boolean }>;
   scannedAt?: string | Date | null;
+  comparison?: {
+    baselineScannedAt: string | Date;
+    baselineOutcome: string;
+    baselineConfidence: number;
+    observedChanges: string[];
+  };
 }
 
 // ── Colour palette ────────────────────────────────────────────────────────────
@@ -157,8 +171,8 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
 
   // Date (top-right)
   const dateStr = input.scannedAt
-    ? new Date(input.scannedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    ? new Date(input.scannedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   doc.setFontSize(8);
   doc.setTextColor(180, 190, 200);
   doc.text(dateStr, PW - MR, 13, { align: 'right' });
@@ -179,6 +193,24 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
     doc.setTextColor(100, 110, 120);
     doc.text(input.vendor.trim(), ML, y);
     y += 5;
+  }
+
+  const recordDetails = [
+    input.batchLot?.trim() ? `Batch / lot: ${input.batchLot.trim()}` : null,
+    input.concentration?.trim() ? `Concentration: ${input.concentration.trim()}` : null,
+    input.purchaseDate?.trim() ? `Purchase date: ${input.purchaseDate.trim()}` : null,
+    input.scanMode ? `Screening mode: ${input.scanMode === 'powder' ? 'Pre-mix powder' : 'Reconstituted liquid'}` : null,
+    input.appearanceProfile ? `Appearance profile: ${APPEARANCE_PROFILES[input.appearanceProfile].label}` : null,
+    input.reconstitutedAt ? `Reconstitution timing: ${input.reconstitutedAt}` : null,
+  ].filter((detail): detail is string => Boolean(detail));
+  if (recordDetails.length) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 110, 120);
+    for (const detail of recordDetails) {
+      doc.text(detail, ML, y);
+      y += 4.5;
+    }
   }
 
   doc.setFontSize(8);
@@ -202,7 +234,7 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(80, 90, 100);
-    doc.text('CAPTURES', ML, y);
+    doc.text('CAPTURE EVIDENCE', ML, y);
     y += 4;
 
     const slots = [whiteCapture, blackCapture, labelCapture].filter(
@@ -236,7 +268,7 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 110, 120);
-      doc.text(labels[cap.background] ?? cap.background, bx + imgW / 2, y + imgH + 3.5, { align: 'center' });
+      doc.text(`${labels[cap.background] ?? cap.background}${cap.isThumbnail ? ' · archived thumbnail' : ''}`, bx + imgW / 2, y + imgH + 3.5, { align: 'center' });
     }
 
     y += imgH + 8;
@@ -374,6 +406,33 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
     }
   }
 
+  // ── Repeat-inspection context ───────────────────────────────────────────────
+  if (input.comparison) {
+    if (y + 28 > PH - 25) { doc.addPage(); y = 20; }
+    y += 3;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 90, 100);
+    doc.text('REPEAT-INSPECTION CONTEXT', ML, y);
+    y += 5;
+    const baselineDate = new Date(input.comparison.baselineScannedAt).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    const comparisonText = [
+      `Earlier saved inspection: ${baselineDate} · ${input.comparison.baselineOutcome} · ${input.comparison.baselineConfidence}% confidence.`,
+      ...input.comparison.observedChanges.map((change) => `• ${change}`),
+    ];
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(60, 70, 80);
+    const lines = comparisonText.flatMap((line) => wrapText(doc, line, CW - 8));
+    const boxH = Math.max(14, lines.length * 4 + 7);
+    doc.setFillColor(240, 248, 246);
+    doc.roundedRect(ML, y, CW, boxH, 1.5, 1.5, 'F');
+    lines.forEach((line, index) => doc.text(line, ML + 4, y + 4.5 + index * 4));
+    y += boxH + 4;
+  }
+
   // ── OCR label text ──────────────────────────────────────────────────────────
   if (input.ocrText?.trim()) {
     y += 3;
@@ -396,6 +455,26 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
       doc.text(ocrLines[l], ML + 3, y + 4 + l * 4.2);
     }
     y += ocrH + 4;
+  }
+
+  // ── Inspector notes ─────────────────────────────────────────────────────────
+  if (input.notes?.trim()) {
+    if (y + 22 > PH - 25) { doc.addPage(); y = 20; }
+    y += 3;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 90, 100);
+    doc.text('INSPECTOR NOTES', ML, y);
+    y += 4;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(60, 70, 80);
+    const noteLines = wrapText(doc, input.notes.trim(), CW - 8);
+    const noteH = noteLines.length * 4.2 + 7;
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(ML, y, CW, noteH, 1.5, 1.5, 'F');
+    noteLines.forEach((line, index) => doc.text(line, ML + 4, y + 4.5 + index * 4.2));
+    y += noteH + 4;
   }
 
   // ── Full disclaimer box ─────────────────────────────────────────────────────

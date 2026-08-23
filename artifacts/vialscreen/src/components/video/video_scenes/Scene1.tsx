@@ -59,7 +59,7 @@ export function Scene1() {
         animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        AI-powered peptide inspection
+        Evidence-led visual inspection records
       </motion.p>
 
       {/* Accent line */}

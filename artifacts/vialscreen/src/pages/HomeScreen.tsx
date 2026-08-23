@@ -211,7 +211,7 @@ export default function HomeScreen() {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm text-primary">Unlock Pro — $4.99/yr</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">AI Vision · unlimited history · PDF export</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Detailed records · local history · PDF reports</p>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
           </Link>

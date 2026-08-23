@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { ScanSessionProvider, useScanSessionContext } from '@/context/ScanSessionContext';
 import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
 import { APPEARANCE_PROFILES, type AppearanceProfile, type CaptureBackground, type CategoryKey, type CategoryScore, type ScanMode, type TriageResult } from '@/types';
@@ -21,6 +21,8 @@ import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
 import { captureError } from '@/lib/sentry';
 import { logAFEvent } from '@/utils/appsflyer';
+import { buildInspectionReportInput } from '@/utils/inspectionReport';
+import { buildReportComparison, getEarlierComparableSessions } from '@/utils/inspectionComparison';
 
 /** Format a stored ISO date as a compact relative label ("3d ago", "2w ago"). */
 function fmtDate(iso: string): string {
@@ -312,7 +314,7 @@ function PrepareStep() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-primary">Pro Feature</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Pre-mix powder scanning is part of PepScan Pro — {PRO_PRICE_DISPLAY}.
+                  Powder-vial visual screening is available with PepScan Pro — {PRO_PRICE_DISPLAY}.
                 </p>
                 <button
                   onClick={() => { rememberUpgradeReturnPath('/scan'); navigate('/upgrade'); }}
@@ -427,7 +429,7 @@ function PrepareStep() {
             <label className="block">
               <span className="block text-xs font-medium text-muted-foreground mb-1.5">
                 Sample name
-                {isPro && <span className="ml-1 text-primary font-semibold">· Baseline Comparison</span>}
+                {isPro && <span className="ml-1 text-primary font-semibold">· Repeat comparison</span>}
               </span>
               <input
                 type="text"
@@ -439,12 +441,12 @@ function PrepareStep() {
               {isPro && baselinePrevCount > 0 && (
                 <p className="mt-1.5 text-xs text-primary flex items-center gap-1.5">
                   <History className="w-3 h-3 shrink-0" />
-                  {baselinePrevCount} previous scan{baselinePrevCount !== 1 ? 's' : ''} of this sample found — PepScan will compare against your baseline
+                  {baselinePrevCount} saved scan{baselinePrevCount !== 1 ? 's' : ''} of this sample found — PepScan can compare this visual record with them
                 </p>
               )}
               {isPro && !session?.metadata.peptideName?.trim() && (
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  Enter a name to enable baseline comparison across scans (Pro).
+                  Enter a name to compare repeat scans with saved records of the same sample (Pro).
                 </p>
               )}
             </label>
@@ -1221,26 +1223,16 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     }
   };
 
-  // PDF report — includes vial photos
+  // PDF screening report — includes the full in-progress capture evidence.
   const handleSharePdf = async () => {
-    if (!result) return;
+    if (!result || !session) return;
     setShowShareSheet(false);
     setGeneratingPdf(true);
     setShareError(null);
     try {
-      await shareOrDownloadPdf({
-        triageResult: result.triageResult,
-        assessmentOutcome: result.assessmentOutcome,
-        qualityBlockers: result.qualityBlockers,
-        overallConfidence: result.overallConfidence,
-        peptideName: session?.metadata.peptideName,
-        vendor: session?.metadata.vendor,
-        primaryReasons: result.primaryReasons,
-        ocrText: result.ocrText,
-        categories: result.categories,
-        captures: session?.captures,
-        scannedAt: session?.createdAt,
-      });
+      const earlier = getEarlierComparableSessions(session)[0];
+      const comparison = earlier ? buildReportComparison(session, earlier) : undefined;
+      await shareOrDownloadPdf(buildInspectionReportInput(session, comparison));
     } catch (err) {
       captureError(err, { context: 'share-pdf' });
       setShareError('Could not generate the PDF. Try the text summary instead.');
@@ -1571,14 +1563,14 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             );
           })()}
 
-          {/* ── Detailed visual-factor report teaser — all free users ── */}
-          {!isPro && !result.aiEnhanced && (
+          {/* ── Detailed visual-factor report teaser — free users ── */}
+          {!isPro && (
             <section>
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
                 Detailed Visual Factor Report
               </h2>
               <div className="relative rounded-2xl overflow-hidden border border-primary/20">
-                {/* Blurred skeleton preview of what an AI analysis looks like */}
+                {/* Blurred preview of expanded Pro record detail */}
                 <div
                   className="select-none pointer-events-none p-4 space-y-3 bg-card"
                   style={{ filter: 'blur(4px)', opacity: 0.45 }}
@@ -1616,8 +1608,8 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                     </p>
                     <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed max-w-[220px] mx-auto">
                       {result.triageResult === 'pass'
-                        ? 'Pro unlocks a written explanation of every visual factor assessed — not just the verdict.'
-                        : 'Pro adds a written visual record of the factors that led to this outcome and the limits of the captured images.'}
+                        ? 'Pro unlocks factor-by-factor explanations, capture limits, report export, and repeat-inspection comparisons — not just the verdict.'
+                        : 'Pro adds a detailed visual record of the factors behind this outcome, capture limitations, reports, and comparison with earlier saved scans.'}
                     </p>
                   </div>
                   <button
@@ -1741,12 +1733,28 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           {/* ── Category Breakdown ── */}
           <section>
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-1">Visual Factors Assessed</h2>
-            <p className="text-xs text-muted-foreground mb-4">Particles, clarity and colour, fill, label, and capture conditions are shown when their photos are available. Tap any factor for its explanation.</p>
-            <div className="space-y-3">
-              {result.categories.map((cat) => (
-                <CategoryScoreCard key={cat.category} category={cat} />
-              ))}
-            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              {isPro
+                ? 'Particles, clarity and colour, fill, label, and capture conditions are shown when their photos are available. Tap any factor for its explanation.'
+                : 'Your free result includes the outcome and main findings above. Pro adds the detailed explanation and capture record for each factor.'}
+            </p>
+            {isPro ? (
+              <div className="space-y-3">
+                {result.categories.map((cat) => (
+                  <CategoryScoreCard key={cat.category} category={cat} />
+                ))}
+              </div>
+            ) : (
+              <Link href="/upgrade" className="block rounded-xl border border-primary/25 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <Lock className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold">Detailed factor record is a Pro feature</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Unlock factor explanations, capture-quality limitations, PDF screening reports, expanded local history, profiles, powder screening, and saved-record comparisons.</p>
+                  </div>
+                </div>
+              </Link>
+            )}
           </section>
         </div>
 
@@ -1846,7 +1854,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                     </div>
                     <div className="text-left flex-1">
                       <p className="font-bold text-sm text-foreground">PDF Report</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Branded report with vial photos included</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Outcome, factors, capture limits, notes, and disclaimer</p>
                     </div>
                   </button>
                 ) : (
