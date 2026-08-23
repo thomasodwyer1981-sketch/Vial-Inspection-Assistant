@@ -1,9 +1,10 @@
-import { CheckCircle2, Eye, XCircle } from 'lucide-react';
-import type { TriageResult } from '@/types';
+import { CheckCircle2, Eye, RefreshCw, XCircle } from 'lucide-react';
+import type { AssessmentOutcome, TriageResult } from '@/types';
 import { RESULT_COPY } from '@/constants/copy';
 
 interface TriageBadgeProps {
   result: TriageResult;
+  assessmentOutcome?: AssessmentOutcome;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
@@ -36,15 +37,28 @@ const CONFIG = {
     heroBadge: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20',
     glow: 'shadow-[0_0_28px_rgba(239,68,68,0.22)]',
   },
+  'unable-to-assess': {
+    Icon: RefreshCw,
+    pill: 'bg-amber-500/10 text-amber-600 border-amber-500/25 dark:text-amber-400',
+    heroRing: 'border-amber-500/30',
+    heroBg: 'bg-amber-500/10',
+    heroIcon: 'text-amber-500',
+    heroBadge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    glow: 'shadow-[0_0_28px_rgba(245,158,11,0.18)]',
+  },
 } as const;
 
 export default function TriageBadge({
   result,
+  assessmentOutcome,
   size = 'md',
   className = '',
 }: TriageBadgeProps) {
-  const label = RESULT_COPY[result].label;
-  const cfg = CONFIG[result];
+  const resultKey = assessmentOutcome === 'unable-to-assess' ? 'unable-to-assess' : result;
+  const label = resultKey === 'unable-to-assess'
+    ? RESULT_COPY.unableToAssess.label
+    : RESULT_COPY[result].label;
+  const cfg = CONFIG[resultKey];
   const { Icon } = cfg;
 
   // ── Large hero badge (results screen + history detail) ────

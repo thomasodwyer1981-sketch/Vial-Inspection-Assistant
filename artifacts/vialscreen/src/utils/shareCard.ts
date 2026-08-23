@@ -27,6 +27,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 export interface ShareCardInput {
   triageResult: 'pass' | 'review' | 'do-not-use';
+  assessmentOutcome?: 'assessed' | 'unable-to-assess';
   overallConfidence: number;
   peptideName?: string | null;
   vendor?: string | null;
@@ -51,6 +52,12 @@ const VERDICT = {
     icon: '✕',
     color: '#ef4444',
     summary: 'A visible finding needs documenting and resolving',
+  },
+  'unable-to-assess': {
+    label: 'UNABLE TO ASSESS — RETAKE SCAN',
+    icon: '!',
+    color: '#f59e0b',
+    summary: 'Required photos were not reliable enough to screen',
   },
 } as const;
 
@@ -133,7 +140,10 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   canvas.height = S;
   const ctx = canvas.getContext('2d')!;
 
-  const v = VERDICT[input.triageResult];
+  const verdictKey = input.assessmentOutcome === 'unable-to-assess'
+    ? 'unable-to-assess'
+    : input.triageResult;
+  const v = VERDICT[verdictKey];
 
   // Background
   ctx.fillStyle = '#0E1E35';
@@ -317,7 +327,7 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
 /** Share the card via native share sheet if available, otherwise download it. */
 export async function shareOrDownloadCard(input: ShareCardInput): Promise<void> {
   const blob = await generateShareCard(input);
-  const name = `pepscan-${input.triageResult}.png`;
+  const name = `pepscan-${input.assessmentOutcome === 'unable-to-assess' ? 'retake-required' : input.triageResult}.png`;
 
   // ── Native Capacitor (Android / iOS) ────────────────────────────────────────
   if (Capacitor.isNativePlatform()) {

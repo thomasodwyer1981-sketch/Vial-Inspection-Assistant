@@ -48,7 +48,10 @@ export default function HistoryDetailScreen() {
 
   const result = session.analysisResult;
   const { metadata } = session;
-  const resultCopy = RESULT_COPY[result.triageResult];
+  const assessmentUnavailable = result.assessmentOutcome === 'unable-to-assess';
+  const resultCopy = assessmentUnavailable
+    ? RESULT_COPY.unableToAssess
+    : RESULT_COPY[result.triageResult];
 
   // Resolve profile — prefer result.profileUsed (accurate at time of analysis),
   // fall back to metadata.appearanceProfile for older sessions.
@@ -100,7 +103,12 @@ export default function HistoryDetailScreen() {
       <div className="p-6 space-y-8 pb-6">
         {/* Triage Header */}
         <div className="bg-card border rounded-2xl p-6 text-center shadow-sm">
-          <TriageBadge result={result.triageResult} size="lg" className="mb-4" />
+          <TriageBadge
+            result={result.triageResult}
+            assessmentOutcome={result.assessmentOutcome}
+            size="lg"
+            className="mb-4"
+          />
           <p className="text-sm text-foreground font-medium mb-3 leading-relaxed">
             {resultCopy.summary}
           </p>
@@ -227,7 +235,9 @@ export default function HistoryDetailScreen() {
                     : h.triageResult === 'do-not-use'
                       ? 'bg-red-500/10'
                       : 'bg-amber-500/10';
-                const label = RESULT_COPY[h.triageResult].label;
+                const label = h.assessmentOutcome === 'unable-to-assess'
+                  ? RESULT_COPY.unableToAssess.label
+                  : RESULT_COPY[h.triageResult].label;
                 return (
                   <Link
                     key={h.id}

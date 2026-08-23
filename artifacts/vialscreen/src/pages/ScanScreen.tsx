@@ -832,7 +832,11 @@ function ReviewStep() {
       const prevItems = getHistoryForSampleName(
         session.metadata.peptideName,
         (session.metadata.scanMode ?? 'reconstituted') as ScanMode,
-      ).slice(0, 3);
+      )
+        // A retake-required scan has no visual finding and must never become
+        // baseline evidence for a later AI-assisted screen of the same vial.
+        .filter((item) => item.assessmentOutcome !== 'unable-to-assess')
+        .slice(0, 3);
       if (prevItems.length > 0) {
         baselineScanCount = prevItems.length;
         const prevFindings = prevItems
@@ -1123,7 +1127,7 @@ interface ResultsStepProps {
 }
 
 function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
-  const { session } = useScanSessionContext();
+  const { session, retakeForQuality } = useScanSessionContext();
   const [, setLocation] = useLocation();
   const { isPro } = useProStatus();
   const [copied, setCopied] = useState(false);
@@ -1134,6 +1138,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [shareError, setShareError] = useState<string | null>(null);
   const [nextStepsOpen, setNextStepsOpen] = useState(true);
   const result = session?.analysisResult;
+  const assessmentUnavailable = result?.assessmentOutcome === 'unable-to-assess';
 
   // Haptic verdict feedback + in-app review trigger for PASS results
   // Also fires the AppsFlyer scan_complete event so X Ads can optimise toward real users.
@@ -1147,6 +1152,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     }
 
     const afResult =
+      result.assessmentOutcome === 'unable-to-assess' ? 'RETAKE' :
       result.triageResult === 'pass'       ? 'PASS' :
       result.triageResult === 'do-not-use' ? 'DNU'  : 'FAIL';
     const compound =
@@ -1164,12 +1170,17 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     setShowShareSheet(false);
     setShareError(null);
     const name = session?.metadata.peptideName;
+    const assessmentUnavailable = result.assessmentOutcome === 'unable-to-assess';
     const lines = [
       'PepScan Screening Result',
       '─────────────────────────',
       name ? `Vial: ${name}` : null,
-      `Outcome: ${RESULT_COPY[result.triageResult].label}`,
-      `Confidence: ${result.overallConfidence}%`,
+      `Outcome: ${assessmentUnavailable
+        ? RESULT_COPY.unableToAssess.label
+        : RESULT_COPY[result.triageResult].label}`,
+      assessmentUnavailable
+        ? 'Assessment: unavailable — retake required photos'
+        : `Confidence: ${result.overallConfidence}%`,
       '',
       'Findings:',
       ...result.primaryReasons.map((r) => `• ${r}`),
@@ -1196,6 +1207,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     try {
       await shareOrDownloadCard({
         triageResult: result.triageResult,
+        assessmentOutcome: result.assessmentOutcome,
         overallConfidence: result.overallConfidence,
         peptideName: session?.metadata.peptideName,
         vendor: session?.metadata.vendor,
@@ -1218,6 +1230,8 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     try {
       await shareOrDownloadPdf({
         triageResult: result.triageResult,
+        assessmentOutcome: result.assessmentOutcome,
+        qualityBlockers: result.qualityBlockers,
         overallConfidence: result.overallConfidence,
         peptideName: session?.metadata.peptideName,
         vendor: session?.metadata.vendor,
@@ -1243,7 +1257,10 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     const vendor = session?.metadata.vendor;
     const batchLot = session?.metadata.batchLot;
     const scannedAt = session?.createdAt ? new Date(session.createdAt).toLocaleString() : 'Unknown';
-    const outcomeLabel = RESULT_COPY[result.triageResult].label;
+    const assessmentUnavailable = result.assessmentOutcome === 'unable-to-assess';
+    const outcomeLabel = assessmentUnavailable
+      ? RESULT_COPY.unableToAssess.label
+      : RESULT_COPY[result.triageResult].label;
 
     const lines = [
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
@@ -1254,7 +1271,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       batchLot ? `Batch/Lot:  ${batchLot}` : null,
       `Scanned:    ${scannedAt}`,
       `Outcome:    ${outcomeLabel}`,
-      `Confidence: ${result.overallConfidence}%`,
+      assessmentUnavailable
+        ? 'Assessment: unavailable — retake required photos'
+        : `Confidence: ${result.overallConfidence}%`,
       '',
       'Findings:',
       ...result.primaryReasons.map((r) => `  • ${r}`),
@@ -1335,7 +1354,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     );
   }
 
-  const resultCopy = RESULT_COPY[result.triageResult];
+  const resultCopy = assessmentUnavailable
+    ? RESULT_COPY.unableToAssess
+    : RESULT_COPY[result.triageResult];
   const profileUsed = result.profileUsed ?? session?.metadata.appearanceProfile ?? null;
   const profileInfo = profileUsed ? APPEARANCE_PROFILES[profileUsed] : null;
 
@@ -1362,7 +1383,18 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       <div className="flex-1 overflow-y-auto">
         {/* Result header */}
         <div className="bg-card border-b px-6 py-10 text-center">
-          <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
+          {assessmentUnavailable ? (
+            <div className="flex flex-col items-center gap-3 mb-5">
+              <div className="w-24 h-24 rounded-full border-2 border-amber-500/30 bg-amber-500/10 shadow-[0_0_28px_rgba(245,158,11,0.18)] flex items-center justify-center">
+                <RefreshCw className="w-11 h-11 text-amber-500" strokeWidth={1.6} />
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                {RESULT_COPY.unableToAssess.label}
+              </span>
+            </div>
+          ) : (
+            <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
+          )}
           <h1 className="text-2xl font-bold tracking-tight mb-3">{resultCopy.summary}</h1>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4 max-w-xs mx-auto">
             {resultCopy.explanation}
@@ -1384,7 +1416,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           {result.overallConfidence < 50 && (
             <div className="mt-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
               <AlertTriangle className="w-4 h-4" />
-              Low Confidence ({result.overallConfidence}%) — results less reliable
+              {assessmentUnavailable
+                ? 'Assessment unavailable — retake required photos'
+                : `Low Confidence (${result.overallConfidence}%) — results less reliable`}
             </div>
           )}
 
@@ -1414,6 +1448,34 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         </div>
 
         <div className="p-6 space-y-8">
+          {assessmentUnavailable && (
+            <section className="rounded-2xl border border-amber-500/35 bg-amber-500/5 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-sm font-bold text-amber-700 dark:text-amber-400">Retake required photos</h2>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    These capture issues stopped PepScan from making a visual assessment. Retaking only removes the affected photo; your inspection details and usable photos stay in place.
+                  </p>
+                </div>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {(result.qualityBlockers ?? []).map((blocker, index) => (
+                  <li key={`${blocker.code}-${blocker.background}-${index}`} className="rounded-xl border border-amber-500/20 bg-background/65 p-3">
+                    <p className="text-sm font-semibold">{blocker.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-1">{blocker.instruction}</p>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => retakeForQuality(result.qualityBlockers ?? [])}
+                className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-3 rounded-xl font-bold active:scale-[0.98] transition-transform"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retake Required Photo{(result.qualityBlockers?.length ?? 0) > 1 ? 's' : ''}
+              </button>
+            </section>
+          )}
           {/* ── What We Found ── */}
           <section>
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">What We Found</h2>
@@ -1467,7 +1529,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           })()}
 
           {/* ── What to do next (review / DNU only) ── */}
-          {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
+          {!assessmentUnavailable && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
             <section>
               <button
                 onClick={() => setNextStepsOpen(o => !o)}
@@ -1493,7 +1555,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           )}
 
           {/* ── Compound-specific tip ── */}
-          {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (() => {
+          {!assessmentUnavailable && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (() => {
             const tip = getCompoundTip(session?.metadata.peptideName);
             if (!tip) return null;
             return (
@@ -1707,8 +1769,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           </p>
         )}
         <div className="flex gap-3">
-          <button onClick={onRetake} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]">
-            Retake
+          <button
+            onClick={() => assessmentUnavailable ? retakeForQuality(result.qualityBlockers ?? []) : onRetake()}
+            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]"
+          >
+            {assessmentUnavailable ? 'Retake Photo' : 'Retake'}
           </button>
           <button
             onClick={() => { setShowShareSheet(true); setShareError(null); }}
@@ -1724,7 +1789,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           </button>
         </div>
         {/* Supplier report — shown for review/DNU results */}
-        {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
+        {(assessmentUnavailable || result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
           <button
             onClick={handleSupplierReport}
             className="w-full flex items-center justify-center gap-2 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]"

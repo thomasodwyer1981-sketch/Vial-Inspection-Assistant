@@ -90,6 +90,7 @@ export function addToHistory(session: ScanSession): void {
       peptideName: session.metadata.peptideName || 'Unnamed Vial',
       vendor: session.metadata.vendor || '',
       overallConfidence: session.analysisResult?.overallConfidence ?? 0,
+      assessmentOutcome: session.analysisResult?.assessmentOutcome ?? 'assessed',
       thumbnailDataUrl: thumb,
       appearanceProfile: session.metadata.appearanceProfile ?? null,
       scanMode: session.metadata.scanMode,

@@ -37,6 +37,8 @@ import { hapticLight } from '@/utils/haptics';
 import { captureError, addBreadcrumb, startCaptureTrace } from '@/lib/sentry';
 import {
   computeBlurMetrics,
+  computeFramingAnalysis,
+  computeGlareAnalysis,
   computePixelStats,
 } from '@/analysis/imageAnalysis';
 import type { CaptureBackground } from '@/types';
@@ -382,19 +384,30 @@ export default function LiveCameraCapture({
       const { imageData } = best;
       const stats = computePixelStats(imageData);
       const blur = computeBlurMetrics(imageData);
+      const isVialCapture = background === 'white' || background === 'black';
+      const glare = isVialCapture ? computeGlareAnalysis(imageData) : null;
+      const framing = isVialCapture ? computeFramingAnalysis(imageData, background) : null;
 
       let level: QualityFeedback['level'] = 'good';
       let label = 'Good quality';
       let detail = 'Image looks sharp and well-exposed.';
 
-      if (stats.meanBrightness < 25) {
+      if (isVialCapture && framing && !framing.usable) {
+        level = 'poor';
+        label = 'Vial is not framed clearly';
+        detail = `${framing.reason ?? 'Center the full vial body in the guide.'} Retake before continuing.`;
+      } else if (isVialCapture && glare && glare.glareFraction > 0.25) {
+        level = 'poor';
+        label = 'Glare covers the vial';
+        detail = 'Change the light or vial angle until reflections no longer cover the glass, then retake.';
+      } else if (stats.meanBrightness < 25) {
         level = 'poor';
         label = 'Very dark image';
         detail = 'Improve lighting — the vial body may not be visible to the analysis.';
-      } else if (stats.overexposedFraction > 0.35) {
-        level = 'acceptable';
-        label = 'Possibly overexposed';
-        detail = 'Move away from direct bright light or flash.';
+      } else if (stats.overexposedFraction > 0.4) {
+        level = 'poor';
+        label = 'Image is overexposed';
+        detail = 'Move away from direct bright light or flash, then retake before continuing.';
       } else if (blur.sharpnessScore < 30) {
         level = 'poor';
         label = 'Image may be blurry';

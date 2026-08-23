@@ -7,6 +7,29 @@
 export type TriageResult = 'pass' | 'review' | 'do-not-use';
 export type CategoryStatus = 'pass' | 'review' | 'flag' | 'unable';
 
+/**
+ * Whether PepScan could make any visual assessment from the required captures.
+ * This is intentionally separate from triage: an unavailable assessment is not
+ * a visual finding and must never be presented as a reassuring screen.
+ */
+export type AssessmentOutcome = 'assessed' | 'unable-to-assess';
+
+export type CaptureQualityBlockerCode =
+  | 'missing-capture'
+  | 'unreadable-capture'
+  | 'low-resolution'
+  | 'blurred'
+  | 'poor-exposure'
+  | 'excessive-glare'
+  | 'poor-framing';
+
+export interface CaptureQualityBlocker {
+  code: CaptureQualityBlockerCode;
+  background: 'white' | 'black';
+  title: string;
+  instruction: string;
+}
+
 // ---- Per-Category Score -----------------------------------
 
 export interface CategoryScore {
@@ -259,6 +282,18 @@ export interface AnalysisResult {
   qualityDegraded: boolean;
 
   /**
+   * 'unable-to-assess' means required photos were not reliable enough for
+   * visual screening. Optional for backward compatibility with saved scans.
+   */
+  assessmentOutcome?: AssessmentOutcome;
+
+  /**
+   * Structured quality blockers used to explain and route a required retake.
+   * Optional for backwards compatibility with saved scans.
+   */
+  qualityBlockers?: CaptureQualityBlocker[];
+
+  /**
    * OCR-extracted text from the label capture, if available.
    */
   ocrText: string | null;
@@ -346,6 +381,7 @@ export interface HistoryItem {
   peptideName: string;
   vendor: string;
   overallConfidence: number;
+  assessmentOutcome?: AssessmentOutcome;
   thumbnailDataUrl: string | null;
   /**
    * Appearance profile selected for this scan.

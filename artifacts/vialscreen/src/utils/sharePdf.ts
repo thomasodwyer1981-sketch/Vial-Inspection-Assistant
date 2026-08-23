@@ -23,10 +23,12 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 export interface PdfReportInput {
   triageResult: 'pass' | 'review' | 'do-not-use';
+  assessmentOutcome?: 'assessed' | 'unable-to-assess';
   overallConfidence: number;
   peptideName?: string | null;
   vendor?: string | null;
   primaryReasons: string[];
+  qualityBlockers?: Array<{ title: string; instruction: string }>;
   categories?: Array<{
     label: string;
     status: 'pass' | 'review' | 'flag' | 'unable';
@@ -46,12 +48,14 @@ const VERDICT_COLOURS: Record<string, [number, number, number]> = {
   pass:        [34,  197, 94],   // green
   review:      [245, 158, 11],   // amber
   'do-not-use':[239, 68,  68],   // red
+  'unable-to-assess': [245, 158, 11],
 };
 
 const VERDICT_LABELS: Record<string, string> = {
   pass:        '✓  NO VISIBLE ANOMALY DETECTED',
   review:      '!  MANUAL INSPECTION RECOMMENDED',
   'do-not-use':'✕  VISIBLE ISSUE FLAGGED',
+  'unable-to-assess': '!  UNABLE TO ASSESS — RETAKE SCAN',
 };
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.pepscan.app';
@@ -179,7 +183,13 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
 
   doc.setFontSize(8);
   doc.setTextColor(140, 150, 160);
-  doc.text(`Confidence: ${input.overallConfidence}%`, ML, y);
+  doc.text(
+    input.assessmentOutcome === 'unable-to-assess'
+      ? 'Assessment: unavailable — retake required photos'
+      : `Confidence: ${input.overallConfidence}%`,
+    ML,
+    y,
+  );
   y += 8;
 
   // ── Vial photos ─────────────────────────────────────────────────────────────
@@ -233,8 +243,11 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
   }
 
   // ── Verdict badge ───────────────────────────────────────────────────────────
-  const vc = VERDICT_COLOURS[input.triageResult] ?? [100, 100, 100];
-  const verdictLabel = VERDICT_LABELS[input.triageResult] ?? input.triageResult.toUpperCase();
+  const verdictKey = input.assessmentOutcome === 'unable-to-assess'
+    ? 'unable-to-assess'
+    : input.triageResult;
+  const vc = VERDICT_COLOURS[verdictKey] ?? [100, 100, 100];
+  const verdictLabel = VERDICT_LABELS[verdictKey] ?? verdictKey.toUpperCase();
 
   type GState = Parameters<jsPDF['setGState']>[0];
   const GStateCtor = doc.GState as unknown as new (opts: { opacity: number }) => GState;
@@ -253,6 +266,34 @@ export async function generatePdfReport(input: PdfReportInput): Promise<Blob> {
   doc.text(verdictLabel, PW / 2, y + 11, { align: 'center' });
 
   y += 24;
+
+  // ── Capture limitations ─────────────────────────────────────────────────────
+  if (input.assessmentOutcome === 'unable-to-assess' && input.qualityBlockers?.length) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 90, 100);
+    doc.text('CAPTURE LIMITATIONS — RETAKE REQUIRED', ML, y);
+    y += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    for (const blocker of input.qualityBlockers) {
+      const lines = wrapText(doc, `${blocker.title}: ${blocker.instruction}`, CW - 8);
+      const blockH = Math.max(11, lines.length * 4 + 6);
+      if (y + blockH > PH - 25) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFillColor(255, 249, 235);
+      doc.setDrawColor(245, 158, 11);
+      doc.roundedRect(ML, y, CW, blockH, 1.5, 1.5, 'FD');
+      doc.setTextColor(90, 70, 20);
+      for (let line = 0; line < lines.length; line++) {
+        doc.text(lines[line], ML + 4, y + 4.5 + line * 4);
+      }
+      y += blockH + 2.5;
+    }
+  }
 
   // ── Key Findings ────────────────────────────────────────────────────────────
   if (input.primaryReasons.length > 0) {

@@ -291,6 +291,16 @@ export const SCAN_COPY = {
 // ----------------------------------------------------------------
 
 export const RESULT_COPY = {
+  unableToAssess: {
+    label: 'Unable to Assess — Retake Scan',
+    summary: 'The required photos were not reliable enough for a visual screen.',
+    explanation:
+      'PepScan could not make a visual assessment because one or more required photos were missing, obscured, poorly lit, blurry, or badly framed. Retake the listed photo before relying on a screening result.',
+    caveat:
+      'NO VISUAL OUTCOME WAS REACHED. This is not a negative screen, a clearance, or a finding about the vial. The listed capture limitation prevented PepScan from assessing the image reliably.',
+    action:
+      'Retake the affected photo using the instruction below. Your vial details, appearance profile, and other usable captures will be kept.',
+  },
   pass: {
     label: 'No Visible Anomaly Detected',
     summary: 'The photos did not show an obvious visual anomaly under these capture conditions.',
