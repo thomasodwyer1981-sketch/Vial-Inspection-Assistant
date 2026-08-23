@@ -1,5 +1,29 @@
 {pkgs}: {
   deps = [
+    pkgs.alsa-lib
+    pkgs.expat
+    pkgs.freetype
+    pkgs.fontconfig
+    pkgs.at-spi2-core
+    pkgs.at-spi2-atk
+    pkgs.libxkbcommon
+    pkgs.libgbm
+    pkgs.xorg.libxcb
+    pkgs.xorg.libXrandr
+    pkgs.xorg.libXfixes
+    pkgs.xorg.libXext
+    pkgs.xorg.libXdamage
+    pkgs.xorg.libXcomposite
+    pkgs.xorg.libX11
+    pkgs.pango
+    pkgs.mesa
+    pkgs.libdrm
+    pkgs.dbus
+    pkgs.cups
+    pkgs.atk
+    pkgs.nss
+    pkgs.nspr
+    pkgs.glib
     pkgs.openjdk17
   ];
 }
