@@ -6,7 +6,14 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import type { ScanSession, MediaCapture, ScanMetadata, CaptureBackground, AnalysisResult } from '../types';
+import type {
+  ScanSession,
+  MediaCapture,
+  ScanMetadata,
+  CaptureBackground,
+  AnalysisResult,
+  CaptureQualityBlocker,
+} from '../types';
 import { SCAN_STEPS, type ScanStep } from '../types';
 import {
   createNewSession,
@@ -36,6 +43,11 @@ export interface UseScanSession {
   addCapture(capture: Omit<MediaCapture, 'id' | 'capturedAt'>): void;
   removeCapture(background: CaptureBackground): void;
   getCaptureForBackground(background: CaptureBackground): MediaCapture | undefined;
+  /**
+   * Clears only the capture(s) that prevented assessment, preserves all scan
+   * context, and returns to the earliest affected capture step.
+   */
+  retakeForQuality(blockers: CaptureQualityBlocker[]): void;
 
   advanceStep(): void;
   goToStep(step: ScanStep): void;
@@ -158,6 +170,32 @@ export function useScanSession(): UseScanSession {
     [session],
   );
 
+  const retakeForQuality = useCallback((blockers: CaptureQualityBlocker[]) => {
+    const affected = new Set(blockers.map((blocker) => blocker.background));
+    if (affected.size === 0) return;
+    const nextStep: ScanStep = affected.has('white') ? 'white-capture' : 'black-capture';
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      const updated: ScanSession = {
+        ...prev,
+        captures: prev.captures.filter(
+          (capture) => !(capture.background === 'white' || capture.background === 'black') ||
+            !affected.has(capture.background),
+        ),
+        analysisResult: null,
+        finalized: false,
+        pendingSave: undefined,
+        currentStep: SCAN_STEPS.indexOf(nextStep),
+        updatedAt: new Date().toISOString(),
+      };
+      sessionRef.current = updated;
+      breadcrumbStep(nextStep, 'enter');
+      saveActiveSession(updated);
+      return updated;
+    });
+  }, []);
+
   const currentStep: ScanStep | null = session
     ? SCAN_STEPS[Math.min(session.currentStep, SCAN_STEPS.length - 1)]
     : null;
@@ -222,10 +260,13 @@ export function useScanSession(): UseScanSession {
         confidence: result.overallConfidence,
       });
 
-      // ── Phase 2: AI Vision (Pro only, best-effort) ───────────
-      setAnalysisStatus(opts?.includeAiVision ? 'Running AI Vision analysis…' : '');
+      // ── Phase 2: additional visual analysis (Pro only, best-effort) ───────────
+      setAnalysisStatus(opts?.includeAiVision ? 'Reviewing additional visual factors…' : '');
       let aiResult: import('../utils/visionAnalysis').AIVisionResult | null = null;
-      if (opts?.includeAiVision) try {
+      // An unreliable required capture is not a candidate for an enhanced
+      // visual verdict. Do not send it to the optional vision service and do
+      // not allow that service to turn an unavailable assessment into a result.
+      if (opts?.includeAiVision && result.assessmentOutcome !== 'unable-to-assess') try {
         const { runVisionAnalysis } = await import('../utils/visionAnalysis');
         aiResult = await withSpan('analysis', 'ai_vision', () =>
           runVisionAnalysis({
@@ -394,6 +435,7 @@ export function useScanSession(): UseScanSession {
     addCapture,
     removeCapture,
     getCaptureForBackground,
+    retakeForQuality,
     advanceStep,
     goToStep,
     currentStep,

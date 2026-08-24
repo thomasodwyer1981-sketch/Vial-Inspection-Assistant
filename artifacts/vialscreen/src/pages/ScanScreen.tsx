@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { ScanSessionProvider, useScanSessionContext } from '@/context/ScanSessionContext';
 import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
-import { APPEARANCE_PROFILES, type AppearanceProfile, type CaptureBackground, type ScanMode } from '@/types';
+import { APPEARANCE_PROFILES, type AppearanceProfile, type CaptureBackground, type CategoryKey, type CategoryScore, type ScanMode, type TriageResult } from '@/types';
 import StepProgress from '@/components/StepProgress';
 import CaptureButton from '@/components/CaptureButton';
 import MediaPreview from '@/components/MediaPreview';
@@ -21,6 +21,8 @@ import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
 import { captureError } from '@/lib/sentry';
 import { logAFEvent } from '@/utils/appsflyer';
+import { buildInspectionReportInput } from '@/utils/inspectionReport';
+import { buildReportComparison, getEarlierComparableSessions } from '@/utils/inspectionComparison';
 
 /** Format a stored ISO date as a compact relative label ("3d ago", "2w ago"). */
 function fmtDate(iso: string): string {
@@ -33,15 +35,13 @@ function fmtDate(iso: string): string {
 }
 
 /** Triage result colour classes for mini badges. */
-function triageColor(t: string) {
+function triageColor(t: TriageResult) {
   if (t === 'pass') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400';
   if (t === 'do-not-use') return 'bg-red-500/15 text-red-700 dark:text-red-400';
   return 'bg-amber-500/15 text-amber-700 dark:text-amber-400';
 }
-function triageLabel(t: string) {
-  if (t === 'pass') return 'Pass';
-  if (t === 'do-not-use') return 'DNU';
-  return 'Review';
+function triageLabel(t: TriageResult) {
+  return RESULT_COPY[t].label;
 }
 
 // Inline capture quality tips shown on white/black capture steps
@@ -314,7 +314,7 @@ function PrepareStep() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-primary">Pro Feature</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Pre-mix powder scanning is part of PepScan Pro — {PRO_PRICE_DISPLAY}.
+                  Powder-vial visual screening is available with PepScan Pro — {PRO_PRICE_DISPLAY}.
                 </p>
                 <button
                   onClick={() => { rememberUpgradeReturnPath('/scan'); navigate('/upgrade'); }}
@@ -429,7 +429,7 @@ function PrepareStep() {
             <label className="block">
               <span className="block text-xs font-medium text-muted-foreground mb-1.5">
                 Sample name
-                {isPro && <span className="ml-1 text-primary font-semibold">· Baseline Comparison</span>}
+                {isPro && <span className="ml-1 text-primary font-semibold">· Repeat comparison</span>}
               </span>
               <input
                 type="text"
@@ -441,12 +441,12 @@ function PrepareStep() {
               {isPro && baselinePrevCount > 0 && (
                 <p className="mt-1.5 text-xs text-primary flex items-center gap-1.5">
                   <History className="w-3 h-3 shrink-0" />
-                  {baselinePrevCount} previous scan{baselinePrevCount !== 1 ? 's' : ''} of this sample found — AI will compare against your baseline
+                  {baselinePrevCount} saved scan{baselinePrevCount !== 1 ? 's' : ''} of this sample found — PepScan can compare this visual record with them
                 </p>
               )}
               {isPro && !session?.metadata.peptideName?.trim() && (
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  Enter a name to enable baseline comparison across scans (Pro).
+                  Enter a name to compare repeat scans with saved records of the same sample (Pro).
                 </p>
               )}
             </label>
@@ -834,7 +834,11 @@ function ReviewStep() {
       const prevItems = getHistoryForSampleName(
         session.metadata.peptideName,
         (session.metadata.scanMode ?? 'reconstituted') as ScanMode,
-      ).slice(0, 3);
+      )
+        // A retake-required scan has no visual finding and must never become
+        // baseline evidence for a later AI-assisted screen of the same vial.
+        .filter((item) => item.assessmentOutcome !== 'unable-to-assess')
+        .slice(0, 3);
       if (prevItems.length > 0) {
         baselineScanCount = prevItems.length;
         const prevFindings = prevItems
@@ -940,7 +944,7 @@ function ReviewStep() {
           Run Analysis
         </button>
         <p className="text-[10px] text-center text-muted-foreground font-medium uppercase tracking-wider">
-          AI Vision + Heuristic Engine
+            Local Visual Screening Engine
         </p>
       </div>
     </div>
@@ -1022,10 +1026,10 @@ const NEXT_STEPS: Record<'review' | 'do-not-use', Array<{ icon: 'check' | 'x'; t
     { icon: 'check', text: 'Contact your supplier and share this report if the concern persists' },
   ],
   'do-not-use': [
-    { icon: 'x',     text: 'Set this vial aside — do not use until the findings are resolved' },
-    { icon: 'check', text: 'Save and share this scan report with your supplier as evidence' },
-    { icon: 'check', text: 'Request batch documentation (COA) from your supplier for this lot' },
-    { icon: 'check', text: 'Consider requesting a replacement or refund from your supplier' },
+    { icon: 'x',     text: 'Set this vial and its record aside while you document and resolve the visible finding' },
+    { icon: 'check', text: 'Save and share this visual record with your supplier or reference contact' },
+    { icon: 'check', text: 'Compare the observation with your batch documentation and your own procedure' },
+    { icon: 'check', text: 'Request clarification, replacement, or other resolution through your supplier where appropriate' },
   ],
 };
 
@@ -1055,23 +1059,23 @@ function getCompoundTip(peptideName: string | null | undefined): string | null {
 const FINDING_CONTEXT_MAP: Array<{ test: RegExp; context: string }> = [
   {
     test: /visible.*particle|particle.*detected|detected.*particle/i,
-    context: 'Particles in a normally clear solution can indicate contamination, precipitation, or chemical degradation — always investigate before any use.',
+    context: 'The image suggests visible particles in a normally clear solution. Document the observation and compare it under even lighting; a photo cannot identify the cause.',
   },
   {
     test: /no.*(?:significant.*)?particle/i,
-    context: 'No visible particles is a positive sign, though submicron particles (< 0.1 mm) are too small to detect visually.',
+    context: 'No visible particles were noted in these images. Submicron particles (< 0.1 mm) remain outside what this visual screen can detect.',
   },
   {
     test: /turbid|turbidity|haze|hazy|cloudy|cloudiness/i,
-    context: 'Cloudiness in a normally clear peptide may indicate bacterial contamination, degradation, or chemical precipitation.',
+    context: 'The image suggests haze or cloudiness against the selected appearance profile. Compare the vial under even lighting; this screen cannot identify the cause.',
   },
   {
     test: /unexpected.*colou?r|colou?r.*detected|discolou?r/i,
-    context: 'Unexpected colour change can signal oxidation, contamination, or chemical breakdown of the compound.',
+    context: 'The image suggests a colour variation from the selected appearance profile. Compare it with your own documentation; a visual screen cannot identify the cause.',
   },
   {
     test: /fill level|underfill|overfill/i,
-    context: 'Unusual fill level may indicate evaporation, vial damage, or an error during compounding.',
+    context: 'The visible fill level differs from the expected image pattern. Check the vial directly and compare it with the labelled or documented fill information.',
   },
   {
     test: /differential.*(?:within|normal|range)|(?:within|normal|range).*differential/i,
@@ -1090,6 +1094,30 @@ function getFindingContext(finding: string): string | null {
   return null;
 }
 
+const FACTOR_ACTIONS: Record<CategoryKey, string> = {
+  captureQuality: 'Retake the relevant photo with even lighting, a steady hold, and the full vial in frame.',
+  clarity: 'Inspect the reported clarity or colour variation against a plain white background and compare it with the selected appearance profile.',
+  visibleParticles: 'Inspect the reported particles directly under even lighting and preserve a clear photo of the finding.',
+  fillLevel: 'Compare the visible fill level with the labelled amount and your own reference material.',
+  capIntegrity: 'Inspect the cap and stopper directly for the visible issue reported in the image.',
+  labelOcr: 'Retake the label photo straight-on, in focus, and compare the readable text with your own documentation.',
+  crackDamage: 'Inspect the glass, neck, and stopper area directly under side lighting and document any visible damage.',
+  glareInterference: 'Retake the relevant photo with softer, diffused light so reflections do not obscure the vial.',
+};
+
+function getFactorSpecificNextSteps(
+  categories: CategoryScore[],
+  triageResult: 'review' | 'do-not-use',
+): Array<{ icon: 'check' | 'x'; text: string }> {
+  const specific = categories
+    .filter((category) => category.status !== 'pass')
+    .map((category) => ({ icon: 'check' as const, text: FACTOR_ACTIONS[category.category] }));
+
+  return [...specific, ...NEXT_STEPS[triageResult]]
+    .filter((step, index, steps) => steps.findIndex((candidate) => candidate.text === step.text) === index)
+    .slice(0, 4);
+}
+
 // ── Results Step ────────────────────────────────────────────────────────────
 
 interface ResultsStepProps {
@@ -1101,7 +1129,7 @@ interface ResultsStepProps {
 }
 
 function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
-  const { session } = useScanSessionContext();
+  const { session, retakeForQuality } = useScanSessionContext();
   const [, setLocation] = useLocation();
   const { isPro } = useProStatus();
   const [copied, setCopied] = useState(false);
@@ -1112,6 +1140,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [shareError, setShareError] = useState<string | null>(null);
   const [nextStepsOpen, setNextStepsOpen] = useState(true);
   const result = session?.analysisResult;
+  const assessmentUnavailable = result?.assessmentOutcome === 'unable-to-assess';
 
   // Haptic verdict feedback + in-app review trigger for PASS results
   // Also fires the AppsFlyer scan_complete event so X Ads can optimise toward real users.
@@ -1125,6 +1154,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     }
 
     const afResult =
+      result.assessmentOutcome === 'unable-to-assess' ? 'RETAKE' :
       result.triageResult === 'pass'       ? 'PASS' :
       result.triageResult === 'do-not-use' ? 'DNU'  : 'FAIL';
     const compound =
@@ -1142,12 +1172,17 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     setShowShareSheet(false);
     setShareError(null);
     const name = session?.metadata.peptideName;
+    const assessmentUnavailable = result.assessmentOutcome === 'unable-to-assess';
     const lines = [
       'PepScan Screening Result',
       '─────────────────────────',
       name ? `Vial: ${name}` : null,
-      `Result: ${result.triageResult === 'do-not-use' ? 'DO NOT USE' : result.triageResult.toUpperCase()}`,
-      `Confidence: ${result.overallConfidence}%`,
+      `Outcome: ${assessmentUnavailable
+        ? RESULT_COPY.unableToAssess.label
+        : RESULT_COPY[result.triageResult].label}`,
+      assessmentUnavailable
+        ? 'Assessment: unavailable — retake required photos'
+        : `Confidence: ${result.overallConfidence}%`,
       '',
       'Findings:',
       ...result.primaryReasons.map((r) => `• ${r}`),
@@ -1174,6 +1209,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     try {
       await shareOrDownloadCard({
         triageResult: result.triageResult,
+        assessmentOutcome: result.assessmentOutcome,
         overallConfidence: result.overallConfidence,
         peptideName: session?.metadata.peptideName,
         vendor: session?.metadata.vendor,
@@ -1187,23 +1223,16 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     }
   };
 
-  // PDF report — includes vial photos
+  // PDF screening report — includes the full in-progress capture evidence.
   const handleSharePdf = async () => {
-    if (!result) return;
+    if (!result || !session) return;
     setShowShareSheet(false);
     setGeneratingPdf(true);
     setShareError(null);
     try {
-      await shareOrDownloadPdf({
-        triageResult: result.triageResult,
-        overallConfidence: result.overallConfidence,
-        peptideName: session?.metadata.peptideName,
-        vendor: session?.metadata.vendor,
-        primaryReasons: result.primaryReasons,
-        ocrText: result.ocrText,
-        captures: session?.captures,
-        scannedAt: session?.createdAt,
-      });
+      const earlier = getEarlierComparableSessions(session)[0];
+      const comparison = earlier ? buildReportComparison(session, earlier) : undefined;
+      await shareOrDownloadPdf(buildInspectionReportInput(session, comparison));
     } catch (err) {
       captureError(err, { context: 'share-pdf' });
       setShareError('Could not generate the PDF. Try the text summary instead.');
@@ -1220,7 +1249,10 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     const vendor = session?.metadata.vendor;
     const batchLot = session?.metadata.batchLot;
     const scannedAt = session?.createdAt ? new Date(session.createdAt).toLocaleString() : 'Unknown';
-    const triageLabel = result.triageResult === 'do-not-use' ? 'DO NOT USE' : result.triageResult.toUpperCase();
+    const assessmentUnavailable = result.assessmentOutcome === 'unable-to-assess';
+    const outcomeLabel = assessmentUnavailable
+      ? RESULT_COPY.unableToAssess.label
+      : RESULT_COPY[result.triageResult].label;
 
     const lines = [
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
@@ -1230,13 +1262,15 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       vendor ? `Supplier:   ${vendor}` : null,
       batchLot ? `Batch/Lot:  ${batchLot}` : null,
       `Scanned:    ${scannedAt}`,
-      `Result:     ${triageLabel}`,
-      `Confidence: ${result.overallConfidence}%`,
+      `Outcome:    ${outcomeLabel}`,
+      assessmentUnavailable
+        ? 'Assessment: unavailable — retake required photos'
+        : `Confidence: ${result.overallConfidence}%`,
       '',
       'Findings:',
       ...result.primaryReasons.map((r) => `  • ${r}`),
       '',
-      'Category Scores:',
+      'Visual factors assessed:',
       ...result.categories
         .filter((c) => !['glareInterference'].includes(c.category))
         .map((c) => `  • ${c.label}: ${c.score}/100 (${c.status})`),
@@ -1312,7 +1346,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     );
   }
 
-  const resultCopy = RESULT_COPY[result.triageResult];
+  const resultCopy = assessmentUnavailable
+    ? RESULT_COPY.unableToAssess
+    : RESULT_COPY[result.triageResult];
   const profileUsed = result.profileUsed ?? session?.metadata.appearanceProfile ?? null;
   const profileInfo = profileUsed ? APPEARANCE_PROFILES[profileUsed] : null;
 
@@ -1339,7 +1375,18 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       <div className="flex-1 overflow-y-auto">
         {/* Result header */}
         <div className="bg-card border-b px-6 py-10 text-center">
-          <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
+          {assessmentUnavailable ? (
+            <div className="flex flex-col items-center gap-3 mb-5">
+              <div className="w-24 h-24 rounded-full border-2 border-amber-500/30 bg-amber-500/10 shadow-[0_0_28px_rgba(245,158,11,0.18)] flex items-center justify-center">
+                <RefreshCw className="w-11 h-11 text-amber-500" strokeWidth={1.6} />
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest border bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                {RESULT_COPY.unableToAssess.label}
+              </span>
+            </div>
+          ) : (
+            <TriageBadge result={result.triageResult} size="lg" className="mb-5" />
+          )}
           <h1 className="text-2xl font-bold tracking-tight mb-3">{resultCopy.summary}</h1>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4 max-w-xs mx-auto">
             {resultCopy.explanation}
@@ -1361,7 +1408,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           {result.overallConfidence < 50 && (
             <div className="mt-4 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">
               <AlertTriangle className="w-4 h-4" />
-              Low Confidence ({result.overallConfidence}%) — results less reliable
+              {assessmentUnavailable
+                ? 'Assessment unavailable — retake required photos'
+                : `Low Confidence (${result.overallConfidence}%) — results less reliable`}
             </div>
           )}
 
@@ -1369,7 +1418,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           {result.aiEnhanced && (
             <div className="mt-4 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/25 text-primary px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              AI Vision Enhanced
+               Expanded visual analysis
             </div>
           )}
 
@@ -1391,6 +1440,34 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
         </div>
 
         <div className="p-6 space-y-8">
+          {assessmentUnavailable && (
+            <section className="rounded-2xl border border-amber-500/35 bg-amber-500/5 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-sm font-bold text-amber-700 dark:text-amber-400">Retake required photos</h2>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                    These capture issues stopped PepScan from making a visual assessment. Retaking only removes the affected photo; your inspection details and usable photos stay in place.
+                  </p>
+                </div>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {(result.qualityBlockers ?? []).map((blocker, index) => (
+                  <li key={`${blocker.code}-${blocker.background}-${index}`} className="rounded-xl border border-amber-500/20 bg-background/65 p-3">
+                    <p className="text-sm font-semibold">{blocker.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-1">{blocker.instruction}</p>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => retakeForQuality(result.qualityBlockers ?? [])}
+                className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-3 rounded-xl font-bold active:scale-[0.98] transition-transform"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retake Required Photo{(result.qualityBlockers?.length ?? 0) > 1 ? 's' : ''}
+              </button>
+            </section>
+          )}
           {/* ── What We Found ── */}
           <section>
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">What We Found</h2>
@@ -1444,7 +1521,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           })()}
 
           {/* ── What to do next (review / DNU only) ── */}
-          {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
+          {!assessmentUnavailable && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
             <section>
               <button
                 onClick={() => setNextStepsOpen(o => !o)}
@@ -1455,7 +1532,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
               </button>
               {nextStepsOpen && (
                 <ul className="space-y-2.5">
-                  {NEXT_STEPS[result.triageResult].map((step, i) => (
+                  {getFactorSpecificNextSteps(result.categories, result.triageResult).map((step, i) => (
                     <li key={i} className={`flex items-start gap-3 rounded-xl border p-3.5 ${step.icon === 'x' ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-secondary/50'}`}>
                       {step.icon === 'check'
                         ? <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
@@ -1470,7 +1547,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           )}
 
           {/* ── Compound-specific tip ── */}
-          {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (() => {
+          {!assessmentUnavailable && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (() => {
             const tip = getCompoundTip(session?.metadata.peptideName);
             if (!tip) return null;
             return (
@@ -1486,14 +1563,14 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             );
           })()}
 
-          {/* ── AI Vision teaser — all free users ── */}
-          {!isPro && !result.aiEnhanced && (
+          {/* ── Detailed visual-factor report teaser — free users ── */}
+          {!isPro && (
             <section>
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                AI Vision Analysis
+                Detailed Visual Factor Report
               </h2>
               <div className="relative rounded-2xl overflow-hidden border border-primary/20">
-                {/* Blurred skeleton preview of what an AI analysis looks like */}
+                {/* Blurred preview of expanded Pro record detail */}
                 <div
                   className="select-none pointer-events-none p-4 space-y-3 bg-card"
                   style={{ filter: 'blur(4px)', opacity: 0.45 }}
@@ -1526,13 +1603,13 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                   <div>
                     <p className="text-sm font-bold text-foreground leading-tight">
                       {result.triageResult === 'pass'
-                        ? 'See the full AI Vision breakdown'
-                        : 'Find out exactly why this vial flagged'}
+                        ? 'See the full visual-factor breakdown'
+                        : 'See the visual factors behind this outcome'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed max-w-[220px] mx-auto">
                       {result.triageResult === 'pass'
-                        ? 'Pro unlocks a written explanation of every visual factor assessed — not just the verdict.'
-                        : 'Pro gives you a written AI analysis of which specific anomaly triggered this result and how significant it is.'}
+                        ? 'Pro unlocks factor-by-factor explanations, capture limits, report export, and repeat-inspection comparisons — not just the verdict.'
+                        : 'Pro adds a detailed visual record of the factors behind this outcome, capture limitations, reports, and comparison with earlier saved scans.'}
                     </p>
                   </div>
                   <button
@@ -1655,13 +1732,29 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
 
           {/* ── Category Breakdown ── */}
           <section>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-1">Category Breakdown</h2>
-            <p className="text-xs text-muted-foreground mb-4">Tap any category for full explanation and technical details.</p>
-            <div className="space-y-3">
-              {result.categories.map((cat) => (
-                <CategoryScoreCard key={cat.category} category={cat} />
-              ))}
-            </div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-1">Visual Factors Assessed</h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              {isPro
+                ? 'Particles, clarity and colour, fill, label, and capture conditions are shown when their photos are available. Tap any factor for its explanation.'
+                : 'Your free result includes the outcome and main findings above. Pro adds the detailed explanation and capture record for each factor.'}
+            </p>
+            {isPro ? (
+              <div className="space-y-3">
+                {result.categories.map((cat) => (
+                  <CategoryScoreCard key={cat.category} category={cat} />
+                ))}
+              </div>
+            ) : (
+              <Link href="/upgrade" className="block rounded-xl border border-primary/25 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <Lock className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold">Detailed factor record is a Pro feature</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Unlock factor explanations, capture-quality limitations, PDF screening reports, expanded local history, profiles, powder screening, and saved-record comparisons.</p>
+                  </div>
+                </div>
+              </Link>
+            )}
           </section>
         </div>
 
@@ -1684,8 +1777,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           </p>
         )}
         <div className="flex gap-3">
-          <button onClick={onRetake} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]">
-            Retake
+          <button
+            onClick={() => assessmentUnavailable ? retakeForQuality(result.qualityBlockers ?? []) : onRetake()}
+            className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]"
+          >
+            {assessmentUnavailable ? 'Retake Photo' : 'Retake'}
           </button>
           <button
             onClick={() => { setShowShareSheet(true); setShareError(null); }}
@@ -1701,7 +1797,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           </button>
         </div>
         {/* Supplier report — shown for review/DNU results */}
-        {(result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
+        {(assessmentUnavailable || result.triageResult === 'review' || result.triageResult === 'do-not-use') && (
           <button
             onClick={handleSupplierReport}
             className="w-full flex items-center justify-center gap-2 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98]"
@@ -1758,7 +1854,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                     </div>
                     <div className="text-left flex-1">
                       <p className="font-bold text-sm text-foreground">PDF Report</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Branded report with vial photos included</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Outcome, factors, capture limits, notes, and disclaimer</p>
                     </div>
                   </button>
                 ) : (

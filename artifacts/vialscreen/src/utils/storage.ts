@@ -7,6 +7,7 @@
  */
 
 import type { ScanSession, HistoryItem, OnboardingState, ScanMode } from '../types';
+import { PRO_HISTORY_RECORD_LIMIT } from './pro';
 
 const KEYS = {
   ONBOARDING: 'vialscreen:onboarding',
@@ -90,17 +91,18 @@ export function addToHistory(session: ScanSession): void {
       peptideName: session.metadata.peptideName || 'Unnamed Vial',
       vendor: session.metadata.vendor || '',
       overallConfidence: session.analysisResult?.overallConfidence ?? 0,
+      assessmentOutcome: session.analysisResult?.assessmentOutcome ?? 'assessed',
       thumbnailDataUrl: thumb,
       appearanceProfile: session.metadata.appearanceProfile ?? null,
       scanMode: session.metadata.scanMode,
     };
 
-    // Prepend (newest first), keep max 100 items
+    // Prepend (newest first), keep the documented on-device record limit.
     const updated = [item, ...history.filter((h) => h.id !== session.id)];
-    const kept = updated.slice(0, 100);
+    const kept = updated.slice(0, PRO_HISTORY_RECORD_LIMIT);
     // Also delete the full session records of pruned entries — otherwise
     // their localStorage keys linger forever and eat quota.
-    for (const dropped of updated.slice(100)) {
+    for (const dropped of updated.slice(PRO_HISTORY_RECORD_LIMIT)) {
       try { localStorage.removeItem(sessionKey(dropped.id)); } catch { /* ignore */ }
     }
     localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(kept));

@@ -75,10 +75,10 @@ export default function LimitationsScreen() {
 
         <section className="bg-secondary/50 border rounded-xl p-5">
           <h2 className="text-sm font-bold mb-2">
-            {LIMITATIONS_COPY.passNote.heading}
+            {LIMITATIONS_COPY.negativeScreenNote.heading}
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            {LIMITATIONS_COPY.passNote.detail}
+            {LIMITATIONS_COPY.negativeScreenNote.detail}
           </p>
 
           <h2 className="text-sm font-bold mb-2">

@@ -103,12 +103,12 @@ export default function TermsScreen() {
           </p>
         </section>
 
-        {/* ── 4. A "Pass" Result Does Not Mean Safe ── */}
+        {/* ── 4. A negative visual screen does not mean safe ── */}
         <section className="bg-warning/5 border border-warning/20 rounded-2xl p-4">
-          <h2 className="text-base font-bold mb-3">4. A "Pass" Result Does Not Mean Safe</h2>
+          <h2 className="text-base font-bold mb-3">4. “No Visible Anomaly Detected” Does Not Mean Safe</h2>
           <p className="mb-3">
-            A "Pass" result means only that <strong>no obvious visual issue was detected</strong> under the
-            specific lighting, background, and capture conditions at the time of the scan. A "Pass" result
+            A “No Visible Anomaly Detected” outcome means only that <strong>no obvious visual issue was detected</strong> under the
+            specific lighting, background, and capture conditions at the time of the scan. This outcome
             expressly and unambiguously does <strong>not</strong> mean that the vial is:
           </p>
           <ul className="space-y-1.5 pl-4 list-disc text-muted-foreground mb-3">

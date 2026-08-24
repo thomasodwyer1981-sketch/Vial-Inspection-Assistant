@@ -33,7 +33,7 @@ This tool CANNOT and DOES NOT:
 • Guarantee that a vial is safe, authentic, uncontaminated, or fit for any purpose
 • Replace laboratory analysis, pharmacopeial testing, or professional advice of any kind
 
-A "Pass" result means only that no obvious visual issue was detected under these specific capture conditions at this point in time. It does NOT mean the vial is safe, sterile, pure, correctly dosed, authentic, or suitable for any use whatsoever.
+A "No visible anomaly detected" outcome means only that no obvious visual issue was detected under these specific capture conditions at this point in time. It does NOT mean the vial is safe, sterile, pure, correctly dosed, authentic, or suitable for any use whatsoever.
 
 YOU BEAR SOLE RESPONSIBILITY for any decision made in connection with any result produced by this app. By using this app you voluntarily assume all risks, including personal injury, adverse reactions, illness, or death.`;
 
@@ -128,7 +128,7 @@ export const ONBOARDING = {
     points: [
       'Guides you through a standardized two-background visual inspection',
       'Screens for obvious presentation red flags: visible particulates, haze, fill anomalies, label readability',
-      'Produces a structured triage result: Pass, Review, or Do Not Use',
+      'Produces an evidence-led visual outcome with observed findings and next steps',
       'Documents your inspection with timestamps and notes',
     ],
   },
@@ -277,7 +277,7 @@ export const SCAN_COPY = {
 
   analysis: {
     title: 'Analyzing Captures',
-    instruction: 'Running heuristic analysis on your captures…',
+    instruction: 'Reviewing the visible factors in your captures…',
     note: 'Analysis runs locally on your device. No data is sent to a server.',
   },
 
@@ -291,32 +291,42 @@ export const SCAN_COPY = {
 // ----------------------------------------------------------------
 
 export const RESULT_COPY = {
-  pass: {
-    label: 'No Obvious Visual Issues Detected',
-    summary: 'No significant visual red flags were detected under these specific capture conditions.',
+  unableToAssess: {
+    label: 'Unable to Assess — Retake Scan',
+    summary: 'The required photos were not reliable enough for a visual screen.',
     explanation:
-      'The visual analysis found no particles, cloudiness, unexpected colour, or fill-level anomalies in your captures. This is a negative screen — nothing obvious was flagged, not a confirmation that the vial is safe.',
-    caveat: 'THIS IS NOT A SAFETY CLEARANCE. A Pass result does NOT mean this vial is safe, sterile, pure, authentic, correctly dosed, or fit for any use. Results are affected by lighting, camera quality, background, and technique. Invisible contamination, degradation, pathogens, endotoxins, and incorrect compounds cannot be detected by this app under any circumstances.',
+      'PepScan could not make a visual assessment because one or more required photos were missing, obscured, poorly lit, blurry, or badly framed. Retake the listed photo before relying on a screening result.',
+    caveat:
+      'NO VISUAL OUTCOME WAS REACHED. This is not a negative screen, a clearance, or a finding about the vial. The listed capture limitation prevented PepScan from assessing the image reliably.',
     action:
-      'This is a negative visual screen only. Always conduct a direct physical inspection under good lighting. Never rely on this result alone. This app is not intended for human use and must not be used to justify administering any substance to yourself or any other person. Do not inject, ingest, inhale, or otherwise use any substance based on this result.',
+      'Retake the affected photo using the instruction below. Your vial details, appearance profile, and other usable captures will be kept.',
+  },
+  pass: {
+    label: 'No Visible Anomaly Detected',
+    summary: 'The photos did not show an obvious visual anomaly under these capture conditions.',
+    explanation:
+      'The photos were checked for visible particles, clarity or colour variation, fill appearance, label readability, and capture conditions where available. Nothing obvious was flagged in these images. This is a negative visual screen, not a confirmation of safety or quality.',
+    caveat: 'THIS IS NOT A SAFETY CLEARANCE. “No visible anomaly detected” does NOT mean a vial is safe, sterile, pure, authentic, correctly dosed, or fit for any use. Results are affected by lighting, camera quality, background, and technique. Invisible contamination, degradation, pathogens, endotoxins, and incorrect compounds cannot be detected by this app under any circumstances.',
+    action:
+      'Use this only as one record in a direct visual inspection. Check the vial yourself under even lighting, compare the label with your documentation, and do not treat this screen as a decision about suitability for any use.',
   },
   review: {
-    label: 'Review Recommended',
-    summary: 'One or more findings require closer manual inspection.',
+    label: 'Manual Inspection Recommended',
+    summary: 'One or more visible factors need a closer manual check.',
     explanation:
-      'Something in the images was ambiguous — a possible particle, borderline turbidity, or a colour variation outside the expected range. A direct physical inspection under good lighting is the right next step.',
-    caveat: 'Suspicious findings or reduced capture quality detected. Do not rely on this result. This app cannot confirm safety, purity, sterility, or identity under any circumstances.',
+      'The photos contained an ambiguous finding, such as a possible particle, borderline haze, a colour variation, or a capture limitation. The factor cards below show what was observed and what the camera could not assess reliably.',
+    caveat: 'A visible concern or reduced capture quality was detected. This screen cannot confirm safety, purity, sterility, identity, or suitability under any circumstances.',
     action:
-      'Inspect the vial directly under good lighting. Retake with improved lighting and focus if possible. If any doubt exists, do not use. This app is not intended for human use.',
+      'First inspect the listed factor directly under even lighting. Retake the photos if focus, glare, or framing limited the image. Document and resolve any mismatch through your own research or quality procedure; this app cannot determine suitability for use.',
   },
   'do-not-use': {
-    label: 'Visible Issues Flagged',
-    summary: 'Concerning visual findings were detected in these captures.',
+    label: 'Visible Issue Flagged',
+    summary: 'The photos showed one or more visible findings worth documenting and resolving.',
     explanation:
-      'The analysis flagged clear visual anomalies — visible particles, significant cloudiness, or a colour inconsistent with what is expected for this type of vial.',
-    caveat: 'Multiple visual red flags detected. Do not proceed. Note: even if no visual issues were present, this app cannot confirm safety, purity, sterility, or identity.',
+      'The images showed a visible issue, such as particles, significant cloudiness, or a colour that did not match the selected appearance profile. Review the factor cards for the exact observations behind this outcome.',
+    caveat: 'Visible findings in an image do not identify their cause or determine safety, purity, sterility, identity, or suitability. Even a clear-looking vial cannot be cleared by visual screening.',
     action:
-      'Do not use this vial. Contact your supplier, review your documentation, and discard according to your protocols. This result does not constitute professional advice.',
+      'Photograph and document the listed finding, compare it with the vial and supplier documentation under even lighting, and follow your own procedure for resolving the discrepancy. This result is visual evidence only, not professional or laboratory advice.',
   },
 };
 
@@ -360,17 +370,17 @@ export const LIMITATIONS_COPY = {
       'Appearance profiles improve interpretation by adjusting what the analysis treats as expected vs. suspicious.',
       'A profile selection does not confirm the identity of the compound — a blue liquid is not confirmed to be GHK-Cu.',
       'Expected color can vary by product, preparation, concentration, and storage history.',
-      'The Unknown/Custom profile is deliberately conservative — it reduces reliance on color and accepts a higher rate of Review results.',
+      'The Unknown/Custom profile is deliberately conservative — it reduces reliance on color and more often recommends manual inspection.',
       'Visual screening cannot replace laboratory testing regardless of the profile selected.',
     ],
   },
 
-  passNote: {
-    heading: 'What a "Pass" Result Means:',
+  negativeScreenNote: {
+    heading: 'What “No Visible Anomaly Detected” Means:',
     detail:
       'No obvious visual issue was detected in the captured images under these specific conditions. ' +
       'This does not mean the product is safe, authentic, uncontaminated, or fit for any intended use. ' +
-      'A pass is a negative screening result only.',
+      'It is a negative visual screen only.',
   },
 
   recommendation: {

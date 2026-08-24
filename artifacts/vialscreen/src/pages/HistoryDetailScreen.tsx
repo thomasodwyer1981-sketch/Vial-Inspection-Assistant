@@ -1,4 +1,5 @@
 import { Link, useLocation, useParams } from 'wouter';
+import { useState } from 'react';
 import {
   ArrowLeft,
   Trash2,
@@ -12,6 +13,10 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  FileText,
+  GitCompareArrows,
+  Lock,
+  Loader2,
 } from 'lucide-react';
 import { loadSession, deleteSession, getHistoryForSampleName } from '@/utils/storage';
 import { RESULT_COPY } from '@/constants/copy';
@@ -21,11 +26,19 @@ import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import MediaPreview from '@/components/MediaPreview';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
+import { useProStatus } from '@/hooks/useProStatus';
+import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
+import { buildInspectionReportInput } from '@/utils/inspectionReport';
+import { shareOrDownloadPdf } from '@/utils/sharePdf';
+import { buildReportComparison, getEarlierComparableSessions } from '@/utils/inspectionComparison';
 
 export default function HistoryDetailScreen() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const session = id ? loadSession(id) : null;
+  const { isPro, isLoading: proLoading } = useProStatus();
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   if (!session || !session.analysisResult) {
     return (
@@ -48,7 +61,10 @@ export default function HistoryDetailScreen() {
 
   const result = session.analysisResult;
   const { metadata } = session;
-  const resultCopy = RESULT_COPY[result.triageResult];
+  const assessmentUnavailable = result.assessmentOutcome === 'unable-to-assess';
+  const resultCopy = assessmentUnavailable
+    ? RESULT_COPY.unableToAssess
+    : RESULT_COPY[result.triageResult];
 
   // Resolve profile — prefer result.profileUsed (accurate at time of analysis),
   // fall back to metadata.appearanceProfile for older sessions.
@@ -75,6 +91,22 @@ export default function HistoryDetailScreen() {
   const confidenceDelta = lastScan
     ? result.overallConfidence - lastScan.overallConfidence
     : null;
+  const earlierComparableSessions = getEarlierComparableSessions(session);
+
+  const handlePdfReport = async () => {
+    setGeneratingPdf(true);
+    setReportError(null);
+    try {
+      const comparison = earlierComparableSessions[0]
+        ? buildReportComparison(session, earlierComparableSessions[0])
+        : undefined;
+      await shareOrDownloadPdf(buildInspectionReportInput(session, comparison));
+    } catch {
+      setReportError('Could not generate the PDF report. Please try again.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   return (
     <div className="min-h-[100dvh] bg-background max-w-md mx-auto flex flex-col relative">
@@ -100,7 +132,12 @@ export default function HistoryDetailScreen() {
       <div className="p-6 space-y-8 pb-6">
         {/* Triage Header */}
         <div className="bg-card border rounded-2xl p-6 text-center shadow-sm">
-          <TriageBadge result={result.triageResult} size="lg" className="mb-4" />
+          <TriageBadge
+            result={result.triageResult}
+            assessmentOutcome={result.assessmentOutcome}
+            size="lg"
+            className="mb-4"
+          />
           <p className="text-sm text-foreground font-medium mb-3 leading-relaxed">
             {resultCopy.summary}
           </p>
@@ -128,6 +165,53 @@ export default function HistoryDetailScreen() {
             <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">Recommended Action</p>
             <p className="leading-relaxed">{resultCopy.action}</p>
           </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {isPro ? (
+              <button
+                onClick={handlePdfReport}
+                disabled={generatingPdf}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-3 py-3 text-xs font-bold disabled:opacity-60"
+              >
+                {generatingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                {generatingPdf ? 'Creating…' : 'PDF Report'}
+              </button>
+            ) : (
+              <button
+                onClick={() => { rememberUpgradeReturnPath(`/history/${session.id}`); setLocation('/upgrade'); }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary/10 text-primary px-3 py-3 text-xs font-bold"
+              >
+                <Lock className="w-4 h-4" /> PDF Report · Pro
+              </button>
+            )}
+            {earlierComparableSessions.length > 0 ? (
+              isPro ? (
+                <Link
+                  href={`/history/${session.id}/compare`}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-secondary border px-3 py-3 text-xs font-bold"
+                >
+                  <GitCompareArrows className="w-4 h-4" /> Compare
+                </Link>
+              ) : (
+                <button
+                  onClick={() => { rememberUpgradeReturnPath(`/history/${session.id}`); setLocation('/upgrade'); }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-secondary border px-3 py-3 text-xs font-bold"
+                >
+                  <Lock className="w-4 h-4" /> Compare · Pro
+                </button>
+              )
+            ) : (
+              <div className="rounded-xl bg-secondary/60 px-3 py-3 text-[10px] text-muted-foreground flex items-center justify-center text-center">
+                Save a repeat scan to compare
+              </div>
+            )}
+          </div>
+          {!proLoading && !isPro && (
+            <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
+              Pro adds full visual-factor explanations, saved-record PDF reports, and comparisons with earlier scans — {PRO_PRICE_DISPLAY}.
+            </p>
+          )}
+          {reportError && <p className="mt-3 text-xs text-destructive">{reportError}</p>}
         </div>
 
         {/* Metadata — only if at least one field has a value */}
@@ -227,10 +311,9 @@ export default function HistoryDetailScreen() {
                     : h.triageResult === 'do-not-use'
                       ? 'bg-red-500/10'
                       : 'bg-amber-500/10';
-                const label =
-                  h.triageResult === 'pass' ? 'Pass'
-                  : h.triageResult === 'do-not-use' ? 'Do Not Use'
-                  : 'Review';
+                const label = h.assessmentOutcome === 'unable-to-assess'
+                  ? RESULT_COPY.unableToAssess.label
+                  : RESULT_COPY[h.triageResult].label;
                 return (
                   <Link
                     key={h.id}
@@ -286,11 +369,26 @@ export default function HistoryDetailScreen() {
         {/* Category Breakdown */}
         <section>
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Detailed Breakdown</h2>
-          <div className="space-y-3">
-            {result.categories.map((cat) => (
-              <CategoryScoreCard key={cat.category} category={cat} />
-            ))}
-          </div>
+          {isPro ? (
+            <div className="space-y-3">
+              {result.categories.map((cat) => (
+                <CategoryScoreCard key={cat.category} category={cat} />
+              ))}
+            </div>
+          ) : (
+            <button
+              onClick={() => { rememberUpgradeReturnPath(`/history/${session.id}`); setLocation('/upgrade'); }}
+              className="w-full rounded-xl border border-primary/25 bg-primary/5 p-4 text-left"
+            >
+              <div className="flex gap-3">
+                <Lock className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold">Detailed visual-factor record is a Pro feature</p>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">Unlock factor explanations, capture limits, PDF screening reports, and repeat-inspection comparisons.</p>
+                </div>
+              </div>
+            </button>
+          )}
         </section>
       </div>
 

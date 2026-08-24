@@ -9,7 +9,7 @@ import { APPEARANCE_PROFILES } from '@/types';
 import type { AppearanceProfile } from '@/types';
 import { format } from 'date-fns';
 import { useProStatus } from '@/hooks/useProStatus';
-import { FREE_HISTORY_LIMIT, PRO_PRICE_DISPLAY } from '@/utils/pro';
+import { FREE_HISTORY_LIMIT, PRO_HISTORY_RECORD_LIMIT, PRO_PRICE_DISPLAY } from '@/utils/pro';
 
 const PROFILE_BADGE: Record<
   AppearanceProfile,
@@ -170,7 +170,7 @@ export default function HistoryScreen() {
                   {FREE_HISTORY_LIMIT} scan limit reached
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Upgrade for unlimited history — {PRO_PRICE_DISPLAY}
+                  Pro reveals up to {PRO_HISTORY_RECORD_LIMIT} saved records on this device — {PRO_PRICE_DISPLAY}
                 </p>
               </div>
               <div className="bg-primary text-primary-foreground text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 flex items-center gap-1">
@@ -261,7 +261,12 @@ export default function HistoryScreen() {
                                   <h3 className="font-bold text-sm truncate pr-2">
                                     {item.peptideName || 'Unnamed Vial'}
                                   </h3>
-                                  <TriageBadge result={item.triageResult} size="sm" className="shrink-0" />
+                                  <TriageBadge
+                                    result={item.triageResult}
+                                    assessmentOutcome={item.assessmentOutcome}
+                                    size="sm"
+                                    className="shrink-0"
+                                  />
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <p className="text-xs text-muted-foreground truncate">
@@ -281,7 +286,11 @@ export default function HistoryScreen() {
                               </div>
                               <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex justify-between items-center mt-2">
                                 <span>{format(new Date(item.createdAt), 'MMM d, yyyy · HH:mm')}</span>
-                                <span>{item.overallConfidence}% Conf</span>
+                                 <span>
+                                   {item.assessmentOutcome === 'unable-to-assess'
+                                     ? 'Retake required'
+                                     : `${item.overallConfidence}% Conf`}
+                                 </span>
                               </div>
                             </div>
                           </div>
@@ -439,9 +448,10 @@ function buildVialProfiles(
       name,
       items: sorted,
       latest: sorted[0],
-      passCount: items.filter((i) => i.triageResult === 'pass').length,
-      reviewCount: items.filter((i) => i.triageResult === 'review').length,
+       passCount: items.filter((i) => i.triageResult === 'pass' && i.assessmentOutcome !== 'unable-to-assess').length,
+       reviewCount: items.filter((i) => i.triageResult === 'review' && i.assessmentOutcome !== 'unable-to-assess').length,
       doNotUseCount: items.filter((i) => i.triageResult === 'do-not-use').length,
+       retakeCount: items.filter((i) => i.assessmentOutcome === 'unable-to-assess').length,
     };
   });
 }
@@ -486,7 +496,12 @@ function VialProfileCard({ profile }: { profile: VialProfile }) {
               )}
             </p>
           </div>
-          <TriageBadge result={profile.latest.triageResult} size="sm" className="shrink-0" />
+          <TriageBadge
+            result={profile.latest.triageResult}
+            assessmentOutcome={profile.latest.assessmentOutcome}
+            size="sm"
+            className="shrink-0"
+          />
         </div>
 
         {/* Thumbnails */}
@@ -505,19 +520,25 @@ function VialProfileCard({ profile }: { profile: VialProfile }) {
           {profile.passCount > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-              {profile.passCount} pass
+              {profile.passCount} no visible anomaly detected
             </span>
           )}
           {profile.reviewCount > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-              {profile.reviewCount} review
+              {profile.reviewCount} manual inspection recommended
             </span>
           )}
           {profile.doNotUseCount > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-              {profile.doNotUseCount} fail
+              {profile.doNotUseCount} visible issue flagged
+            </span>
+          )}
+          {profile.retakeCount > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              {profile.retakeCount} retake required
             </span>
           )}
           <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-primary">View latest →</span>
