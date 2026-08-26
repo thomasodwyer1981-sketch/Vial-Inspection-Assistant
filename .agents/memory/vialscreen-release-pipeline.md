@@ -13,5 +13,10 @@ description: Launch-crash from mixed Sentry native versions, how to verify an AA
 ## Verifying what code an AAB actually contains
 An AAB is a zip. Web assets live at `base/assets/public/assets/*.js`. Grep for a feature-specific string literal (e.g. `countdown`, a Terms heading) to prove a feature is in the bundle; grep `base/manifest/AndroidManifest.xml` for the versionName string. Download CI artifacts with `gh run download <runId> -n pepscan-release`. This settles "is it a build problem or a delivery problem" in one step.
 
+## Sentry EU/DE-region orgs need an explicit `url` for ProGuard mapping upload
+**Rule:** If the Sentry org's `regionUrl` is not `sentry.io` (e.g. `de.sentry.io` for EU data residency), set `url = "https://de.sentry.io/"` in the `sentry {}` gradle block.
+**Why:** `sentryUploadSourceBundleRelease` (JS source maps) auto-routes fine, but `uploadSentryProguardMappingsRelease` (native Java/Kotlin debug files) does not — it 404s with "Project does not exist" against the default `sentry.io` host even though org/project slugs and token scope are correct. This looked like a slug mismatch (and was wrongly diagnosed as one previously, leading to `autoUploadProguardMapping` being disabled) but was actually a region-routing gap in the legacy debug-file endpoint.
+**How to apply:** Confirm the org's region via `GET /api/0/projects/{org}/{project}/` (`links.regionUrl` in the response) before assuming a Sentry API 404 means bad credentials or slugs.
+
 ## Google Play track opt-in traps
 A phone only receives updates from the track its tester account is opted into. Uploading a new build to Closed/Alpha does nothing for a phone enrolled in Internal testing — it keeps reinstalling the old version, which looks like "updates not applied". Internal track releases go live near-instantly; open testing and production go through review and auto-roll-out on approval. When a bad build is out: upload the fixed higher versionCode to the same tracks (it supersedes a pending/live release); discard in-review releases where the option exists; halt rollout if already live.
