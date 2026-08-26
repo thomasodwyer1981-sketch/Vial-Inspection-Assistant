@@ -39,6 +39,10 @@ repositories {
 sentry {
     org = "peptilog"
     projectName = "pepscan"
+    // This Sentry org lives on the EU/DE data-residency region (peptilog.sentry.io ->
+    // regionUrl de.sentry.io). Legacy debug-file endpoints (ProGuard mapping upload)
+    // don't auto-route there and 404 against the default sentry.io host, so pin it.
+    url = "https://de.sentry.io/"
     // Auth token read from env — set SENTRY_AUTH_TOKEN in GitHub Actions secrets
     authToken = System.getenv("SENTRY_AUTH_TOKEN")
 
