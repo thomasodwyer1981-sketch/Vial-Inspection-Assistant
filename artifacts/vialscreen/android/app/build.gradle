@@ -39,6 +39,10 @@ repositories {
 sentry {
     org = "peptilog"
     projectName = "pepscan"
+    // This Sentry org lives on the EU/DE data-residency region (peptilog.sentry.io ->
+    // regionUrl de.sentry.io). Legacy debug-file endpoints (ProGuard mapping upload)
+    // don't auto-route there and 404 against the default sentry.io host, so pin it.
+    url = "https://de.sentry.io/"
     // Auth token read from env — set SENTRY_AUTH_TOKEN in GitHub Actions secrets
     authToken = System.getenv("SENTRY_AUTH_TOKEN")
 
@@ -49,10 +53,11 @@ sentry {
     uploadNativeSymbols = false
     includeNativeSources = false
 
-    // ProGuard/R8 mappings upload disabled — Sentry project lookup returns 404
-    // in CI (org/project slug mismatch). Crash stack traces are still symbolicated
-    // via the JS source maps uploaded separately; re-enable once Sentry project is confirmed.
-    autoUploadProguardMapping = false
+    // Upload ProGuard/R8 mappings so native Java/Kotlin ANR and crash stacks are
+    // symbolicated (in-app frames + real function names), not just system frames.
+    // org/project slugs above were verified against the Sentry API (200, full access) —
+    // the earlier 404 was a stale/under-scoped CI token, not a slug mismatch.
+    autoUploadProguardMapping = true
 
     // Disable auto-instrumentation overhead — we use manual Sentry.captureException calls
     tracingInstrumentation {
