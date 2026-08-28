@@ -17,10 +17,9 @@ import type {
 import { SCAN_STEPS, type ScanStep } from '../types';
 import {
   createNewSession,
-  saveSession,
+  saveFinalizedSession,
   saveActiveSession,
   clearActiveSession,
-  addToHistory,
   generateId,
 } from '../utils/storage';
 import { runAnalysis } from '../analysis/engine';
@@ -378,12 +377,11 @@ export function useScanSession(): UseScanSession {
       updatedAt: new Date().toISOString(),
     };
 
-    // Attempt to persist to localStorage — returns false if quota exceeded
-    const saved = saveSession(finalized);
+    // Save both the detail record and history row. The storage layer compacts
+    // legacy image payloads and retries once before reporting a failure.
+    const saved = saveFinalizedSession(finalized);
 
     if (saved) {
-      // Only write the history index entry if the full session blob was saved
-      addToHistory(finalized);
       // Clear active session — save was successful
       clearActiveSession();
     } else {
@@ -411,10 +409,9 @@ export function useScanSession(): UseScanSession {
 
     // Strip the pendingSave marker before saving
     const toSave: ScanSession = { ...current, pendingSave: undefined };
-    const saved = saveSession(toSave);
+    const saved = saveFinalizedSession(toSave);
 
     if (saved) {
-      addToHistory(toSave);
       clearActiveSession(); // Session is now properly saved — remove from active
       sessionRef.current = toSave;
       setSession(toSave);

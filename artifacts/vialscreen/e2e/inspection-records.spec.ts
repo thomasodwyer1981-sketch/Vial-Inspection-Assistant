@@ -295,3 +295,60 @@ test('PDF report retains record metadata, evidence limitations, notes, disclaime
   expect(text).toContain('Fixture report note');
   expect(text).toContain('IMPORTANT DISCLAIMER');
 });
+
+test('legacy oversized images are compacted without losing the saved record', async ({ page }) => {
+  const legacy = record({
+    id: 'legacy-storage-repair',
+    createdAt: '2026-04-03T10:00:00.000Z',
+    peptideName: 'Legacy Storage Fixture',
+  });
+  const orphan = record({
+    id: 'orphan-storage-record',
+    createdAt: '2026-04-02T10:00:00.000Z',
+  });
+  const oversizedImage = `data:image/jpeg;base64,${'A'.repeat(210_000)}`;
+
+  await page.goto('/');
+  await page.evaluate(({ legacy, legacyHistory, orphan, oversizedImage }) => {
+    localStorage.clear();
+    localStorage.setItem('vialscreen:onboarding', JSON.stringify({
+      completed: true,
+      disclaimerAcknowledgedAt: '2026-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('vialscreen:history', JSON.stringify([
+      { ...legacyHistory, thumbnailDataUrl: oversizedImage },
+    ]));
+    localStorage.setItem(`vialscreen:session:${legacy.id}`, JSON.stringify({
+      ...legacy,
+      captures: legacy.captures.map((capture) => ({ ...capture, dataUrl: oversizedImage })),
+    }));
+    localStorage.setItem(`vialscreen:session:${orphan.id}`, JSON.stringify({
+      ...orphan,
+      captures: orphan.captures.map((capture) => ({ ...capture, dataUrl: oversizedImage })),
+    }));
+  }, { legacy, legacyHistory: historyItem(legacy), orphan, oversizedImage });
+
+  await page.evaluate(async () => {
+    const { repairLegacyStorage } = await import('/src/utils/storage.ts');
+    repairLegacyStorage();
+  });
+
+  const repaired = await page.evaluate((legacyId) => {
+    const history = JSON.parse(localStorage.getItem('vialscreen:history') ?? '[]');
+    const session = JSON.parse(localStorage.getItem(`vialscreen:session:${legacyId}`) ?? 'null');
+    return {
+      thumbnailDataUrl: history[0]?.thumbnailDataUrl,
+      captureDataUrl: session?.captures?.[0]?.dataUrl,
+      orphanExists: localStorage.getItem('vialscreen:session:orphan-storage-record') !== null,
+    };
+  }, legacy.id);
+
+  expect(repaired).toEqual({
+    thumbnailDataUrl: null,
+    captureDataUrl: '',
+    orphanExists: false,
+  });
+
+  await page.goto('/history');
+  await expect(page.getByText('Legacy Storage Fixture')).toBeVisible();
+});

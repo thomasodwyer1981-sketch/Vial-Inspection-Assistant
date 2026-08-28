@@ -14,3 +14,5 @@ Never store full-resolution capture dataUrls in the shared history key. History 
 - UI components (`MediaPreview`, detail screens) must fall back to `thumbDataUrl` when `dataUrl` is empty — old records and lean sessions have no full image.
 - `addToHistory` slices history to 100 items; anything sliced off MUST also have its `vialscreen:session:<id>` record removed, or orphaned session blobs accumulate and silently eat the quota.
 - Backup import (`importExportPayload`) must resolve the retained-after-cap set BEFORE writing anything: history commits first (quota throw = clean abort), session records are written only for retained imports, and cap-dropped ids get their session records pruned. Reported counts reflect what actually survived the cap.
+- Changing the write format is not enough for installed apps: compact legacy values on save failure, delete confirmed orphans before rewriting smaller values, and retry. WebKit may reject a smaller replacement while the store remains over quota.
+- A completed save means both the detail record and history index were written. Never clear the active-session recovery copy after only one of those writes succeeds.

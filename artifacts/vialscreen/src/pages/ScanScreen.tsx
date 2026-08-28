@@ -1361,11 +1361,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             <HardDrive className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-destructive mb-0.5">Scan could not be saved</p>
-              <p className="text-xs text-destructive/80 leading-relaxed">Device storage may be full. Free space by deleting older scans, then try again.</p>
+              <p className="text-xs text-destructive/80 leading-relaxed">PepScan’s saved-record storage is full. Your result is still here. Delete older PepScan records, then try again.</p>
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={() => { onClearSaveFailure(); setLocation('/history'); }} className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg">Free Space →</button>
+            <button onClick={() => { onClearSaveFailure(); setLocation('/history'); }} className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg">Manage Records →</button>
             <button onClick={onRetrySave} className="flex-1 bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 rounded-lg">Try Again</button>
           </div>
         </div>
