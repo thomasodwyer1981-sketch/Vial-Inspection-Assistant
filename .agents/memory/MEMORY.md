@@ -13,3 +13,4 @@
 - [Device camera rules](vialscreen-device-camera.md) — cap getUserMedia at 1920 (4K melts WebView memory), best-of-3 burst, capture failures must be loud
 - [R8 ProGuard ANR risk](r8-anr-risk.md) — proguard-android-optimize.txt causes RenderProxy::setStopped ANR; always use proguard-android.txt for Capacitor WebView apps
 - [Capture quality gating](vialscreen-capture-quality-gating.md) — unreliable required photos are an explicit retake outcome, never a softened visual verdict
+- [iOS Photos add-only testing](ios-photos-add-only-testing.md) — verify one write in code and exact visible asset count in Photos; add-only apps cannot read back

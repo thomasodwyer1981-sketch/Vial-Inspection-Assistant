@@ -3,6 +3,108 @@ import Photos
 import UIKit
 import Capacitor
 
+enum PepScanPhotosFailure: Error, Equatable {
+    case permissionDenied
+    case unavailable
+    case saveFailed
+}
+
+protocol PepScanPhotoAuthorization {
+    func authorizationStatus(for accessLevel: PHAccessLevel) -> PHAuthorizationStatus
+    func requestAuthorization(
+        for accessLevel: PHAccessLevel,
+        completion: @escaping (PHAuthorizationStatus) -> Void
+    )
+}
+
+protocol PepScanPhotoLibraryWriting {
+    func save(
+        imageData: Data,
+        filename: String,
+        completion: @escaping (Bool, Error?) -> Void
+    )
+}
+
+final class PepScanPhotosSaveCoordinator {
+    private let authorization: PepScanPhotoAuthorization
+    private let libraryWriter: PepScanPhotoLibraryWriting
+
+    init(
+        authorization: PepScanPhotoAuthorization,
+        libraryWriter: PepScanPhotoLibraryWriting
+    ) {
+        self.authorization = authorization
+        self.libraryWriter = libraryWriter
+    }
+
+    func save(
+        imageData: Data,
+        filename: String,
+        completion: @escaping (Result<Void, PepScanPhotosFailure>) -> Void
+    ) {
+        let saveToLibrary = {
+            self.libraryWriter.save(imageData: imageData, filename: filename) { success, _ in
+                completion(success ? .success(()) : .failure(.saveFailed))
+            }
+        }
+
+        switch authorization.authorizationStatus(for: .addOnly) {
+        case .authorized, .limited:
+            saveToLibrary()
+        case .notDetermined:
+            authorization.requestAuthorization(for: .addOnly) { status in
+                switch status {
+                case .authorized, .limited:
+                    saveToLibrary()
+                case .denied, .restricted:
+                    completion(.failure(.permissionDenied))
+                default:
+                    completion(.failure(.unavailable))
+                }
+            }
+        case .denied, .restricted:
+            completion(.failure(.permissionDenied))
+        @unknown default:
+            completion(.failure(.unavailable))
+        }
+    }
+}
+
+private final class SystemPepScanPhotoAuthorization: PepScanPhotoAuthorization {
+    func authorizationStatus(for accessLevel: PHAccessLevel) -> PHAuthorizationStatus {
+        PHPhotoLibrary.authorizationStatus(for: accessLevel)
+    }
+
+    func requestAuthorization(
+        for accessLevel: PHAccessLevel,
+        completion: @escaping (PHAuthorizationStatus) -> Void
+    ) {
+        PHPhotoLibrary.requestAuthorization(for: accessLevel, handler: completion)
+    }
+}
+
+private final class SystemPepScanPhotoLibraryWriter: PepScanPhotoLibraryWriting {
+    func save(
+        imageData: Data,
+        filename: String,
+        completion: @escaping (Bool, Error?) -> Void
+    ) {
+        PHPhotoLibrary.shared().performChanges({
+            let request = PHAssetCreationRequest.forAsset()
+            let options = PHAssetResourceCreationOptions()
+            options.originalFilename = filename
+            request.addResource(with: .photo, data: imageData, options: options)
+        }, completionHandler: completion)
+    }
+}
+
+func makeSystemPepScanSaveCoordinator() -> PepScanPhotosSaveCoordinator {
+    PepScanPhotosSaveCoordinator(
+        authorization: SystemPepScanPhotoAuthorization(),
+        libraryWriter: SystemPepScanPhotoLibraryWriter()
+    )
+}
+
 @objc(PepScanPhotos)
 public class PepScanPhotosPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "PepScanPhotosPlugin"
@@ -25,45 +127,20 @@ public class PepScanPhotosPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let filename = call.getString("filename") ?? "pepscan-result.png"
 
-        let save = {
-            PHPhotoLibrary.shared().performChanges({
-                let request = PHAssetCreationRequest.forAsset()
-                let options = PHAssetResourceCreationOptions()
-                options.originalFilename = filename
-                request.addResource(with: .photo, data: imageData, options: options)
-            }) { success, error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        call.reject("The result card could not be saved to Photos.", "SAVE_FAILED", error)
-                    } else if success {
-                        call.resolve()
-                    } else {
-                        call.reject("The result card could not be saved to Photos.", "SAVE_FAILED")
-                    }
+        let coordinator = makeSystemPepScanSaveCoordinator()
+        coordinator.save(imageData: imageData, filename: filename) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    call.resolve()
+                case .failure(.permissionDenied):
+                    call.reject("Photos access is denied.", "PERMISSION_DENIED")
+                case .failure(.unavailable):
+                    call.reject("Photos access is unavailable.", "PERMISSION_DENIED")
+                case .failure(.saveFailed):
+                    call.reject("The result card could not be saved to Photos.", "SAVE_FAILED")
                 }
             }
-        }
-
-        switch PHPhotoLibrary.authorizationStatus(for: .addOnly) {
-        case .authorized, .limited:
-            save()
-        case .notDetermined:
-            PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
-                DispatchQueue.main.async {
-                    switch status {
-                    case .authorized, .limited:
-                        save()
-                    case .denied, .restricted:
-                        call.reject("Photos access is denied.", "PERMISSION_DENIED")
-                    default:
-                        call.reject("Photos access is unavailable.", "PERMISSION_DENIED")
-                    }
-                }
-            }
-        case .denied, .restricted:
-            call.reject("Photos access is denied.", "PERMISSION_DENIED")
-        @unknown default:
-            call.reject("Photos access is unavailable.", "PERMISSION_DENIED")
         }
     }
 }

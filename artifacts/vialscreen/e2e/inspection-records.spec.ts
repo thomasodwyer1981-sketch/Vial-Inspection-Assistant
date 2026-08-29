@@ -352,3 +352,146 @@ test('legacy oversized images are compacted without losing the saved record', as
   await page.goto('/history');
   await expect(page.getByText('Legacy Storage Fixture')).toBeVisible();
 });
+
+test('denied iOS Photos access shows Settings guidance without changing the inspection record', async ({ page }) => {
+  const current = {
+    ...record({
+      id: 'photos-denied-record',
+      createdAt: '2026-04-03T10:00:00.000Z',
+      peptideName: 'Photos Permission Fixture',
+    }),
+    currentStep: 6,
+    pendingSave: true,
+  };
+  const currentHistory = historyItem(current);
+
+  await page.addInitScript(({ current, currentHistory }) => {
+    localStorage.clear();
+    localStorage.setItem('vialscreen:onboarding', JSON.stringify({
+      completed: true,
+      disclaimerAcknowledgedAt: '2026-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('vialscreen:active-session', JSON.stringify(current));
+    localStorage.setItem('vialscreen:history', JSON.stringify([currentHistory]));
+    localStorage.setItem(`vialscreen:session:${current.id}`, JSON.stringify(current));
+
+    Object.defineProperty(window, 'webkit', {
+      configurable: true,
+      value: { messageHandlers: { bridge: { postMessage: () => undefined } } },
+    });
+    Object.defineProperty(window, 'Capacitor', {
+      configurable: true,
+      writable: true,
+      value: {
+        PluginHeaders: [
+          {
+            name: 'PepScanPhotos',
+            methods: [{ name: 'saveImageToPhotos', rtype: 'promise' }],
+          },
+          {
+            name: 'App',
+            methods: [
+              { name: 'addListener', rtype: 'callback' },
+              { name: 'removeListener', rtype: 'promise' },
+              { name: 'minimizeApp', rtype: 'promise' },
+            ],
+          },
+          {
+            name: 'Haptics',
+            methods: [
+              { name: 'impact', rtype: 'promise' },
+              { name: 'notification', rtype: 'promise' },
+            ],
+          },
+        ],
+        nativePromise: (pluginName: string) => {
+          if (pluginName === 'PepScanPhotos') {
+            return Promise.reject({
+              code: 'PERMISSION_DENIED',
+              message: 'Photos access is denied.',
+            });
+          }
+          return Promise.resolve({});
+        },
+        nativeCallback: () => Promise.resolve('test-callback'),
+      },
+    });
+  }, { current, currentHistory });
+
+  await page.goto('/scan');
+  await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
+
+  const before = await page.evaluate((id) => ({
+    history: localStorage.getItem('vialscreen:history'),
+    detail: localStorage.getItem(`vialscreen:session:${id}`),
+  }), current.id);
+
+  await page.getByRole('button', { name: 'Share' }).click();
+  await page.getByRole('button', { name: 'Save to Photos' }).click();
+
+  await expect(page.getByText(
+    'Photos access is off. Open Settings → PepScan → Photos and allow adding photos, then try again. Your saved vial record is unchanged.',
+  )).toBeVisible();
+
+  const after = await page.evaluate((id) => ({
+    history: localStorage.getItem('vialscreen:history'),
+    detail: localStorage.getItem(`vialscreen:session:${id}`),
+  }), current.id);
+  expect(after).toEqual(before);
+});
+
+test('Share Image Card stays independent from direct Photos saving', async ({ page }) => {
+  const current = {
+    ...record({
+      id: 'share-card-independent',
+      createdAt: '2026-04-03T10:00:00.000Z',
+      peptideName: 'Share Card Fixture',
+    }),
+    currentStep: 6,
+    pendingSave: true,
+  };
+
+  await page.addInitScript((session) => {
+    localStorage.clear();
+    localStorage.setItem('vialscreen:onboarding', JSON.stringify({
+      completed: true,
+      disclaimerAcknowledgedAt: '2026-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('vialscreen:active-session', JSON.stringify(session));
+
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: () => false,
+    });
+    const originalCreateObjectURL = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = (blob) => {
+      (window as Window & { __shareCardBlob?: Blob }).__shareCardBlob = blob;
+      return originalCreateObjectURL(blob);
+    };
+  }, current);
+
+  await page.goto('/scan');
+  await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
+  const activeBefore = await page.evaluate(
+    () => localStorage.getItem('vialscreen:active-session'),
+  );
+
+  await page.getByRole('button', { name: 'Share' }).click();
+  await page.getByRole('button', { name: 'Share Image Card' }).click();
+
+  await expect.poll(() => page.evaluate(() => Boolean(
+    (window as Window & { __shareCardBlob?: Blob }).__shareCardBlob,
+  ))).toBe(true);
+  const generated = await page.evaluate(() => {
+    const blob = (window as Window & { __shareCardBlob?: Blob }).__shareCardBlob;
+    return blob ? { type: blob.type, size: blob.size } : null;
+  });
+  expect(generated?.type).toBe('image/png');
+  expect(generated?.size).toBeGreaterThan(0);
+  await expect(page.getByText('Could not share the image. Try the text summary instead.')).not.toBeVisible();
+
+  const activeAfter = await page.evaluate(
+    () => localStorage.getItem('vialscreen:active-session'),
+  );
+  expect(activeAfter).toBe(activeBefore);
+});
