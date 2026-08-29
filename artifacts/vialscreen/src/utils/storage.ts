@@ -37,6 +37,25 @@ function compactSession(session: ScanSession): ScanSession {
   };
 }
 
+/**
+ * Replace an oversized legacy value without temporarily requiring room for
+ * both the old and new strings. iOS WKWebView can reject setItem for a smaller
+ * replacement while localStorage is already at quota, so remove first and then
+ * write the compacted value. Restore the original best-effort if the compacted
+ * write unexpectedly fails.
+ */
+function replaceWithCompactedValue(key: string, raw: string, compacted: string): void {
+  if (compacted === raw) return;
+
+  localStorage.removeItem(key);
+  try {
+    localStorage.setItem(key, compacted);
+  } catch (error) {
+    try { localStorage.setItem(key, raw); } catch { /* best-effort rollback */ }
+    throw error;
+  }
+}
+
 // ----------------------------------------------------------------
 // Onboarding State
 // ----------------------------------------------------------------
@@ -265,7 +284,7 @@ export function repairLegacyStorage(preserveSessionIds: string[] = []): void {
 
   try {
     if (compactedHistory !== null && compactedHistory !== rawHistory) {
-      localStorage.setItem(KEYS.SCAN_HISTORY, compactedHistory);
+      replaceWithCompactedValue(KEYS.SCAN_HISTORY, rawHistory ?? '', compactedHistory);
     }
   } catch (error) {
     console.warn('[VialScreen] Could not write compacted legacy history.', error);
@@ -282,7 +301,7 @@ export function repairLegacyStorage(preserveSessionIds: string[] = []): void {
       const parsed = JSON.parse(raw) as ScanSession;
       if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.captures)) continue;
       const compacted = JSON.stringify(compactSession(parsed));
-      if (compacted !== raw) localStorage.setItem(key, compacted);
+      replaceWithCompactedValue(key, raw, compacted);
     } catch (error) {
       console.warn('[VialScreen] Could not compact a legacy session.', error);
     }
@@ -296,7 +315,7 @@ export function repairLegacyStorage(preserveSessionIds: string[] = []): void {
       const parsed = JSON.parse(rawActive) as ScanSession;
       if (parsed && typeof parsed === 'object' && Array.isArray(parsed.captures)) {
         const compacted = JSON.stringify(compactSession(parsed));
-        if (compacted !== rawActive) localStorage.setItem(KEYS.ACTIVE_SESSION, compacted);
+        replaceWithCompactedValue(KEYS.ACTIVE_SESSION, rawActive, compacted);
       }
     }
   } catch (error) {

@@ -353,6 +353,65 @@ test('legacy oversized images are compacted without losing the saved record', as
   await expect(page.getByText('Legacy Storage Fixture')).toBeVisible();
 });
 
+test('legacy repair removes oversized keys before rewriting when WebKit is at quota', async ({ page }) => {
+  const legacy = record({
+    id: 'webkit-quota-repair',
+    createdAt: '2026-04-03T10:00:00.000Z',
+    peptideName: 'WebKit Quota Fixture',
+  });
+  const oversizedImage = `data:image/jpeg;base64,${'A'.repeat(210_000)}`;
+
+  await page.goto('/');
+  const repaired = await page.evaluate(async ({ legacy, legacyHistory, oversizedImage }) => {
+    localStorage.clear();
+    localStorage.setItem('vialscreen:history', JSON.stringify([
+      { ...legacyHistory, thumbnailDataUrl: oversizedImage },
+    ]));
+    localStorage.setItem(`vialscreen:session:${legacy.id}`, JSON.stringify({
+      ...legacy,
+      captures: legacy.captures.map((capture) => ({ ...capture, dataUrl: oversizedImage })),
+    }));
+    localStorage.setItem('vialscreen:active-session', JSON.stringify({
+      ...legacy,
+      captures: legacy.captures.map((capture) => ({ ...capture, dataUrl: oversizedImage })),
+    }));
+
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function quotaSensitiveSetItem(key: string, value: string) {
+      const existing = this.getItem(key);
+      if (existing !== null && value.length < existing.length) {
+        throw new DOMException(
+          'A smaller replacement still needs the old key removed first.',
+          'QuotaExceededError',
+        );
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const { repairLegacyStorage } = await import('/src/utils/storage.ts');
+      repairLegacyStorage();
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+
+    const history = JSON.parse(localStorage.getItem('vialscreen:history') ?? '[]');
+    const session = JSON.parse(localStorage.getItem(`vialscreen:session:${legacy.id}`) ?? 'null');
+    const active = JSON.parse(localStorage.getItem('vialscreen:active-session') ?? 'null');
+    return {
+      thumbnailDataUrl: history[0]?.thumbnailDataUrl,
+      captureDataUrl: session?.captures?.[0]?.dataUrl,
+      activeCaptureDataUrl: active?.captures?.[0]?.dataUrl,
+    };
+  }, { legacy, legacyHistory: historyItem(legacy), oversizedImage });
+
+  expect(repaired).toEqual({
+    thumbnailDataUrl: null,
+    captureDataUrl: '',
+    activeCaptureDataUrl: '',
+  });
+});
+
 test('denied iOS Photos access shows Settings guidance without changing the inspection record', async ({ page }) => {
   const current = {
     ...record({
