@@ -12,7 +12,7 @@
  */
 
 import QRCode from 'qrcode';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
@@ -24,6 +24,12 @@ async function blobToBase64(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
+
+interface PepScanPhotosPlugin {
+  saveImageToPhotos(options: { data: string; filename: string }): Promise<void>;
+}
+
+const PepScanPhotos = registerPlugin<PepScanPhotosPlugin>('PepScanPhotos');
 
 export interface ShareCardInput {
   triageResult: 'pass' | 'review' | 'do-not-use';
@@ -359,4 +365,18 @@ export async function shareOrDownloadCard(input: ShareCardInput): Promise<void> 
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/** Save the generated card directly to the iOS Photos library. */
+export async function saveCardToPhotos(input: ShareCardInput): Promise<void> {
+  if (Capacitor.getPlatform() !== 'ios') {
+    throw new Error('Saving result cards to Photos is only available on iOS.');
+  }
+
+  const blob = await generateShareCard(input);
+  const name = `pepscan-${input.assessmentOutcome === 'unable-to-assess' ? 'retake-required' : input.triageResult}.png`;
+  await PepScanPhotos.saveImageToPhotos({
+    data: await blobToBase64(blob),
+    filename: name,
+  });
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import { Capacitor } from '@capacitor/core';
 import { ScanSessionProvider, useScanSessionContext } from '@/context/ScanSessionContext';
 import { SCAN_COPY, RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
 import { APPEARANCE_PROFILES, type AppearanceProfile, type CaptureBackground, type CategoryKey, type CategoryScore, type ScanMode, type TriageResult } from '@/types';
@@ -11,7 +12,7 @@ import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2, Clock, ClipboardCopy, RefreshCw, ChevronDown, ChevronUp, Send, XCircle, Star } from 'lucide-react';
-import { shareOrDownloadCard } from '@/utils/shareCard';
+import { saveCardToPhotos, shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { maybeRequestReview } from '@/utils/inAppReview';
 import { ScanStep } from '@/types';
@@ -1136,11 +1137,14 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   const [supplierCopied, setSupplierCopied] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [generatingCard, setGeneratingCard] = useState(false);
+  const [savingToPhotos, setSavingToPhotos] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [photoSaveSuccess, setPhotoSaveSuccess] = useState(false);
   const [nextStepsOpen, setNextStepsOpen] = useState(true);
   const result = session?.analysisResult;
   const assessmentUnavailable = result?.assessmentOutcome === 'unable-to-assess';
+  const isIOS = Capacitor.getPlatform() === 'ios';
 
   // Haptic verdict feedback + in-app review trigger for PASS results
   // Also fires the AppsFlyer scan_complete event so X Ads can optimise toward real users.
@@ -1206,6 +1210,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
     setShowShareSheet(false);
     setGeneratingCard(true);
     setShareError(null);
+    setPhotoSaveSuccess(false);
     try {
       await shareOrDownloadCard({
         triageResult: result.triageResult,
@@ -1220,6 +1225,36 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       setShareError('Could not share the image. Try the text summary instead.');
     } finally {
       setGeneratingCard(false);
+    }
+  };
+
+  // Image card — save directly to the iOS Photos library
+  const handleSaveToPhotos = async () => {
+    if (!result) return;
+    setShowShareSheet(false);
+    setSavingToPhotos(true);
+    setShareError(null);
+    setPhotoSaveSuccess(false);
+    try {
+      await saveCardToPhotos({
+        triageResult: result.triageResult,
+        assessmentOutcome: result.assessmentOutcome,
+        overallConfidence: result.overallConfidence,
+        peptideName: session?.metadata.peptideName,
+        vendor: session?.metadata.vendor,
+        primaryReasons: result.primaryReasons,
+      });
+      setPhotoSaveSuccess(true);
+    } catch (err) {
+      captureError(err, { context: 'save-image-to-photos' });
+      const code = (err as { code?: string } | null)?.code;
+      setShareError(
+        code === 'PERMISSION_DENIED'
+          ? 'Photos access is off. Open Settings → PepScan → Photos and allow adding photos, then try again. Your saved vial record is unchanged.'
+          : 'Could not save the image to Photos. Your saved vial record is unchanged.',
+      );
+    } finally {
+      setSavingToPhotos(false);
     }
   };
 
@@ -1776,6 +1811,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             {shareError}
           </p>
         )}
+        {photoSaveSuccess && (
+          <p className="text-xs text-primary text-center bg-primary/10 rounded-xl py-2 px-3">
+            Result card saved to Photos. Your saved vial record is unchanged.
+          </p>
+        )}
         <div className="flex gap-3">
           <button
             onClick={() => assessmentUnavailable ? retakeForQuality(result.qualityBlockers ?? []) : onRetake()}
@@ -1784,16 +1824,16 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             {assessmentUnavailable ? 'Retake Photo' : 'Retake'}
           </button>
           <button
-            onClick={() => { setShowShareSheet(true); setShareError(null); }}
-            disabled={generatingCard || generatingPdf}
+            onClick={() => { setShowShareSheet(true); setShareError(null); setPhotoSaveSuccess(false); }}
+            disabled={generatingCard || savingToPhotos || generatingPdf}
             className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-2xl font-semibold text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            {(generatingCard || generatingPdf) ? (
+            {(generatingCard || savingToPhotos || generatingPdf) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Share2 className="w-4 h-4" />
             )}
-            {generatingCard ? 'Creating…' : generatingPdf ? 'PDF…' : copied ? 'Copied!' : 'Share'}
+            {savingToPhotos ? 'Saving…' : generatingCard ? 'Creating…' : generatingPdf ? 'PDF…' : copied ? 'Copied!' : 'Share'}
           </button>
         </div>
         {/* Supplier report — shown for review/DNU results */}
@@ -1822,8 +1862,8 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             <div className="px-6 pt-5 pb-10">
               <div className="flex items-center justify-between mb-5">
                 <div>
-                  <h3 className="font-bold text-lg">Share Result</h3>
-                  <p className="text-muted-foreground text-xs mt-0.5">Choose how to share this screening result</p>
+                  <h3 className="font-bold text-lg">Save or Share Result</h3>
+                  <p className="text-muted-foreground text-xs mt-0.5">Saving the image is separate from saving your PepScan record</p>
                 </div>
                 <button onClick={() => setShowShareSheet(false)} className="p-2 rounded-full hover:bg-muted active:bg-muted">
                   <XIcon className="w-5 h-5" />
@@ -1831,9 +1871,26 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
               </div>
 
               <div className="space-y-3">
+                {isIOS && (
+                  <button
+                    onClick={handleSaveToPhotos}
+                    disabled={savingToPhotos || generatingCard || generatingPdf}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary text-primary-foreground active:scale-[0.98] disabled:opacity-60 transition-transform"
+                  >
+                    <div className="w-11 h-11 bg-primary-foreground/15 rounded-xl flex items-center justify-center shrink-0">
+                      {savingToPhotos ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-sm">{savingToPhotos ? 'Saving to Photos…' : 'Save to Photos'}</p>
+                      <p className="text-xs opacity-70 mt-0.5">Save this result card to your iPhone photo library</p>
+                    </div>
+                  </button>
+                )}
+
                 <button
                   onClick={handleShareImageCard}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary text-primary-foreground active:scale-[0.98] transition-transform"
+                  disabled={savingToPhotos || generatingCard || generatingPdf}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-primary text-primary-foreground active:scale-[0.98] disabled:opacity-60 transition-transform"
                 >
                   <div className="w-11 h-11 bg-primary-foreground/15 rounded-xl flex items-center justify-center shrink-0">
                     <ImageIcon className="w-5 h-5" />
