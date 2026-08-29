@@ -8,6 +8,7 @@
 
 import type { ScanSession, HistoryItem, OnboardingState, ScanMode } from '../types';
 import { PRO_HISTORY_RECORD_LIMIT } from './pro';
+import { captureMessage } from '../lib/sentry';
 
 const KEYS = {
   ONBOARDING: 'vialscreen:onboarding',
@@ -16,9 +17,59 @@ const KEYS = {
 } as const;
 
 const SESSION_KEY_PREFIX = 'vialscreen:session:';
-// A 144px JPEG is normally well below this. Older builds put the original
-// camera image in the history thumbnail field, which can consume megabytes.
-const MAX_PERSISTED_THUMBNAIL_CHARS = 200_000;
+// Keep 100 complete records comfortably below WKWebView's roughly 5 MB
+// localStorage ceiling. New 96px JPEGs are typically 2–6 KB; older/larger
+// thumbnails are discarded during repair rather than risking all future saves.
+const MAX_PERSISTED_THUMBNAIL_CHARS = 12_000;
+const MAX_SESSION_THUMBNAIL_CHARS = 24_000;
+
+export type SaveFailureStage = 'detail' | 'history';
+export type SaveFailureKind = 'quota' | 'serialization' | 'write';
+
+export interface SaveFailure {
+  stage: SaveFailureStage;
+  kind: SaveFailureKind;
+  errorName: string;
+}
+
+let lastSaveFailure: SaveFailure | null = null;
+
+export function getLastSaveFailure(): SaveFailure | null {
+  return lastSaveFailure;
+}
+
+function storageUsageChars(): number {
+  let total = 0;
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('vialscreen:')) {
+        total += key.length + (localStorage.getItem(key)?.length ?? 0);
+      }
+    }
+  } catch {
+    return -1;
+  }
+  return total;
+}
+
+function recordSaveFailure(stage: SaveFailureStage, error: unknown): void {
+  const errorName = error instanceof Error ? error.name : typeof error;
+  const kind: SaveFailureKind =
+    errorName === 'QuotaExceededError'
+      ? 'quota'
+      : error instanceof TypeError
+        ? 'serialization'
+        : 'write';
+  lastSaveFailure = { stage, kind, errorName };
+  captureMessage('Inspection record save failed', 'error', {
+    stage,
+    kind,
+    error_name: errorName,
+    pepscan_storage_chars: storageUsageChars(),
+    app_version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
+  });
+}
 
 function compactThumbnail(value: unknown): string | null {
   return typeof value === 'string' && value.length <= MAX_PERSISTED_THUMBNAIL_CHARS
@@ -27,13 +78,19 @@ function compactThumbnail(value: unknown): string | null {
 }
 
 function compactSession(session: ScanSession): ScanSession {
+  let remainingThumbnailChars = MAX_SESSION_THUMBNAIL_CHARS;
   return {
     ...session,
-    captures: session.captures.map((capture) => ({
-      ...capture,
-      dataUrl: '',
-      thumbDataUrl: compactThumbnail(capture.thumbDataUrl) ?? undefined,
-    })),
+    captures: session.captures.map((capture) => {
+      const thumbnail = compactThumbnail(capture.thumbDataUrl);
+      const keepThumbnail = thumbnail !== null && thumbnail.length <= remainingThumbnailChars;
+      if (keepThumbnail) remainingThumbnailChars -= thumbnail.length;
+      return {
+        ...capture,
+        dataUrl: '',
+        thumbDataUrl: keepThumbnail ? thumbnail : undefined,
+      };
+    }),
   };
 }
 
@@ -123,7 +180,9 @@ export function addToHistory(session: ScanSession): boolean {
     // Use the small capture thumbnail — NEVER the full-resolution dataUrl.
     // A full-res base64 frame is 200 KB–2 MB; storing one per history item
     // exhausts the ~5 MB localStorage quota after only a few scans.
-    const thumb = session.captures.find((c) => c.thumbDataUrl)?.thumbDataUrl ?? null;
+    const thumb = compactThumbnail(
+      session.captures.find((c) => c.thumbDataUrl)?.thumbDataUrl,
+    );
 
     const item: HistoryItem = {
       id: session.id,
@@ -151,8 +210,8 @@ export function addToHistory(session: ScanSession): boolean {
     }
     return true;
   } catch (error) {
-    // quota exceeded or serialization error — history entry could not be written
-    console.warn('[VialScreen] Could not write history entry — storage may be full.', error);
+    recordSaveFailure('history', error);
+    console.warn('[VialScreen] Could not write history entry.', error);
     return false;
   }
 }
@@ -209,7 +268,8 @@ export function saveSession(session: ScanSession): boolean {
     localStorage.setItem(sessionKey(session.id), JSON.stringify(lean));
     return true;
   } catch (e) {
-    console.warn('[VialScreen] Could not save session — storage quota may be full:', e);
+    recordSaveFailure('detail', e);
+    console.warn('[VialScreen] Could not save session:', e);
     return false;
   }
 }
@@ -239,16 +299,28 @@ export function repairLegacyStorage(preserveSessionIds: string[] = []): void {
     if (rawHistory) {
       const parsed = JSON.parse(rawHistory);
       if (Array.isArray(parsed)) {
-        const compacted = parsed.map((item) => {
-          if (item && typeof item === 'object' && typeof item.id === 'string') {
+        const seenIds = new Set<string>();
+        const compacted = parsed
+          .filter((item): item is HistoryItem =>
+            item !== null &&
+            typeof item === 'object' &&
+            typeof item.id === 'string' &&
+            typeof item.createdAt === 'string' &&
+            typeof item.triageResult === 'string' &&
+            typeof item.overallConfidence === 'number')
+          .filter((item) => {
+            if (seenIds.has(item.id)) return false;
+            seenIds.add(item.id);
+            return true;
+          })
+          .slice(0, PRO_HISTORY_RECORD_LIMIT)
+          .map((item) => {
             retainedIds.add(item.id);
-            const thumbnailDataUrl = compactThumbnail(item.thumbnailDataUrl);
-            return thumbnailDataUrl === item.thumbnailDataUrl
-              ? item
-              : { ...item, thumbnailDataUrl };
-          }
-          return item;
-        });
+            return {
+              ...item,
+              thumbnailDataUrl: compactThumbnail(item.thumbnailDataUrl),
+            };
+          });
         compactedHistory = JSON.stringify(compacted);
       } else {
         canPruneOrphans = false;
@@ -333,8 +405,13 @@ function trySaveFinalizedSession(session: ScanSession): boolean {
  * reporting a failure. Success requires both the detail record and history row.
  */
 export function saveFinalizedSession(session: ScanSession): boolean {
+  // Repair first. Waiting for a failed write is unreliable on WKWebView: a
+  // store filled by legacy image payloads may reject even a smaller overwrite.
+  repairLegacyStorage([session.id]);
+  lastSaveFailure = null;
   if (trySaveFinalizedSession(session)) return true;
 
+  // A concurrent/best-effort write may have consumed space after preflight.
   repairLegacyStorage([session.id]);
   return trySaveFinalizedSession(session);
 }

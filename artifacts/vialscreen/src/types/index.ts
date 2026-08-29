@@ -370,6 +370,17 @@ export interface ScanSession {
    * active session so the user can retry after freeing storage.
    */
   pendingSave?: boolean;
+
+  /**
+   * Non-sensitive classification of the last persistence failure. Stored only
+   * for finalized pending sessions so recovery guidance remains accurate after
+   * an app restart.
+   */
+  pendingSaveFailure?: {
+    stage: 'detail' | 'history';
+    kind: 'quota' | 'serialization' | 'write';
+    errorName: string;
+  };
 }
 
 // ---- History Item (lightweight summary for list view) ----

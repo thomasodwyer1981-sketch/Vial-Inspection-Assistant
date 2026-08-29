@@ -21,6 +21,7 @@ import {
   saveActiveSession,
   clearActiveSession,
   generateId,
+  getLastSaveFailure,
 } from '../utils/storage';
 import { runAnalysis } from '../analysis/engine';
 import { trackScanComplete } from '../lib/analytics';
@@ -374,6 +375,7 @@ export function useScanSession(): UseScanSession {
       ...current,
       finalized: true,
       pendingSave: undefined, // clear any old pending flag before attempting save
+      pendingSaveFailure: undefined,
       updatedAt: new Date().toISOString(),
     };
 
@@ -388,7 +390,11 @@ export function useScanSession(): UseScanSession {
       // Save failed. Preserve the finalized session as active session with
       // pendingSave: true so the user can navigate away, free storage,
       // and return to retry without losing their result.
-      const pending: ScanSession = { ...finalized, pendingSave: true };
+      const pending: ScanSession = {
+        ...finalized,
+        pendingSave: true,
+        pendingSaveFailure: getLastSaveFailure() ?? undefined,
+      };
       saveActiveSession(pending);
       sessionRef.current = pending;
       setSession(pending);
@@ -408,13 +414,26 @@ export function useScanSession(): UseScanSession {
     if (!current || !current.finalized) return false;
 
     // Strip the pendingSave marker before saving
-    const toSave: ScanSession = { ...current, pendingSave: undefined };
+    const toSave: ScanSession = {
+      ...current,
+      pendingSave: undefined,
+      pendingSaveFailure: undefined,
+    };
     const saved = saveFinalizedSession(toSave);
 
     if (saved) {
       clearActiveSession(); // Session is now properly saved — remove from active
       sessionRef.current = toSave;
       setSession(toSave);
+    } else {
+      const pending: ScanSession = {
+        ...toSave,
+        pendingSave: true,
+        pendingSaveFailure: getLastSaveFailure() ?? current.pendingSaveFailure,
+      };
+      saveActiveSession(pending);
+      sessionRef.current = pending;
+      setSession(pending);
     }
 
     return saved;

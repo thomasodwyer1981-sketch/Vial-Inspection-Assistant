@@ -412,6 +412,170 @@ test('legacy repair removes oversized keys before rewriting when WebKit is at qu
   });
 });
 
+test('final save proactively compacts a near-full legacy store and enforces the 100-record cap', async ({ page }) => {
+  const current = record({
+    id: 'current-after-storage-upgrade',
+    createdAt: '2026-04-04T10:00:00.000Z',
+    peptideName: 'Current Vial',
+  });
+  const oversizedImage = `data:image/jpeg;base64,${'A'.repeat(20_000)}`;
+
+  await page.goto('/');
+  const outcome = await page.evaluate(async ({ current, oversizedImage }) => {
+    localStorage.clear();
+    const oldRecords = Array.from({ length: 105 }, (_, index) => ({
+      ...current,
+      id: `legacy-${index}`,
+      createdAt: new Date(Date.UTC(2026, 2, 1, 0, index)).toISOString(),
+    }));
+    localStorage.setItem('vialscreen:history', JSON.stringify(
+      oldRecords.map((session) => ({
+        id: session.id,
+        createdAt: session.createdAt,
+        triageResult: 'pass',
+        peptideName: `Legacy ${session.id}`,
+        vendor: '',
+        overallConfidence: 80,
+        thumbnailDataUrl: oversizedImage,
+      })),
+    ));
+    for (const session of oldRecords.slice(0, 10)) {
+      localStorage.setItem(`vialscreen:session:${session.id}`, JSON.stringify({
+        ...session,
+        captures: session.captures.map((capture: { dataUrl: string }) => ({
+          ...capture,
+          dataUrl: oversizedImage,
+          thumbDataUrl: oversizedImage,
+        })),
+      }));
+    }
+    localStorage.setItem('vialscreen:session:orphan-large-record', JSON.stringify({
+      ...current,
+      id: 'orphan-large-record',
+      captures: current.captures.map((capture: { dataUrl: string }) => ({
+        ...capture,
+        dataUrl: `data:image/jpeg;base64,${'B'.repeat(350_000)}`,
+        thumbDataUrl: oversizedImage,
+      })),
+    }));
+
+    const originalSetItem = Storage.prototype.setItem;
+    const quotaChars = Array.from({ length: localStorage.length }, (_, index) => {
+      const key = localStorage.key(index);
+      return key ? key.length + (localStorage.getItem(key)?.length ?? 0) : 0;
+    }).reduce((sum, size) => sum + size, 0) + 5_000;
+    Storage.prototype.setItem = function cappedSetItem(key: string, value: string) {
+      const existingLength = this.getItem(key)?.length ?? 0;
+      const used = Array.from({ length: this.length }, (_, index) => {
+        const storedKey = this.key(index);
+        return storedKey ? storedKey.length + (this.getItem(storedKey)?.length ?? 0) : 0;
+      }).reduce((sum, size) => sum + size, 0);
+      if (used - existingLength + value.length > quotaChars) {
+        throw new DOMException('Simulated WebKit quota reached.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const { saveFinalizedSession } = await import('/src/utils/storage.ts');
+      const saved = saveFinalizedSession(current);
+      const history = JSON.parse(localStorage.getItem('vialscreen:history') ?? '[]');
+      const savedDetail = JSON.parse(
+        localStorage.getItem(`vialscreen:session:${current.id}`) ?? 'null',
+      );
+      return {
+        saved,
+        historyCount: history.length,
+        firstId: history[0]?.id,
+        oversizedThumbnails: history.filter(
+          (item: { thumbnailDataUrl?: string }) => (item.thumbnailDataUrl?.length ?? 0) > 12_000,
+        ).length,
+        detailHasFullImage: Boolean(savedDetail?.captures?.some(
+          (capture: { dataUrl?: string }) => capture.dataUrl,
+        )),
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, { current, oversizedImage });
+
+  expect(outcome).toEqual({
+    saved: true,
+    historyCount: 100,
+    firstId: current.id,
+    oversizedThumbnails: 0,
+    detailHasFullImage: false,
+  });
+});
+
+test('save diagnostics distinguish a History-index failure from a detail failure', async ({ page }) => {
+  const current = record({ id: 'history-write-failure' });
+
+  await page.goto('/');
+  const failure = await page.evaluate(async (current) => {
+    localStorage.clear();
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function rejectHistory(key: string, value: string) {
+      if (key === 'vialscreen:history') {
+        throw new DOMException('History write blocked.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const { getLastSaveFailure, saveFinalizedSession } = await import('/src/utils/storage.ts');
+      const saved = saveFinalizedSession(current);
+      return {
+        saved,
+        failure: getLastSaveFailure(),
+        detailExists: localStorage.getItem(`vialscreen:session:${current.id}`) !== null,
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, current);
+
+  expect(failure).toEqual({
+    saved: false,
+    failure: {
+      stage: 'history',
+      kind: 'quota',
+      errorName: 'QuotaExceededError',
+    },
+    detailExists: true,
+  });
+});
+
+test('pending save keeps the real failure classification after an app relaunch', async ({ page }) => {
+  const current = {
+    ...record({
+      id: 'pending-history-after-relaunch',
+      createdAt: '2026-04-04T12:00:00.000Z',
+    }),
+    pendingSave: true,
+    pendingSaveFailure: {
+      stage: 'history' as const,
+      kind: 'quota' as const,
+      errorName: 'QuotaExceededError',
+    },
+  };
+
+  await page.goto('/');
+  await page.evaluate((current) => {
+    localStorage.clear();
+    localStorage.setItem('vialscreen:onboarding', JSON.stringify({
+      completed: true,
+      disclaimerAcknowledgedAt: '2026-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('vialscreen:active-session', JSON.stringify(current));
+  }, current);
+
+  await page.goto('/scan');
+  await expect(page.getByText('Scan could not be saved')).toBeVisible();
+  await expect(page.getByText(/could not store the History entry/)).toBeVisible();
+  await expect(page.getByText(/record details because/)).toHaveCount(0);
+});
+
 test('denied iOS Photos access shows Settings guidance without changing the inspection record', async ({ page }) => {
   const current = {
     ...record({

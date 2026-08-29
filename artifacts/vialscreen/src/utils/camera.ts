@@ -233,7 +233,7 @@ export async function captureImage(
 // Generate a thumbnail (smaller) version of a data URL
 // Used for history list view
 // ----------------------------------------------------------------
-export function generateThumbnail(dataUrl: string, maxDim = 120): Promise<string> {
+export function generateThumbnail(dataUrl: string, maxDim = 96): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -246,7 +246,7 @@ export function generateThumbnail(dataUrl: string, maxDim = 120): Promise<string
       const ctx = canvas.getContext('2d');
       if (!ctx) { reject(new Error('Canvas 2D context unavailable')); return; }
       ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
+      resolve(canvas.toDataURL('image/jpeg', 0.58));
     };
     img.onerror = reject;
     img.src = dataUrl;

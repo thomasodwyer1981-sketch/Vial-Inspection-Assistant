@@ -141,7 +141,7 @@ export default function LiveCameraCapture({
       const files = await openFilePicker({ accept: 'image/*', capture: 'environment' });
       if (files.length > 0) {
         const result = await fileToDataUrl(files[0]);
-        const thumbDataUrl = await generateThumbnail(result.dataUrl, 144).catch(() => undefined);
+        const thumbDataUrl = await generateThumbnail(result.dataUrl, 96).catch(() => undefined);
         onCapture({ ...result, thumbDataUrl });
       }
       onClose();
@@ -577,7 +577,7 @@ export default function LiveCameraCapture({
     if (!capturedResult) return;
     // Attach a small thumbnail at accept time — history storage must never
     // hold full-resolution captures (they exhaust the localStorage quota).
-    const thumbDataUrl = await generateThumbnail(capturedResult.dataUrl, 144).catch(() => undefined);
+    const thumbDataUrl = await generateThumbnail(capturedResult.dataUrl, 96).catch(() => undefined);
     onCapture({ ...capturedResult, thumbDataUrl });
     onClose();
   };

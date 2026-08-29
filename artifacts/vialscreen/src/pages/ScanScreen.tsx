@@ -16,7 +16,13 @@ import { saveCardToPhotos, shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { maybeRequestReview } from '@/utils/inAppReview';
 import { ScanStep } from '@/types';
-import { loadActiveSession, loadSession, getHistoryForSampleName } from '@/utils/storage';
+import {
+  loadActiveSession,
+  loadSession,
+  getHistoryForSampleName,
+  getLastSaveFailure,
+  type SaveFailure,
+} from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
 import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
@@ -73,7 +79,7 @@ export default function ScanScreen() {
 
 function ScanScreenInner() {
   const [, setLocation] = useLocation();
-  const [saveFailed, setSaveFailed] = useState(false);
+  const [saveFailure, setSaveFailure] = useState<SaveFailure | null>(null);
 
   const {
     session,
@@ -104,7 +110,11 @@ function ScanScreenInner() {
       if (activeSession && activeSession.finalized && activeSession.pendingSave) {
         // Finalized but not saved — resume to results so user can retry
         resumeSession(activeSession);
-        setSaveFailed(true);
+        setSaveFailure(activeSession.pendingSaveFailure ?? {
+          stage: 'detail',
+          kind: 'write',
+          errorName: 'PreviousSaveFailure',
+        });
       } else if (activeSession && !activeSession.finalized) {
         resumeSession(activeSession);
       } else {
@@ -137,18 +147,28 @@ function ScanScreenInner() {
   const handleFinish = () => {
     const saved = finalizeSession();
     if (saved) {
-      setSaveFailed(false);
+      setSaveFailure(null);
       setLocation('/history');
     } else {
-      setSaveFailed(true);
+      setSaveFailure(getLastSaveFailure() ?? {
+        stage: 'detail',
+        kind: 'write',
+        errorName: 'UnknownError',
+      });
     }
   };
 
   const handleRetrySave = () => {
     const saved = retrySave();
     if (saved) {
-      setSaveFailed(false);
+      setSaveFailure(null);
       setLocation('/history');
+    } else {
+      setSaveFailure(getLastSaveFailure() ?? {
+        stage: 'detail',
+        kind: 'write',
+        errorName: 'UnknownError',
+      });
     }
     // If still fails, banner stays visible
   };
@@ -182,9 +202,9 @@ function ScanScreenInner() {
           <ResultsStep
             onFinish={handleFinish}
             onRetake={handleRetake}
-            saveFailed={saveFailed}
+            saveFailure={saveFailure}
             onRetrySave={handleRetrySave}
-            onClearSaveFailure={() => setSaveFailed(false)}
+            onClearSaveFailure={() => setSaveFailure(null)}
           />
         )}
       </main>
@@ -1124,12 +1144,12 @@ function getFactorSpecificNextSteps(
 interface ResultsStepProps {
   onFinish: () => void;
   onRetake: () => void;
-  saveFailed: boolean;
+  saveFailure: SaveFailure | null;
   onRetrySave: () => void;
   onClearSaveFailure: () => void;
 }
 
-function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
+function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
   const { session, retakeForQuality } = useScanSessionContext();
   const [, setLocation] = useLocation();
   const { isPro } = useProStatus();
@@ -1390,13 +1410,17 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   return (
     <div className="flex flex-col h-full">
       {/* Save failure banner */}
-      {saveFailed && (
+      {saveFailure && (
         <div className="bg-destructive/10 border-b border-destructive/30 px-4 py-3 shrink-0">
           <div className="flex items-start gap-3">
             <HardDrive className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-destructive mb-0.5">Scan could not be saved</p>
-              <p className="text-xs text-destructive/80 leading-relaxed">PepScan’s saved-record storage is full. Your result is still here. Delete older PepScan records, then try again.</p>
+              <p className="text-xs text-destructive/80 leading-relaxed">
+                {saveFailure.kind === 'quota'
+                  ? `PepScan could not store the ${saveFailure.stage === 'history' ? 'History entry' : 'record details'} because its saved-record storage is full. Your result is still here. Delete older PepScan records, then try again.`
+                  : `PepScan could not write the ${saveFailure.stage === 'history' ? 'History entry' : 'record details'}. Your result is still here. Try again; if it continues, restart PepScan without clearing its data.`}
+              </p>
             </div>
           </div>
           <div className="flex gap-2 mt-3">
@@ -1800,11 +1824,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       <div className="shrink-0 pt-4 px-4 pb-safe-4 bg-background/95 backdrop-blur border-t space-y-3">
         <button
           onClick={onFinish}
-          disabled={saveFailed}
+          disabled={Boolean(saveFailure)}
           className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground py-3.5 rounded-2xl font-bold shadow-md shadow-primary/20 active:scale-[0.98] disabled:opacity-50 transition-all"
         >
           <Save className="w-4 h-4" />
-          {saveFailed ? 'Save Failed — See Above' : 'Save Vial Record'}
+          {saveFailure ? 'Save Failed — See Above' : 'Save Vial Record'}
         </button>
         {shareError && (
           <p className="text-xs text-destructive text-center bg-destructive/10 rounded-xl py-2 px-3">
