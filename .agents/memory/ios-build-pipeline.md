@@ -37,3 +37,5 @@ Apple ID: **6795666262** | Bundle ID: `com.pepscan.app` | Team ID: `B6PJBT97RS`
 **CocoaPods deprecation note:** `@sentry/capacitor@4.3.0` deprecates its `.podspec`; it will be removed in the next minor release. Since the project already uses SPM this has no immediate impact, but confirms SPM is the correct long-term path.
 
 **Validation required:** iOS 26 device/simulator validation cannot be performed from a CI environment. Physical hardware is needed to install build 32 over a build with persisted Firebase/Sentry state and verify repeated launches succeed.
+
+**Photos permission validation:** CI now checks the iOS Photos usage strings, native add-only authorization branches, plugin registration, and the JavaScript denial/recovery copy before the browser regressions and archive jobs run. This catches wiring regressions, but actual allow/deny behavior still needs device or simulator validation.

@@ -29,6 +29,9 @@ jobs:
       - name: Install Chromium for Playwright
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Check iOS Photos permission contract
+        run: pnpm --filter @workspace/vialscreen run check:ios-photos
+
       - name: Run inspection record regression checks
         run: pnpm --filter @workspace/vialscreen run test:e2e
         env:
