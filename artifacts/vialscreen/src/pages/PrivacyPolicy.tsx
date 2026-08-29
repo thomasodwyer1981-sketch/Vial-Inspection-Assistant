@@ -108,7 +108,7 @@ export default function PrivacyPolicy() {
             <ul className="list-disc pl-5 space-y-1 text-muted-foreground mb-2">
               <li>
                 <strong>scan_complete</strong> — fired when a scan finishes. Includes the scan outcome
-                (Pass / Fail / Do Not Use) and the compound profile selected (e.g. "BPC-157"). No vial
+                (No Visible Anomaly Detected / Manual Inspection Recommended / Visible Issue Flagged) and the compound profile selected (e.g. "BPC-157"). No vial
                 image, scan image, or health data is included.
               </li>
             </ul>
@@ -143,11 +143,12 @@ export default function PrivacyPolicy() {
 
           {/* 1f. Camera images — Pro */}
           <div className="mb-4">
-            <h3 className="font-semibold mb-1">1f. Vial Images — Pro AI Vision</h3>
+            <h3 className="font-semibold mb-1">1f. Vial Images — Pro Enhanced Visual Review</h3>
             <p className="text-muted-foreground mb-1">
-              When you use the AI Vision feature (Pro subscribers only), vial photographs are securely
-              transmitted over HTTPS to our analysis server for AI-enhanced processing. The following
-              applies to all Pro AI Vision image submissions:
+              When Pro enhanced visual review is available, vial photographs may be securely
+              transmitted over HTTPS to our analysis server for an additional image review. The standard
+              local visual screen remains available if that optional review does not respond. The following
+              applies to those image submissions:
             </p>
             <ul className="list-disc pl-5 space-y-1 text-muted-foreground mb-2">
               <li>Images are processed immediately upon receipt (typically within 30 seconds).</li>
@@ -157,13 +158,13 @@ export default function PrivacyPolicy() {
               <li>Our analysis server is hosted within the EU/EEA.</li>
             </ul>
             <p className="text-muted-foreground">
-              The AI analysis is powered by a third-party AI model provider. Image data is passed to
-              the provider solely to generate the analysis response and is not retained by the provider
+              The additional image review may use a third-party model provider. Image data is passed to
+              the provider solely to generate the response and is not retained by the provider
               beyond that request. We select providers that commit contractually to not training on
               submitted data.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              <strong>Lawful basis:</strong> Contract performance (to deliver the AI Vision feature you have paid for).
+              <strong>Lawful basis:</strong> Contract performance (to deliver the optional enhanced visual review you have paid for).
               <br /><strong>Retention:</strong> Zero — images are not retained after processing.
             </p>
           </div>
@@ -186,7 +187,7 @@ export default function PrivacyPolicy() {
           <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
             <li>To respond to support enquiries and help requests</li>
             <li>To verify and maintain your Pro subscription entitlement</li>
-            <li>To deliver AI Vision analysis results (Pro subscribers only)</li>
+            <li>To deliver optional enhanced visual review results (Pro subscribers only)</li>
             <li>To diagnose crashes and fix technical issues</li>
             <li>To measure install attribution and aggregate in-app behaviour for advertising purposes</li>
           </ul>
@@ -222,8 +223,8 @@ export default function PrivacyPolicy() {
               <p className="text-muted-foreground">Crash reporting and diagnostics. Receives device model, OS version, app version, and stack traces. Location: USA. Safeguard: Standard contractual clauses. See <a href="https://sentry.io/privacy/" target="_blank" rel="noopener noreferrer" className="text-primary underline">sentry.io/privacy</a>.</p>
             </div>
             <div className="p-3">
-              <p className="font-semibold">AI Model Provider (Pro AI Vision)</p>
-              <p className="text-muted-foreground">Processes vial images submitted via AI Vision. Images not retained. Provider contractually prohibited from training on submitted data. Server hosted in EU/EEA.</p>
+              <p className="font-semibold">Optional Image Review Provider (Pro)</p>
+              <p className="text-muted-foreground">Processes vial images submitted for optional enhanced visual review. Images are not retained. Provider contractually prohibited from training on submitted data. Server hosted in EU/EEA.</p>
             </div>
           </div>
         </section>
@@ -263,7 +264,7 @@ export default function PrivacyPolicy() {
               <span className="font-medium text-right">Up to 24 months</span>
             </div>
             <div className="p-3 flex justify-between gap-4">
-              <span className="text-muted-foreground">AI Vision images</span>
+              <span className="text-muted-foreground">Enhanced visual review images</span>
               <span className="font-medium text-right">Not retained (deleted after processing)</span>
             </div>
             <div className="p-3 flex justify-between gap-4">
@@ -310,7 +311,7 @@ export default function PrivacyPolicy() {
           <h2 className="text-base font-bold mb-2">7. Security</h2>
           <p className="text-muted-foreground">
             We take reasonable technical and organisational measures to protect personal data against
-            unauthorised access, loss, or destruction. AI Vision images are transmitted using HTTPS
+            unauthorised access, loss, or destruction. Images sent for optional enhanced visual review are transmitted using HTTPS
             encryption. We minimise data collection and do not store data beyond what is necessary for
             each purpose described above.
           </p>

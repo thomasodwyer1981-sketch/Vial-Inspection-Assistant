@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
-// Scene 6: Outro - Pro AI Vision feature + logo
+// Scene 6: Outro - Pro inspection-record feature + logo
 export function Scene6() {
   const [phase, setPhase] = useState(0);
 
@@ -48,7 +48,7 @@ export function Scene6() {
         animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        AI Vision
+        Pro inspection records
       </motion.h2>
 
       {/* Subheadline */}
@@ -63,7 +63,7 @@ export function Scene6() {
           ease: [0.16, 1, 0.3, 1],
         }}
       >
-        Powered by GPT-4o
+        Evidence, reports, and repeat comparisons
       </motion.p>
 
       {/* Features list */}
@@ -79,7 +79,7 @@ export function Scene6() {
             className="font-body text-white font-medium"
             style={{ fontSize: "3vw" }}
           >
-            Advanced defect detection
+            Detailed visual-factor records
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -88,7 +88,7 @@ export function Scene6() {
             className="font-body text-white font-medium"
             style={{ fontSize: "3vw" }}
           >
-            Natural language insights
+            Repeat-inspection comparisons
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -97,7 +97,7 @@ export function Scene6() {
             className="font-body text-white font-medium"
             style={{ fontSize: "3vw" }}
           >
-            Detailed quality reports
+            PDF screening reports
           </p>
         </div>
       </motion.div>
@@ -121,7 +121,7 @@ export function Scene6() {
           className="font-body text-[#64748B] font-medium tracking-wider mt-1"
           style={{ fontSize: "2.5vw" }}
         >
-          PEPTIDE QUALITY ASSURANCE
+          VISUAL SCREENING RECORDS
         </p>
       </motion.div>
 

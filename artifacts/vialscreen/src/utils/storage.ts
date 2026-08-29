@@ -7,12 +7,54 @@
  */
 
 import type { ScanSession, HistoryItem, OnboardingState, ScanMode } from '../types';
+import { PRO_HISTORY_RECORD_LIMIT } from './pro';
 
 const KEYS = {
   ONBOARDING: 'vialscreen:onboarding',
   SCAN_HISTORY: 'vialscreen:history',
   ACTIVE_SESSION: 'vialscreen:active-session',
 } as const;
+
+const SESSION_KEY_PREFIX = 'vialscreen:session:';
+// A 144px JPEG is normally well below this. Older builds put the original
+// camera image in the history thumbnail field, which can consume megabytes.
+const MAX_PERSISTED_THUMBNAIL_CHARS = 200_000;
+
+function compactThumbnail(value: unknown): string | null {
+  return typeof value === 'string' && value.length <= MAX_PERSISTED_THUMBNAIL_CHARS
+    ? value
+    : null;
+}
+
+function compactSession(session: ScanSession): ScanSession {
+  return {
+    ...session,
+    captures: session.captures.map((capture) => ({
+      ...capture,
+      dataUrl: '',
+      thumbDataUrl: compactThumbnail(capture.thumbDataUrl) ?? undefined,
+    })),
+  };
+}
+
+/**
+ * Replace an oversized legacy value without temporarily requiring room for
+ * both the old and new strings. iOS WKWebView can reject setItem for a smaller
+ * replacement while localStorage is already at quota, so remove first and then
+ * write the compacted value. Restore the original best-effort if the compacted
+ * write unexpectedly fails.
+ */
+function replaceWithCompactedValue(key: string, raw: string, compacted: string): void {
+  if (compacted === raw) return;
+
+  localStorage.removeItem(key);
+  try {
+    localStorage.setItem(key, compacted);
+  } catch (error) {
+    try { localStorage.setItem(key, raw); } catch { /* best-effort rollback */ }
+    throw error;
+  }
+}
 
 // ----------------------------------------------------------------
 // Onboarding State
@@ -74,7 +116,7 @@ export function getScanHistory(): HistoryItem[] {
   }
 }
 
-export function addToHistory(session: ScanSession): void {
+export function addToHistory(session: ScanSession): boolean {
   try {
     const history = getScanHistory();
 
@@ -90,23 +132,28 @@ export function addToHistory(session: ScanSession): void {
       peptideName: session.metadata.peptideName || 'Unnamed Vial',
       vendor: session.metadata.vendor || '',
       overallConfidence: session.analysisResult?.overallConfidence ?? 0,
+      assessmentOutcome: session.analysisResult?.assessmentOutcome ?? 'assessed',
       thumbnailDataUrl: thumb,
       appearanceProfile: session.metadata.appearanceProfile ?? null,
       scanMode: session.metadata.scanMode,
     };
 
-    // Prepend (newest first), keep max 100 items
+    // Prepend (newest first), keep the documented on-device record limit.
     const updated = [item, ...history.filter((h) => h.id !== session.id)];
-    const kept = updated.slice(0, 100);
-    // Also delete the full session records of pruned entries — otherwise
-    // their localStorage keys linger forever and eat quota.
-    for (const dropped of updated.slice(100)) {
+    const kept = updated.slice(0, PRO_HISTORY_RECORD_LIMIT);
+    localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(kept));
+
+    // Only prune detail records after the new history index is safely written.
+    // Otherwise a quota error could delete valid details and still fail to add
+    // the new item.
+    for (const dropped of updated.slice(PRO_HISTORY_RECORD_LIMIT)) {
       try { localStorage.removeItem(sessionKey(dropped.id)); } catch { /* ignore */ }
     }
-    localStorage.setItem(KEYS.SCAN_HISTORY, JSON.stringify(kept));
-  } catch {
+    return true;
+  } catch (error) {
     // quota exceeded or serialization error — history entry could not be written
-    console.warn('[VialScreen] Could not write history entry — storage may be full.');
+    console.warn('[VialScreen] Could not write history entry — storage may be full.', error);
+    return false;
   }
 }
 
@@ -149,7 +196,7 @@ export function clearHistory(): void {
 // ----------------------------------------------------------------
 
 function sessionKey(id: string): string {
-  return `vialscreen:session:${id}`;
+  return `${SESSION_KEY_PREFIX}${id}`;
 }
 
 /** Returns true if saved successfully, false if storage quota was exceeded. */
@@ -158,16 +205,138 @@ export function saveSession(session: ScanSession): boolean {
     // Strip image dataUrls before persisting — base64 images are 200 KB–2 MB each
     // and quickly exhaust localStorage's ~5 MB quota. Analysis results, metadata,
     // and the history thumbnail (stored separately) are preserved.
-    const lean: ScanSession = {
-      ...session,
-      captures: session.captures.map((c) => ({ ...c, dataUrl: '' })),
-    };
+    const lean = compactSession(session);
     localStorage.setItem(sessionKey(session.id), JSON.stringify(lean));
     return true;
   } catch (e) {
     console.warn('[VialScreen] Could not save session — storage quota may be full:', e);
     return false;
   }
+}
+
+/**
+ * Recover space consumed by older PepScan builds.
+ *
+ * Legacy history rows could contain a full camera image as their thumbnail,
+ * and legacy session records retained every full-resolution capture. Updating
+ * the app does not rewrite those existing localStorage values, so they can keep
+ * iOS WKWebView over quota indefinitely.
+ *
+ * This repair preserves all valid history summaries, compact thumbnails, and
+ * referenced session details. It removes only obsolete image payloads and
+ * orphaned detail records. `preserveSessionIds` protects a newly written detail
+ * record while its history-index write is being retried.
+ */
+export function repairLegacyStorage(preserveSessionIds: string[] = []): void {
+  const preserveIds = new Set(preserveSessionIds);
+  const retainedIds = new Set<string>();
+  let canPruneOrphans = true;
+  let rawHistory: string | null = null;
+  let compactedHistory: string | null = null;
+
+  try {
+    rawHistory = localStorage.getItem(KEYS.SCAN_HISTORY);
+    if (rawHistory) {
+      const parsed = JSON.parse(rawHistory);
+      if (Array.isArray(parsed)) {
+        const compacted = parsed.map((item) => {
+          if (item && typeof item === 'object' && typeof item.id === 'string') {
+            retainedIds.add(item.id);
+            const thumbnailDataUrl = compactThumbnail(item.thumbnailDataUrl);
+            return thumbnailDataUrl === item.thumbnailDataUrl
+              ? item
+              : { ...item, thumbnailDataUrl };
+          }
+          return item;
+        });
+        compactedHistory = JSON.stringify(compacted);
+      } else {
+        canPruneOrphans = false;
+      }
+    }
+  } catch (error) {
+    // Continue with session cleanup even if a malformed history index cannot
+    // be compacted. Never replace an unreadable index with an empty one.
+    canPruneOrphans = false;
+    console.warn('[VialScreen] Could not compact legacy history.', error);
+  }
+
+  const keys: string[] = [];
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key) keys.push(key);
+    }
+  } catch {
+    return;
+  }
+
+  // Delete only confirmed orphans first. When the store is already over quota,
+  // WebKit may reject even a smaller replacement value until a key is removed.
+  for (const key of keys) {
+    if (!key.startsWith(SESSION_KEY_PREFIX)) continue;
+    const id = key.slice(SESSION_KEY_PREFIX.length);
+
+    if (canPruneOrphans && !retainedIds.has(id) && !preserveIds.has(id)) {
+      try { localStorage.removeItem(key); } catch { /* best-effort cleanup */ }
+    }
+  }
+
+  try {
+    if (compactedHistory !== null && compactedHistory !== rawHistory) {
+      replaceWithCompactedValue(KEYS.SCAN_HISTORY, rawHistory ?? '', compactedHistory);
+    }
+  } catch (error) {
+    console.warn('[VialScreen] Could not write compacted legacy history.', error);
+  }
+
+  for (const key of keys) {
+    if (!key.startsWith(SESSION_KEY_PREFIX)) continue;
+    const id = key.slice(SESSION_KEY_PREFIX.length);
+    if (canPruneOrphans && !retainedIds.has(id) && !preserveIds.has(id)) continue;
+
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as ScanSession;
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.captures)) continue;
+      const compacted = JSON.stringify(compactSession(parsed));
+      replaceWithCompactedValue(key, raw, compacted);
+    } catch (error) {
+      console.warn('[VialScreen] Could not compact a legacy session.', error);
+    }
+  }
+
+  // The active record is not referenced by the history index. Compact it, but
+  // never delete it: it may be the user's only copy of an unsaved result.
+  try {
+    const rawActive = localStorage.getItem(KEYS.ACTIVE_SESSION);
+    if (rawActive) {
+      const parsed = JSON.parse(rawActive) as ScanSession;
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.captures)) {
+        const compacted = JSON.stringify(compactSession(parsed));
+        replaceWithCompactedValue(KEYS.ACTIVE_SESSION, rawActive, compacted);
+      }
+    }
+  } catch (error) {
+    console.warn('[VialScreen] Could not compact the active session.', error);
+  }
+}
+
+function trySaveFinalizedSession(session: ScanSession): boolean {
+  if (!saveSession(session)) return false;
+  return addToHistory(session);
+}
+
+/**
+ * Persist a completed record, repairing legacy storage and retrying once before
+ * reporting a failure. Success requires both the detail record and history row.
+ */
+export function saveFinalizedSession(session: ScanSession): boolean {
+  if (trySaveFinalizedSession(session)) return true;
+
+  repairLegacyStorage([session.id]);
+  return trySaveFinalizedSession(session);
 }
 
 export function loadSession(id: string): ScanSession | null {
@@ -210,10 +379,7 @@ export function saveActiveSession(session: ScanSession): void {
     // Parsing that back synchronously on next launch can stall the main thread
     // long enough to trigger an Android ANR. The thumbnail is kept so the
     // resume banner can show a preview; the full images are re-captured anyway.
-    const lean: ScanSession = {
-      ...session,
-      captures: session.captures.map((c) => ({ ...c, dataUrl: '' })),
-    };
+    const lean = compactSession(session);
     localStorage.setItem(KEYS.ACTIVE_SESSION, JSON.stringify(lean));
   } catch {
     // quota exceeded — skip (best-effort only)

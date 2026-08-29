@@ -12,7 +12,7 @@
  */
 
 import QRCode from 'qrcode';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
@@ -25,8 +25,15 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+interface PepScanPhotosPlugin {
+  saveImageToPhotos(options: { data: string; filename: string }): Promise<void>;
+}
+
+const PepScanPhotos = registerPlugin<PepScanPhotosPlugin>('PepScanPhotos');
+
 export interface ShareCardInput {
   triageResult: 'pass' | 'review' | 'do-not-use';
+  assessmentOutcome?: 'assessed' | 'unable-to-assess';
   overallConfidence: number;
   peptideName?: string | null;
   vendor?: string | null;
@@ -35,22 +42,28 @@ export interface ShareCardInput {
 
 const VERDICT = {
   pass: {
-    label: 'PASS',
+    label: 'NO VISIBLE ANOMALY DETECTED',
     icon: '✓',
     color: '#22c55e',
-    summary: 'No obvious visual issues detected',
+    summary: 'No visible anomaly detected in these photos',
   },
   review: {
-    label: 'REVIEW',
+    label: 'MANUAL INSPECTION RECOMMENDED',
     icon: '!',
     color: '#f59e0b',
-    summary: 'Review recommended before use',
+    summary: 'One or more visual factors need a closer check',
   },
   'do-not-use': {
-    label: 'DO NOT USE',
+    label: 'VISIBLE ISSUE FLAGGED',
     icon: '✕',
     color: '#ef4444',
-    summary: 'Visible concerns flagged — investigate',
+    summary: 'A visible finding needs documenting and resolving',
+  },
+  'unable-to-assess': {
+    label: 'UNABLE TO ASSESS — RETAKE SCAN',
+    icon: '!',
+    color: '#f59e0b',
+    summary: 'Required photos were not reliable enough to screen',
   },
 } as const;
 
@@ -133,7 +146,10 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   canvas.height = S;
   const ctx = canvas.getContext('2d')!;
 
-  const v = VERDICT[input.triageResult];
+  const verdictKey = input.assessmentOutcome === 'unable-to-assess'
+    ? 'unable-to-assess'
+    : input.triageResult;
+  const v = VERDICT[verdictKey];
 
   // Background
   ctx.fillStyle = '#0E1E35';
@@ -172,7 +188,8 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.stroke();
 
   ctx.fillStyle = v.color;
-  ctx.font = `bold 82px ${FONT}`;
+  const verdictFontSize = v.label.length > 24 ? 40 : 52;
+  ctx.font = `bold ${verdictFontSize}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.fillText(`${v.icon}  ${v.label}`, S / 2, bY + 113);
 
@@ -281,7 +298,7 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
   ctx.font = `bold 36px ${FONT}`;
   ctx.fillText('Get PepScan', textX, panelY + 72);
 
-  const ctaLines = wrapText(ctx, 'AI-assisted vial screening on your phone', textW);
+  const ctaLines = wrapText(ctx, 'Visual vial screening on your phone', textW);
   ctx.fillStyle = 'rgba(255,255,255,0.50)';
   ctx.font = `26px ${FONT}`;
   for (let l = 0; l < Math.min(ctaLines.length, 2); l++) {
@@ -316,7 +333,7 @@ export async function generateShareCard(input: ShareCardInput): Promise<Blob> {
 /** Share the card via native share sheet if available, otherwise download it. */
 export async function shareOrDownloadCard(input: ShareCardInput): Promise<void> {
   const blob = await generateShareCard(input);
-  const name = `pepscan-${input.triageResult}.png`;
+  const name = `pepscan-${input.assessmentOutcome === 'unable-to-assess' ? 'retake-required' : input.triageResult}.png`;
 
   // ── Native Capacitor (Android / iOS) ────────────────────────────────────────
   if (Capacitor.isNativePlatform()) {
@@ -348,4 +365,18 @@ export async function shareOrDownloadCard(input: ShareCardInput): Promise<void> 
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/** Save the generated card directly to the iOS Photos library. */
+export async function saveCardToPhotos(input: ShareCardInput): Promise<void> {
+  if (Capacitor.getPlatform() !== 'ios') {
+    throw new Error('Saving result cards to Photos is only available on iOS.');
+  }
+
+  const blob = await generateShareCard(input);
+  const name = `pepscan-${input.assessmentOutcome === 'unable-to-assess' ? 'retake-required' : input.triageResult}.png`;
+  await PepScanPhotos.saveImageToPhotos({
+    data: await blobToBase64(blob),
+    filename: name,
+  });
 }

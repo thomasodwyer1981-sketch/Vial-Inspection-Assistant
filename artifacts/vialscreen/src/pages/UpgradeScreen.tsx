@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowLeft, CheckCircle2, History, Download, Zap, Sparkles, RotateCcw, Loader2, Layers } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, History, Download, Zap, Sparkles, RotateCcw, Loader2, Layers, FileSearch, GitCompareArrows } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { buildUpgradeCompleteUrl, consumeUpgradeReturnPath, peekUpgradeReturnPath } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
@@ -154,7 +154,7 @@ export default function UpgradeScreen() {
                 {success.restored ? 'Purchase restored!' : 'Pro activated!'}
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                AI Vision, all compound profiles, unlimited history, PDF export, and powder scanning are now unlocked.
+                Detailed visual records, all appearance profiles, powder screening, expanded on-device history, and PDF reports are now unlocked.
               </p>
               <p className="text-xs text-muted-foreground mt-4 flex items-center justify-center gap-1.5">
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -172,7 +172,7 @@ export default function UpgradeScreen() {
               </div>
               <p className="font-bold text-lg mb-2">You're already on Pro</p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Unlimited history, PDF export, and powder scanning are all active on your account.
+                Expanded on-device history, PDF reports, repeat-inspection comparisons, and powder screening are active. Records remain on this device and depend on available storage.
               </p>
               <Link
                 href="/home"
@@ -193,35 +193,40 @@ export default function UpgradeScreen() {
                 <Zap className="w-7 h-7 text-primary" />
               </div>
               <h2 className="text-2xl font-extrabold tracking-tight mb-2 leading-tight">
-                Know before<br />it matters.
+                Build a better<br />inspection record.
               </h2>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-                PepScan Pro gives you AI-powered analysis that explains exactly what triggered each
-                result — and a permanent record of every vial you've ever screened.
+                PepScan Pro turns a visual screen into a deeper, exportable record: what was observed,
+                which capture limits applied, and how a repeat inspection changed.
               </p>
             </div>
 
             {/* Benefits */}
             <div className="space-y-2">
               <BenefitRow
-                icon={<Sparkles className="w-4 h-4 text-primary" />}
-                title="AI Vision explains every result"
-                desc="A full written breakdown of what the AI assessed — which visual anomaly triggered the flag and how significant it is."
+                icon={<FileSearch className="w-4 h-4 text-primary" />}
+                title="Detailed visual-factor explanations"
+                desc="See the recorded factors, observed findings, and capture-quality limits behind each visual outcome — not just a single result label."
               />
               <BenefitRow
                 icon={<History className="w-4 h-4 text-primary" />}
-                title="Unlimited scan history"
-                desc="Every vial, saved forever. Export to CSV, generate PDF reports, or review any past scan in full detail."
+                title="Expanded on-device history"
+                desc="Free shows your 3 newest saved scans. Pro can view up to 100 locally stored records, subject to device storage, with local backup export."
               />
               <BenefitRow
                 icon={<Download className="w-4 h-4 text-primary" />}
-                title="PDF QC reports in one tap"
-                desc="Professional reports you can send to your supplier, keep in your records, or share with your team."
+                title="PDF screening reports"
+                desc="Export the outcome, visual factors, capture limitations, timestamp, vial details, notes, and the visual-screening disclaimer."
+              />
+              <BenefitRow
+                icon={<GitCompareArrows className="w-4 h-4 text-primary" />}
+                title="Repeat-inspection comparison"
+                desc="Compare a saved repeat scan with an earlier record of the same sample and make changed visible findings clear."
               />
               <BenefitRow
                 icon={<Layers className="w-4 h-4 text-primary" />}
-                title="All compound profiles"
-                desc="Specialized analysis tuned for BPC-157, TB-500, Ipamorelin, GHK-Cu, powder vials, and more."
+                title="All appearance profiles and powder screening"
+                desc="Use the full set of expected-appearance profiles and pre-mix powder visual screening. Profiles do not verify a compound’s identity."
               />
             </div>
 

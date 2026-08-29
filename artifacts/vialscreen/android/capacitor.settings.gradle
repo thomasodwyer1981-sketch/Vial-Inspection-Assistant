@@ -24,7 +24,7 @@ include ':revenuecat-purchases-capacitor'
 project(':revenuecat-purchases-capacitor').projectDir = new File('../../../node_modules/.pnpm/@revenuecat+purchases-capacitor@13.2.3_@capacitor+core@8.4.2/node_modules/@revenuecat/purchases-capacitor/android')
 
 include ':sentry-capacitor'
-project(':sentry-capacitor').projectDir = new File('../../../node_modules/.pnpm/@sentry+capacitor@4.2.0_@capacitor+core@8.4.2_@sentry+react@10.67.0_react@19.1.0_/node_modules/@sentry/capacitor/android')
+project(':sentry-capacitor').projectDir = new File('../../../node_modules/.pnpm/@sentry+capacitor@4.3.0_@capacitor+core@8.4.2_@sentry+react@10.69.0_react@19.1.0_/node_modules/@sentry/capacitor/android')
 
 include ':appsflyer-capacitor-plugin'
 project(':appsflyer-capacitor-plugin').projectDir = new File('../../../node_modules/.pnpm/appsflyer-capacitor-plugin@6.18.0_@capacitor+core@8.4.2/node_modules/appsflyer-capacitor-plugin/android')

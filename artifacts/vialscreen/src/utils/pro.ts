@@ -7,6 +7,7 @@
  */
 
 export const FREE_HISTORY_LIMIT = 3;
+export const PRO_HISTORY_RECORD_LIMIT = 100;
 export const PRO_PRICE_DISPLAY = '$4.99/yr';
 
 const STORAGE_KEY = 'vialscreen:pro:membershipId';

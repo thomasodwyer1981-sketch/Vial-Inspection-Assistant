@@ -8,7 +8,7 @@ android {
         applicationId "com.pepscan.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 35
+        versionCode 36
         versionName "1.2.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // Inject Sentry DSN into the manifest at build time (safe to embed — it's a client endpoint)
@@ -56,7 +56,7 @@ sentry {
     // Upload ProGuard/R8 mappings so native Java/Kotlin ANR and crash stacks are
     // symbolicated (in-app frames + real function names), not just system frames.
     // org/project slugs above were verified against the Sentry API (200, full access) —
-    // the earlier 404 was a stale/under-scoped CI token, not a slug mismatch.
+    // the earlier 404 was the EU/DE region routing issue above, not a slug mismatch.
     autoUploadProguardMapping = true
 
     // Disable auto-instrumentation overhead — we use manual Sentry.captureException calls

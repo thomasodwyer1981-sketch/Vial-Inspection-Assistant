@@ -93,7 +93,7 @@ export default function UpgradeCompleteScreen() {
           </div>
           <h1 className="text-2xl font-extrabold mb-2">You're Pro 🎉</h1>
           <p className="text-sm text-muted-foreground mb-1">
-            Unlimited history and exports are now unlocked.
+            Detailed records, expanded on-device history, comparisons, and PDF reports are now unlocked.
           </p>
           <p className="text-xs text-muted-foreground">
             {returningToScan ? 'Taking you back to your scan…' : 'Taking you to your history…'}

@@ -16,10 +16,14 @@ import * as Sentry from '@sentry/capacitor';
 import * as SentryReact from '@sentry/react';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+// The Replit preview runs on a public dev domain, not localhost. Reporting
+// from it turns Vite/React Fast Refresh transitions into false production
+// alerts, while compiled mobile builds use production mode and remain covered.
+const sentryEnabled = Boolean(dsn) && !import.meta.env.DEV;
 
 export function initSentry() {
-  if (!dsn) {
-    // No DSN configured — skip silently (dev / build without secret)
+  if (!sentryEnabled) {
+    // Skip development previews and builds without a DSN.
     return;
   }
 
@@ -54,7 +58,7 @@ export function setScanContext(params: {
   aiEnhanced: boolean;
   scanMode: string;
 }) {
-  if (!dsn) return;
+  if (!sentryEnabled) return;
   Sentry.withScope((scope) => {
     scope.setTag('scan.verdict', params.verdict);
     scope.setTag('scan.profile', params.profile ?? 'none');
@@ -71,7 +75,7 @@ export function setScanContext(params: {
 
 /** Report an exception from anywhere in the app */
 export function captureError(error: unknown, context?: Record<string, unknown>) {
-  if (!dsn) return;
+  if (!sentryEnabled) return;
   Sentry.withScope((scope) => {
     if (context) scope.setExtras(context);
     Sentry.captureException(error);
@@ -88,7 +92,7 @@ export function addBreadcrumb(
   data?: Record<string, unknown>,
   level: Sentry.SeverityLevel = 'info',
 ) {
-  if (!dsn) return;
+  if (!sentryEnabled) return;
   Sentry.addBreadcrumb({ message, data, level, timestamp: Date.now() / 1000 });
 }
 
@@ -101,7 +105,7 @@ export function captureMessage(
   level: Sentry.SeverityLevel = 'warning',
   context?: Record<string, unknown>,
 ) {
-  if (!dsn) return;
+  if (!sentryEnabled) return;
   Sentry.withScope((scope) => {
     if (context) scope.setExtras(context);
     Sentry.captureMessage(message, level);
@@ -135,7 +139,7 @@ export async function withSpan<T>(
   name: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  if (!dsn) return fn();
+  if (!sentryEnabled) return fn();
   return Sentry.startSpan({ op, name }, () => fn());
 }
 

@@ -15,6 +15,7 @@ import SetupScreen from '@/pages/SetupScreen';
 import ScanScreen from '@/pages/ScanScreen';
 import HistoryScreen from '@/pages/HistoryScreen';
 import HistoryDetailScreen from '@/pages/HistoryDetailScreen';
+import InspectionCompareScreen from '@/pages/InspectionCompareScreen';
 import LimitationsScreen from '@/pages/LimitationsScreen';
 import CalculatorScreen from '@/pages/CalculatorScreen';
 import UpgradeScreen from '@/pages/UpgradeScreen';
@@ -70,6 +71,7 @@ function Router() {
       <Route path="/setup" component={SetupScreen} />
       <Route path="/scan" component={ScanScreen} />
       <Route path="/history" component={HistoryScreen} />
+      <Route path="/history/:id/compare" component={InspectionCompareScreen} />
       <Route path="/history/:id" component={HistoryDetailScreen} />
       <Route path="/limitations" component={LimitationsScreen} />
       <Route path="/calculator" component={CalculatorScreen} />

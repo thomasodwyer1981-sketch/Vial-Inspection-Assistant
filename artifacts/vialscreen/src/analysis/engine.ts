@@ -22,6 +22,7 @@ import type {
   TriageResult,
   AppearanceProfile,
   ScanMode,
+  CaptureQualityBlocker,
 } from '../types';
 import {
   loadImage,
@@ -29,6 +30,7 @@ import {
   computePixelStats,
   computeBlurMetrics,
   computeGlareAnalysis,
+  computeFramingAnalysis,
   computeParticleAnalysis,
   computeColorProfile,
   estimateFillLevel,
@@ -85,10 +87,29 @@ async function scoreCaptureQuality(
 
       const pixelStats = computePixelStats(imageData);
       const blur = computeBlurMetrics(imageData);
+      const glare = computeGlareAnalysis(imageData);
+      const framing = computeFramingAnalysis(
+        imageData,
+        cap.background === 'black' ? 'black' : 'white',
+      );
 
       // Sharpness
       if (blur.sharpnessScore < 30) issues.push('image appears blurry');
       scores.push(blur.sharpnessScore);
+
+      if (glare.glareFraction > 0.25) {
+        issues.push('glare obscures the vial');
+        scores.push(20);
+      } else {
+        scores.push(glare.glareScore);
+      }
+
+      if (!framing.usable) {
+        issues.push(framing.reason ?? 'vial is poorly framed');
+        scores.push(15);
+      } else {
+        scores.push(90);
+      }
 
       // Overexposure
       if (pixelStats.overexposedFraction > 0.4) {
@@ -143,26 +164,9 @@ async function scoreCaptureQuality(
   };
 }
 
-// ----------------------------------------------------------------
-// 2. CLARITY / HAZE SUSPICION
-// Profile-aware: interpretation depends on selected appearance profile.
-//
-// clear-standard: clear/colorless baseline; detects amber oxidation tint.
-// ghk-cu:         blue tint expected — separates color from turbidity.
-// unknown-custom: color is not used as signal; conservative turbidity check.
-//
-// PRIMARY METHOD: Differential turbidity (when both white and black
-// captures are available). Compares brightness of the vial body region
-// across both captures — a clear solution has a high brightness delta
-// (nearly transparent); a turbid/hazy solution has a low delta (light
-// scatters on both backgrounds). This is a nephelometry-inspired approach.
-//
-// SECONDARY METHOD: Std dev of brightness on white background (used as
-// a 35% secondary signal, or as the sole signal when black capture is absent).
-//
-// ALSO CHECKS: Sediment/precipitation patterns in the vial base region.
-// Amber/yellow oxidation tinting for standard-clear peptides.
-// ----------------------------------------------------------------
+function requiredCaptureBackgrounds(scanMode?: ScanMode | null): Array<'white' | 'black'> {
+  return scanMode === 'powder' ? ['white'] : ['white', 'black'];
+}
 async function scoreClarityHaze(
   captures: MediaCapture[],
   profile: AppearanceProfile | null,
@@ -1043,6 +1047,7 @@ async function runPowderAnalysis(
     ocrScore,
     crackScore,
     glareScore,
+    qualityBlockers,
   ] = await Promise.all([
     scoreCaptureQuality(captures),
     scorePowderAppearance(captures),
@@ -1050,6 +1055,7 @@ async function runPowderAnalysis(
     scoreLabelOcr(captures, expectedPeptideName, onProgress),
     scoreCrackDamage(captures),
     scoreGlareInterference(captures),
+    findCaptureQualityBlockers(captures, 'powder'),
   ]);
 
   const categories: CategoryScore[] = [
@@ -1071,8 +1077,12 @@ async function runPowderAnalysis(
     ? scoreable.reduce((sum, c) => sum + c.score, 0) / scoreable.length
     : 50;
 
-  const overallConfidence = Math.round(avgScore * qualityMultiplier * glareMultiplier);
-  const qualityDegraded = captureQualityScore.score < 50 || glareScore.score < 40;
+  let overallConfidence = Math.round(avgScore * qualityMultiplier * glareMultiplier);
+  const assessmentOutcome = qualityBlockers.length > 0 ? 'unable-to-assess' : 'assessed';
+  const qualityDegraded =
+    assessmentOutcome === 'unable-to-assess' ||
+    captureQualityScore.score < 50 ||
+    glareScore.score < 40;
 
   const flaggedCategories = categories.filter((c) => c.status === 'flag');
   const reviewCategories = categories.filter((c) => c.status === 'review');
@@ -1086,35 +1096,42 @@ async function runPowderAnalysis(
   let triageResult: TriageResult;
   const primaryReasons: string[] = [];
 
-  if (flaggedCategories.length >= 2) {
+  if (assessmentOutcome === 'unable-to-assess') {
+    triageResult = 'review';
+    overallConfidence = Math.min(overallConfidence, 35);
+    primaryReasons.push(
+      'Unable to assess the vial appearance from the required photos. Retake the listed capture before relying on a visual screen.',
+      ...qualityBlockers.map((blocker) => `${blocker.title}: ${blocker.instruction}`),
+    );
+  } else if (flaggedCategories.length >= 2) {
     triageResult = 'do-not-use';
     primaryReasons.push(
-      `${flaggedCategories.length} category(ies) flagged: ` +
+      `${flaggedCategories.length} visual factor(s) showed a visible issue: ` +
       flaggedCategories.map((c) => c.label).join(', '),
     );
   } else if (flaggedCategories.length === 1) {
     triageResult = 'review';
-    primaryReasons.push(`Flagged: ${flaggedCategories[0].label} — ${flaggedCategories[0].explanation}`);
+    primaryReasons.push(`Visible issue in ${flaggedCategories[0].label}: ${flaggedCategories[0].explanation}`);
   } else if (reviewCategories.length >= 3 || qualityDegraded) {
     triageResult = 'review';
     primaryReasons.push(
       reviewCategories.length >= 3
-        ? `${reviewCategories.length} categories require review: ` +
+        ? `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
           reviewCategories.map((c) => c.label).join(', ')
-        : 'Capture quality is insufficient for reliable screening. Retake with better lighting and focus.',
+        : 'Capture quality limited the visual assessment. Retake with better lighting and focus.',
     );
   } else if (reviewCategories.length > 0) {
     triageResult = 'review';
     primaryReasons.push(
-      `${reviewCategories.length} category(ies) uncertain: ` +
+      `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
       reviewCategories.map((c) => c.label).join(', '),
     );
   } else {
     triageResult = 'pass';
     primaryReasons.push(
-      'No obvious visual anomalies detected in the lyophilized powder. ' +
+      'No visible anomaly detected in the captured powder appearance. ' +
       'Verify appearance matches your supplier certificate of analysis. ' +
-      'A pass does not confirm purity, identity, or potency.',
+      'This visual screen does not confirm purity, identity, or potency.',
     );
   }
 
@@ -1130,6 +1147,8 @@ async function runPowderAnalysis(
     categories,
     primaryReasons,
     qualityDegraded,
+    assessmentOutcome,
+    qualityBlockers,
     ocrText,
     profileUsed: null,
   };
@@ -1165,6 +1184,7 @@ export async function runAnalysis(
     ocrScore,
     crackScore,
     glareScore,
+    qualityBlockers,
   ] = await Promise.all([
     scoreCaptureQuality(captures),
     scoreClarityHaze(captures, resolvedProfile),   // profile-aware
@@ -1174,6 +1194,7 @@ export async function runAnalysis(
     scoreLabelOcr(captures, expectedPeptideName, onProgress),
     scoreCrackDamage(captures),
     scoreGlareInterference(captures),
+    findCaptureQualityBlockers(captures, scanMode),
   ]);
 
   const categories: CategoryScore[] = [
@@ -1201,7 +1222,7 @@ export async function runAnalysis(
     ? scoreable.reduce((sum, c) => sum + c.score, 0) / scoreable.length
     : 50;
 
-  const overallConfidence = Math.round(avgScore * qualityMultiplier * glareMultiplier);
+  let overallConfidence = Math.round(avgScore * qualityMultiplier * glareMultiplier);
 
   // ---- Derive triage result ----
   const flaggedCategories = categories.filter((c) => c.status === 'flag');
@@ -1216,48 +1237,59 @@ export async function runAnalysis(
 
   let triageResult: TriageResult;
   const primaryReasons: string[] = [];
-  const qualityDegraded = captureQualityScore.score < 50 || glareScore.score < 40;
+  const assessmentOutcome = qualityBlockers.length > 0 ? 'unable-to-assess' : 'assessed';
+  const qualityDegraded =
+    assessmentOutcome === 'unable-to-assess' ||
+    captureQualityScore.score < 50 ||
+    glareScore.score < 40;
 
-  if (flaggedCategories.length >= 2) {
+  if (assessmentOutcome === 'unable-to-assess') {
+    triageResult = 'review';
+    overallConfidence = Math.min(overallConfidence, 35);
+    primaryReasons.push(
+      'Unable to assess the vial appearance from the required photos. Retake the listed capture before relying on a visual screen.',
+      ...qualityBlockers.map((blocker) => `${blocker.title}: ${blocker.instruction}`),
+    );
+  } else if (flaggedCategories.length >= 2) {
     triageResult = 'do-not-use';
     primaryReasons.push(
-      `${flaggedCategories.length} category(ies) flagged: ` +
+      `${flaggedCategories.length} visual factor(s) showed a visible issue: ` +
       flaggedCategories.map((c) => c.label).join(', '),
     );
   } else if (flaggedCategories.length === 1) {
     // Single flag → review (bias toward caution)
     triageResult = 'review';
-    primaryReasons.push(`Flagged: ${flaggedCategories[0].label} — ${flaggedCategories[0].explanation}`);
+    primaryReasons.push(`Visible issue in ${flaggedCategories[0].label}: ${flaggedCategories[0].explanation}`);
   } else if (reviewCategories.length >= 3) {
     triageResult = 'review';
     primaryReasons.push(
-      `${reviewCategories.length} categories require review: ` +
+      `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
       reviewCategories.map((c) => c.label).join(', '),
     );
   } else if (qualityDegraded) {
     // Poor capture → never pass; force review
     triageResult = 'review';
     primaryReasons.push(
-      'Capture quality is insufficient for reliable screening. ' +
-      'Results may be unreliable — retake with better lighting and focus.',
+      'Capture quality limited the visual assessment. ' +
+      'Retake with better lighting and focus.',
     );
   } else if (reviewCategories.length > 0) {
     triageResult = 'review';
     primaryReasons.push(
-      `${reviewCategories.length} category(ies) uncertain: ` +
+      `${reviewCategories.length} visual factor(s) need closer manual inspection: ` +
       reviewCategories.map((c) => c.label).join(', '),
     );
   } else {
     triageResult = 'pass';
     primaryReasons.push(
-      'No obvious visual issues detected under these capture conditions. ' +
-      'A pass does not confirm safety, identity, purity, or potency.',
+      'No visible anomaly detected under these capture conditions. ' +
+      'This visual screen does not confirm safety, identity, purity, or potency.',
     );
   }
 
   // ---- Profile-specific adjustments to triage and primary reasons ----
 
-  if (resolvedProfile === 'ghk-cu' && clarityScore.status === 'pass') {
+  if (assessmentOutcome === 'assessed' && resolvedProfile === 'ghk-cu' && clarityScore.status === 'pass') {
     // Confirm that blue coloration was treated as expected — adds useful context
     if (clarityScore.explanation.includes('consistent with') && clarityScore.explanation.includes('Blue')) {
       primaryReasons.push(
@@ -1267,12 +1299,12 @@ export async function runAnalysis(
     }
   }
 
-  if (resolvedProfile === 'unknown-custom' && triageResult === 'pass' && overallConfidence < 78) {
+  if (assessmentOutcome === 'assessed' && resolvedProfile === 'unknown-custom' && triageResult === 'pass' && overallConfidence < 78) {
     // Conservative downgrade: uncertain pass with unknown profile → review
     triageResult = 'review';
     primaryReasons.push(
       'Unknown/Custom Appearance profile selected — result is conservative. ' +
-      'Uncertain findings default to Review when the appearance profile is not specified.',
+      'Uncertain findings default to manual inspection when the appearance profile is not specified.',
     );
   }
 
@@ -1290,7 +1322,96 @@ export async function runAnalysis(
     categories,
     primaryReasons,
     qualityDegraded,
+    assessmentOutcome,
+    qualityBlockers,
     ocrText,
     profileUsed: resolvedProfile,
   };
+}
+
+const BACKGROUND_LABEL: Record<'white' | 'black', string> = {
+  white: 'white-background',
+  black: 'black-background',
+};
+
+async function findCaptureQualityBlockers(
+  captures: MediaCapture[],
+  scanMode?: ScanMode | null,
+): Promise<CaptureQualityBlocker[]> {
+  const blockers: CaptureQualityBlocker[] = [];
+
+  for (const background of requiredCaptureBackgrounds(scanMode)) {
+    const capture = captures.find((item) => item.background === background);
+    const captureName = BACKGROUND_LABEL[background];
+    if (!capture) {
+      blockers.push({
+        code: 'missing-capture',
+        background,
+        title: `Missing ${captureName} photo`,
+        instruction: `Capture the vial centered against the ${background} background before screening.`,
+      });
+      continue;
+    }
+    if (!capture.dataUrl || capture.width < 400 || capture.height < 400) {
+      blockers.push({
+        code: 'low-resolution',
+        background,
+        title: `Retake the ${captureName} photo`,
+        instruction: 'Use the camera capture flow and keep the full vial body clear and large in frame.',
+      });
+      continue;
+    }
+
+    try {
+      const image = await loadImage(capture.dataUrl);
+      const { ctx, width, height } = drawToCanvas(image, 512);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const stats = computePixelStats(imageData);
+      const blur = computeBlurMetrics(imageData);
+      const glare = computeGlareAnalysis(imageData);
+      const framing = computeFramingAnalysis(imageData, background);
+
+      if (blur.sharpnessScore < 30) {
+        blockers.push({
+          code: 'blurred',
+          background,
+          title: `Blurred ${captureName} photo`,
+          instruction: 'Rest the phone or hold it still, then retake once the vial edges are sharp.',
+        });
+      }
+      if (stats.overexposedFraction > 0.4 || stats.underexposedFraction > 0.5) {
+        blockers.push({
+          code: 'poor-exposure',
+          background,
+          title: `Poorly lit ${captureName} photo`,
+          instruction: 'Use even, diffused light. Avoid direct flash and make sure the vial body is visible.',
+        });
+      }
+      if (glare.glareFraction > 0.25) {
+        blockers.push({
+          code: 'excessive-glare',
+          background,
+          title: `Glare obscures the ${captureName} photo`,
+          instruction: 'Move the light or vial angle until reflections no longer cover the glass.',
+        });
+      }
+      if (!framing.usable) {
+        blockers.push({
+          code: 'poor-framing',
+          background,
+          title: `Poorly framed ${captureName} photo`,
+          instruction: `${framing.reason ?? 'Center the full vial body with the background visible around it.'} Retake the photo.`,
+        });
+      }
+    } catch {
+      blockers.push({
+        code: 'unreadable-capture',
+        background,
+        title: `Unreadable ${captureName} photo`,
+        instruction: 'Retake this photo using the in-app camera so PepScan can inspect it.',
+      });
+    }
+  }
+
+  return blockers;
 }

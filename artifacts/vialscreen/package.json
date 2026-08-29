@@ -8,6 +8,8 @@
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:ios-photos": "node ../../scripts/verify-ios-photos-permissions.mjs",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "cap:sync": "npx cap sync",
     "cap:open:android": "npx cap open android"
   },

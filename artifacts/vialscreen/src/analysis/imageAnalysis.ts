@@ -51,6 +51,13 @@ export interface GlareAnalysis {
   glareScore: number;
 }
 
+export interface FramingAnalysis {
+  /** True when the vial-like foreground is centered, complete, and large enough to inspect. */
+  usable: boolean;
+  /** Plain-language reason for a failed framing check. */
+  reason: string | null;
+}
+
 /**
  * Color profile of the image — used for profile-aware clarity scoring.
  * Helps distinguish expected tints (e.g. GHK-Cu blue) from haze or discoloration.
@@ -273,6 +280,100 @@ export function computeGlareAnalysis(imageData: ImageData): GlareAnalysis {
   const glareScore = Math.max(0, 100 - glareFraction * 500);
 
   return { glareFraction, glareScore };
+}
+
+// ----------------------------------------------------------------
+// Framing / background check
+//
+// Uses the same background-aware foreground assumptions as ROI estimation:
+// a vial should contrast with the outer background ring, be near the center,
+// occupy a meaningful part of the frame, and not be clipped by its edges.
+// This is deliberately conservative; it catches unusable compositions rather
+// than attempting to identify the vial with a trained model.
+// ----------------------------------------------------------------
+export function computeFramingAnalysis(
+  imageData: ImageData,
+  background: 'black' | 'white',
+): FramingAnalysis {
+  const { data, width, height } = imageData;
+  const ring = Math.max(4, Math.floor(Math.min(width, height) * 0.1));
+  let ringSum = 0;
+  let ringCount = 0;
+
+  const brightnessAt = (x: number, y: number) => {
+    const index = (y * width + x) * 4;
+    return 0.299 * data[index] + 0.587 * data[index + 1] + 0.114 * data[index + 2];
+  };
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (x < ring || x >= width - ring || y < ring || y >= height - ring) {
+        ringSum += brightnessAt(x, y);
+        ringCount++;
+      }
+    }
+  }
+
+  const backdrop = ringCount > 0 ? ringSum / ringCount : background === 'black' ? 0 : 255;
+  const isForeground = background === 'black'
+    ? (value: number) => value > Math.max(28, backdrop + 24)
+    : (value: number) => value < Math.min(205, backdrop - 35);
+
+  let minX = width;
+  let maxX = -1;
+  let minY = height;
+  let maxY = -1;
+  let count = 0;
+  for (let y = ring; y < height - ring; y++) {
+    for (let x = ring; x < width - ring; x++) {
+      if (!isForeground(brightnessAt(x, y))) continue;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+      count++;
+    }
+  }
+
+  if (count < width * height * 0.003 || maxX < minX || maxY < minY) {
+    return {
+      usable: false,
+      reason: 'The vial body could not be separated from the background.',
+    };
+  }
+
+  const boxWidth = maxX - minX + 1;
+  const boxHeight = maxY - minY + 1;
+  const centerX = (minX + maxX) / 2 / width;
+  const centerY = (minY + maxY) / 2 / height;
+  const edgeMargin = Math.min(minX, minY, width - 1 - maxX, height - 1 - maxY);
+
+  if (boxWidth > width * 0.9 || boxHeight > height * 0.9) {
+    return {
+      usable: false,
+      reason: 'The background is not distinct enough around the vial.',
+    };
+  }
+  if (edgeMargin < Math.min(width, height) * 0.025) {
+    return {
+      usable: false,
+      reason: 'The vial appears cut off at the edge of the frame.',
+    };
+  }
+  if (boxHeight < height * 0.28 || boxWidth < width * 0.08) {
+    return {
+      usable: false,
+      reason: 'The vial is too small in the frame to inspect reliably.',
+    };
+  }
+  if (Math.abs(centerX - 0.5) > 0.24 || Math.abs(centerY - 0.5) > 0.27) {
+    return {
+      usable: false,
+      reason: 'The vial is too far from the center of the frame.',
+    };
+  }
+
+  return { usable: true, reason: null };
 }
 
 // ----------------------------------------------------------------
