@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 
 import { initSentry } from './lib/sentry';
 import { initAnalytics } from './lib/analytics';
+import { hydratePersistentStorage } from './utils/storage';
 import App from './App';
 
 import './index.css';
@@ -13,4 +14,6 @@ requestAnimationFrame(() => {
   initAnalytics();
 });
 
-createRoot(document.getElementById('root')!).render(<App />);
+void hydratePersistentStorage().finally(() => {
+  createRoot(document.getElementById('root')!).render(<App />);
+});

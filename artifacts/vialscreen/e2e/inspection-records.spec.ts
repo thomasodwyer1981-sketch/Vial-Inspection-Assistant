@@ -478,7 +478,7 @@ test('final save proactively compacts a near-full legacy store and enforces the 
 
     try {
       const { saveFinalizedSession } = await import('/src/utils/storage.ts');
-      const saved = saveFinalizedSession(current);
+      const saved = await saveFinalizedSession(current);
       const history = JSON.parse(localStorage.getItem('vialscreen:history') ?? '[]');
       const savedDetail = JSON.parse(
         localStorage.getItem(`vialscreen:session:${current.id}`) ?? 'null',
@@ -542,7 +542,7 @@ test('final save releases the duplicate active-session copy before writing detai
 
     try {
       const { saveFinalizedSession } = await import('/src/utils/storage.ts');
-      const saved = saveFinalizedSession(current);
+      const saved = await saveFinalizedSession(current);
       return {
         saved,
         activeExists: localStorage.getItem('vialscreen:active-session') !== null,
@@ -580,12 +580,15 @@ test('save diagnostics distinguish a History-index failure from a detail failure
 
     try {
       const { getLastSaveFailure, saveFinalizedSession } = await import('/src/utils/storage.ts');
-      const saved = saveFinalizedSession(current);
+      const saved = await saveFinalizedSession(current);
       return {
         saved,
         failure: getLastSaveFailure(),
         detailExists: localStorage.getItem(`vialscreen:session:${current.id}`) !== null,
         activeExists: localStorage.getItem('vialscreen:active-session') !== null,
+        fallbackReadable: Boolean(
+          (await import('/src/utils/storage.ts')).loadSession(current.id),
+        ),
       };
     } finally {
       Storage.prototype.setItem = originalSetItem;
@@ -593,7 +596,7 @@ test('save diagnostics distinguish a History-index failure from a detail failure
   }, current);
 
   expect(failure).toEqual({
-    saved: false,
+    saved: true,
     failure: {
       stage: 'history',
       kind: 'quota',
@@ -601,7 +604,51 @@ test('save diagnostics distinguish a History-index failure from a detail failure
     },
     detailExists: false,
     activeExists: true,
+    fallbackReadable: true,
   });
+});
+
+test('IndexedDB fallback survives relaunch when iOS rejects localStorage writes', async ({ page }) => {
+  const current = record({
+    id: 'indexeddb-ios-fallback',
+    createdAt: '2026-08-30T17:51:13.000Z',
+    peptideName: 'Build 39 Fallback Fixture',
+  });
+
+  await page.goto('/');
+  const saved = await page.evaluate(async (current) => {
+    localStorage.clear();
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function rejectPepScanRecords(key: string, value: string) {
+      if (key === 'vialscreen:history' || key.startsWith('vialscreen:session:')) {
+        throw new DOMException('Simulated iOS WebView rejection.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const storage = await import('/src/utils/storage.ts');
+      const didSave = await storage.saveFinalizedSession(current);
+      return {
+        didSave,
+        historyIds: storage.getScanHistory().map((item) => item.id),
+        detailId: storage.loadSession(current.id)?.id,
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, current);
+
+  expect(saved).toEqual({
+    didSave: true,
+    historyIds: [current.id],
+    detailId: current.id,
+  });
+
+  await page.reload();
+  await page.goto(`/history/${current.id}`);
+  await expect(page.getByRole('heading', { name: 'Build 39 Fallback Fixture' })).toBeVisible();
+  await expect(page.getByText('Fixture finding: visible haze should be reviewed.')).toBeVisible();
 });
 
 test('Sentry keeps native Capacitor localhost events and drops browser localhost events', async ({ page }) => {

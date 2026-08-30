@@ -382,7 +382,7 @@ export function useScanSession(): UseScanSession {
 
     // Save both the detail record and history row. The storage layer compacts
     // legacy image payloads and retries once before reporting a failure.
-    const saved = saveFinalizedSession(finalized);
+    const saved = await saveFinalizedSession(finalized);
 
     if (saved) {
       // Clear active session — save was successful
@@ -421,7 +421,7 @@ export function useScanSession(): UseScanSession {
       pendingSave: undefined,
       pendingSaveFailure: undefined,
     };
-    const saved = saveFinalizedSession(toSave);
+    const saved = await saveFinalizedSession(toSave);
 
     if (saved) {
       clearActiveSession(); // Session is now properly saved — remove from active
