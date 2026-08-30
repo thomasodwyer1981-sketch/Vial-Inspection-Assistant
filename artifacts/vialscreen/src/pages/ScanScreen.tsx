@@ -80,6 +80,7 @@ export default function ScanScreen() {
 function ScanScreenInner() {
   const [, setLocation] = useLocation();
   const [saveFailure, setSaveFailure] = useState<SaveFailure | null>(null);
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
 
   const {
     session,
@@ -144,31 +145,41 @@ function ScanScreenInner() {
     setLocation('/scan');
   };
 
-  const handleFinish = () => {
-    const saved = finalizeSession();
-    if (saved) {
-      setSaveFailure(null);
-      setLocation('/history');
-    } else {
-      setSaveFailure(getLastSaveFailure() ?? {
-        stage: 'detail',
-        kind: 'write',
-        errorName: 'UnknownError',
-      });
+  const handleFinish = async () => {
+    setIsSavingRecord(true);
+    try {
+      const saved = await finalizeSession();
+      if (saved) {
+        setSaveFailure(null);
+        setLocation('/history');
+      } else {
+        setSaveFailure(getLastSaveFailure() ?? {
+          stage: 'detail',
+          kind: 'write',
+          errorName: 'UnknownError',
+        });
+      }
+    } finally {
+      setIsSavingRecord(false);
     }
   };
 
-  const handleRetrySave = () => {
-    const saved = retrySave();
-    if (saved) {
-      setSaveFailure(null);
-      setLocation('/history');
-    } else {
-      setSaveFailure(getLastSaveFailure() ?? {
-        stage: 'detail',
-        kind: 'write',
-        errorName: 'UnknownError',
-      });
+  const handleRetrySave = async () => {
+    setIsSavingRecord(true);
+    try {
+      const saved = await retrySave();
+      if (saved) {
+        setSaveFailure(null);
+        setLocation('/history');
+      } else {
+        setSaveFailure(getLastSaveFailure() ?? {
+          stage: 'detail',
+          kind: 'write',
+          errorName: 'UnknownError',
+        });
+      }
+    } finally {
+      setIsSavingRecord(false);
     }
     // If still fails, banner stays visible
   };
@@ -205,6 +216,7 @@ function ScanScreenInner() {
             saveFailure={saveFailure}
             onRetrySave={handleRetrySave}
             onClearSaveFailure={() => setSaveFailure(null)}
+            isSavingRecord={isSavingRecord}
           />
         )}
       </main>
@@ -1142,14 +1154,15 @@ function getFactorSpecificNextSteps(
 // ── Results Step ────────────────────────────────────────────────────────────
 
 interface ResultsStepProps {
-  onFinish: () => void;
+  onFinish: () => Promise<void>;
   onRetake: () => void;
   saveFailure: SaveFailure | null;
-  onRetrySave: () => void;
+  onRetrySave: () => Promise<void>;
   onClearSaveFailure: () => void;
+  isSavingRecord: boolean;
 }
 
-function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
+function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSaveFailure, isSavingRecord }: ResultsStepProps) {
   const { session, retakeForQuality } = useScanSessionContext();
   const [, setLocation] = useLocation();
   const { isPro } = useProStatus();
@@ -1424,8 +1437,20 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={() => { onClearSaveFailure(); setLocation('/history'); }} className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg">Manage Records →</button>
-            <button onClick={onRetrySave} className="flex-1 bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 rounded-lg">Try Again</button>
+            <button
+              onClick={() => { onClearSaveFailure(); setLocation('/history'); }}
+              disabled={isSavingRecord}
+              className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg disabled:opacity-50"
+            >
+              Manage Records →
+            </button>
+            <button
+              onClick={onRetrySave}
+              disabled={isSavingRecord}
+              className="flex-1 bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 rounded-lg disabled:opacity-50"
+            >
+              {isSavingRecord ? 'Reporting…' : 'Try Again'}
+            </button>
           </div>
         </div>
       )}
@@ -1824,11 +1849,11 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
       <div className="shrink-0 pt-4 px-4 pb-safe-4 bg-background/95 backdrop-blur border-t space-y-3">
         <button
           onClick={onFinish}
-          disabled={Boolean(saveFailure)}
+          disabled={Boolean(saveFailure) || isSavingRecord}
           className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground py-3.5 rounded-2xl font-bold shadow-md shadow-primary/20 active:scale-[0.98] disabled:opacity-50 transition-all"
         >
           <Save className="w-4 h-4" />
-          {saveFailure ? 'Save Failed — See Above' : 'Save Vial Record'}
+          {isSavingRecord ? 'Saving…' : saveFailure ? 'Save Failed — See Above' : 'Save Vial Record'}
         </button>
         {shareError && (
           <p className="text-xs text-destructive text-center bg-destructive/10 rounded-xl py-2 px-3">

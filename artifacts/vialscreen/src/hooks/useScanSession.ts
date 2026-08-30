@@ -22,6 +22,7 @@ import {
   clearActiveSession,
   generateId,
   getLastSaveFailure,
+  waitForLastSaveFailureReport,
 } from '../utils/storage';
 import { runAnalysis } from '../analysis/engine';
 import { trackScanComplete } from '../lib/analytics';
@@ -70,7 +71,7 @@ export interface UseScanSession {
    * pendingSave: true so the user can navigate away to free storage and
    * return to retry. The active session is NOT cleared on failure.
    */
-  finalizeSession(): boolean;
+  finalizeSession(): Promise<boolean>;
 
   /**
    * Retry saving an already-finalized session.
@@ -78,7 +79,7 @@ export interface UseScanSession {
    * Returns true on success, false on failure.
    * On success, clears the active session from storage.
    */
-  retrySave(): boolean;
+  retrySave(): Promise<boolean>;
 }
 
 export function useScanSession(): UseScanSession {
@@ -366,7 +367,7 @@ export function useScanSession(): UseScanSession {
     }
   }, [session]);
 
-  const finalizeSession = useCallback((): boolean => {
+  const finalizeSession = useCallback(async (): Promise<boolean> => {
     // Use sessionRef for synchronous access (avoids stale closure in setSession updater)
     const current = sessionRef.current ?? session;
     if (!current) return false;
@@ -398,6 +399,7 @@ export function useScanSession(): UseScanSession {
       saveActiveSession(pending);
       sessionRef.current = pending;
       setSession(pending);
+      await waitForLastSaveFailureReport();
       return false;
     }
 
@@ -408,7 +410,7 @@ export function useScanSession(): UseScanSession {
     return true;
   }, [session]);
 
-  const retrySave = useCallback((): boolean => {
+  const retrySave = useCallback(async (): Promise<boolean> => {
     // Re-attempt saving an already-finalized session (e.g., after user freed storage)
     const current = sessionRef.current ?? session;
     if (!current || !current.finalized) return false;
@@ -434,6 +436,7 @@ export function useScanSession(): UseScanSession {
       saveActiveSession(pending);
       sessionRef.current = pending;
       setSession(pending);
+      await waitForLastSaveFailureReport();
     }
 
     return saved;

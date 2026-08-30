@@ -508,12 +508,68 @@ test('final save proactively compacts a near-full legacy store and enforces the 
   });
 });
 
+test('final save releases the duplicate active-session copy before writing detail', async ({ page }) => {
+  const current = record({
+    id: 'active-session-quota-release',
+    createdAt: '2026-04-04T11:00:00.000Z',
+    peptideName: 'Active Session Quota Fixture',
+  });
+
+  await page.goto('/');
+  const outcome = await page.evaluate(async (current) => {
+    localStorage.clear();
+    const active = JSON.stringify(current);
+    localStorage.setItem('vialscreen:active-session', active);
+    localStorage.setItem('quota-padding', 'P'.repeat(40_000));
+
+    const originalSetItem = Storage.prototype.setItem;
+    const quotaChars = Array.from({ length: localStorage.length }, (_, index) => {
+      const key = localStorage.key(index);
+      return key ? key.length + (localStorage.getItem(key)?.length ?? 0) : 0;
+    }).reduce((sum, size) => sum + size, 0) + 500;
+
+    Storage.prototype.setItem = function cappedSetItem(key: string, value: string) {
+      const existingLength = this.getItem(key)?.length ?? 0;
+      const used = Array.from({ length: this.length }, (_, index) => {
+        const storedKey = this.key(index);
+        return storedKey ? storedKey.length + (this.getItem(storedKey)?.length ?? 0) : 0;
+      }).reduce((sum, size) => sum + size, 0);
+      if (used - existingLength + value.length > quotaChars) {
+        throw new DOMException('Simulated WebKit quota reached.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const { saveFinalizedSession } = await import('/src/utils/storage.ts');
+      const saved = saveFinalizedSession(current);
+      return {
+        saved,
+        activeExists: localStorage.getItem('vialscreen:active-session') !== null,
+        detailExists: localStorage.getItem(`vialscreen:session:${current.id}`) !== null,
+        historyIds: JSON.parse(localStorage.getItem('vialscreen:history') ?? '[]')
+          .map((item: { id: string }) => item.id),
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, current);
+
+  expect(outcome).toEqual({
+    saved: true,
+    activeExists: false,
+    detailExists: true,
+    historyIds: [current.id],
+  });
+});
+
 test('save diagnostics distinguish a History-index failure from a detail failure', async ({ page }) => {
   const current = record({ id: 'history-write-failure' });
 
   await page.goto('/');
   const failure = await page.evaluate(async (current) => {
     localStorage.clear();
+    localStorage.setItem('vialscreen:active-session', JSON.stringify(current));
     const originalSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function rejectHistory(key: string, value: string) {
       if (key === 'vialscreen:history') {
@@ -529,6 +585,7 @@ test('save diagnostics distinguish a History-index failure from a detail failure
         saved,
         failure: getLastSaveFailure(),
         detailExists: localStorage.getItem(`vialscreen:session:${current.id}`) !== null,
+        activeExists: localStorage.getItem('vialscreen:active-session') !== null,
       };
     } finally {
       Storage.prototype.setItem = originalSetItem;
@@ -542,7 +599,26 @@ test('save diagnostics distinguish a History-index failure from a detail failure
       kind: 'quota',
       errorName: 'QuotaExceededError',
     },
-    detailExists: true,
+    detailExists: false,
+    activeExists: true,
+  });
+});
+
+test('Sentry keeps native Capacitor localhost events and drops browser localhost events', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { shouldDropSentryEvent } = await import('/src/lib/sentry.ts');
+    return {
+      nativeLocalhost: shouldDropSentryEvent('localhost', true),
+      browserLocalhost: shouldDropSentryEvent('localhost', false),
+      productionHost: shouldDropSentryEvent('pepscan.replit.app', false),
+    };
+  });
+
+  expect(result).toEqual({
+    nativeLocalhost: false,
+    browserLocalhost: true,
+    productionHost: false,
   });
 });
 

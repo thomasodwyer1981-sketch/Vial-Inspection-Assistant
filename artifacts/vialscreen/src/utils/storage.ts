@@ -8,7 +8,7 @@
 
 import type { ScanSession, HistoryItem, OnboardingState, ScanMode } from '../types';
 import { PRO_HISTORY_RECORD_LIMIT } from './pro';
-import { captureMessage } from '../lib/sentry';
+import { captureSaveFailureDiagnostic } from '../lib/sentry';
 
 const KEYS = {
   ONBOARDING: 'vialscreen:onboarding',
@@ -33,9 +33,14 @@ export interface SaveFailure {
 }
 
 let lastSaveFailure: SaveFailure | null = null;
+let lastSaveFailureReport: Promise<boolean> | null = null;
 
 export function getLastSaveFailure(): SaveFailure | null {
   return lastSaveFailure;
+}
+
+export function waitForLastSaveFailureReport(): Promise<boolean> {
+  return lastSaveFailureReport ?? Promise.resolve(false);
 }
 
 function storageUsageChars(): number {
@@ -62,12 +67,11 @@ function recordSaveFailure(stage: SaveFailureStage, error: unknown): void {
         ? 'serialization'
         : 'write';
   lastSaveFailure = { stage, kind, errorName };
-  captureMessage('Inspection record save failed', 'error', {
+  lastSaveFailureReport = captureSaveFailureDiagnostic({
     stage,
     kind,
-    error_name: errorName,
-    pepscan_storage_chars: storageUsageChars(),
-    app_version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
+    errorName,
+    storageChars: storageUsageChars(),
   });
 }
 
@@ -400,6 +404,26 @@ function trySaveFinalizedSession(session: ScanSession): boolean {
   return addToHistory(session);
 }
 
+function rawSessionId(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { id?: unknown };
+    return typeof parsed?.id === 'string' ? parsed.id : null;
+  } catch {
+    return null;
+  }
+}
+
+function restoreRawValue(key: string, raw: string | null): void {
+  try {
+    localStorage.removeItem(key);
+    if (raw !== null) localStorage.setItem(key, raw);
+  } catch {
+    // Best effort. The caller persists the pending active session immediately
+    // after a failed finalized save.
+  }
+}
+
 /**
  * Persist a completed record, repairing legacy storage and retrying once before
  * reporting a failure. Success requires both the detail record and history row.
@@ -408,12 +432,37 @@ export function saveFinalizedSession(session: ScanSession): boolean {
   // Repair first. Waiting for a failed write is unreliable on WKWebView: a
   // store filled by legacy image payloads may reject even a smaller overwrite.
   repairLegacyStorage([session.id]);
+
+  const detailKey = sessionKey(session.id);
+  const previousDetail = localStorage.getItem(detailKey);
+  const activeRaw = localStorage.getItem(KEYS.ACTIVE_SESSION);
+  const stagedActive = rawSessionId(activeRaw) === session.id ? activeRaw : null;
+
+  // The finalized detail is nearly the same payload as the active session.
+  // Keeping both during the write temporarily doubles the required space and
+  // makes a nearly-full WKWebView reject the detail before we can clear active.
+  // Stage the active value in memory, release its quota, and restore it below
+  // if either the detail or History write still fails.
+  if (stagedActive !== null) {
+    localStorage.removeItem(KEYS.ACTIVE_SESSION);
+  }
+
   lastSaveFailure = null;
+  lastSaveFailureReport = null;
   if (trySaveFinalizedSession(session)) return true;
 
   // A concurrent/best-effort write may have consumed space after preflight.
   repairLegacyStorage([session.id]);
-  return trySaveFinalizedSession(session);
+  if (trySaveFinalizedSession(session)) return true;
+
+  // A History-stage failure may have left a new detail record behind. Roll it
+  // back before restoring the active result so the user's only retryable copy
+  // cannot itself be lost to quota pressure.
+  restoreRawValue(detailKey, previousDetail);
+  if (stagedActive !== null) {
+    restoreRawValue(KEYS.ACTIVE_SESSION, stagedActive);
+  }
+  return false;
 }
 
 export function loadSession(id: string): ScanSession | null {
