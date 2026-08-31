@@ -13,3 +13,4 @@
 - [Native Sentry delivery](vialscreen-sentry-native-origin.md) — Capacitor WebViews use localhost; never filter that origin when the platform is native
 - [Device camera rules](vialscreen-device-camera.md) — cap getUserMedia at 1920 (4K melts WebView memory), best-of-3 burst, capture failures must be loud
 - [R8 ProGuard ANR risk](r8-anr-risk.md) — proguard-android-optimize.txt causes RenderProxy::setStopped ANR; always use proguard-android.txt for Capacitor WebView apps
+- [Physical iOS persistence validation](physical-ios-persistence.md) — simulator checks cannot replace upgrade-and-relaunch testing on the affected WKWebView device
