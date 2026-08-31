@@ -8,7 +8,8 @@
 
 export const FREE_HISTORY_LIMIT = 3;
 export const PRO_HISTORY_RECORD_LIMIT = 100;
-export const PRO_PRICE_DISPLAY = '$4.99/yr';
+/** Web-only fallback; native screens use the store-localized price. */
+export const PRO_PRICE_DISPLAY = '$4.99 one-time';
 
 const STORAGE_KEY = 'vialscreen:pro:membershipId';
 const CACHE_KEY = 'vialscreen:pro:verifiedAt';

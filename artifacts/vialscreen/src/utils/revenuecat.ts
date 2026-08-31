@@ -17,6 +17,23 @@ export const RC_ENTITLEMENT_ID = 'Pepscan Pro';
 
 let initialized = false;
 
+/**
+ * Select only RevenueCat's lifetime package. Kept pure so the store contract
+ * can be regression-tested without opening a native billing sheet.
+ */
+export function selectOneTimePackage<T extends { packageType?: unknown }>(
+  offering: {
+    lifetime?: T | null;
+    availablePackages?: readonly T[];
+  } | null | undefined,
+): T | null {
+  return (
+    offering?.lifetime ??
+    offering?.availablePackages?.find((candidate) => candidate.packageType === 'LIFETIME') ??
+    null
+  );
+}
+
 export async function initRevenueCat(): Promise<void> {
   if (!Capacitor.isNativePlatform() || initialized) return;
 
@@ -48,7 +65,7 @@ export async function checkRCEntitlement(): Promise<boolean> {
 }
 
 /**
- * Triggers the Google Play purchase sheet for the annual subscription package.
+ * Triggers the native store purchase sheet for the lifetime one-time package.
  * Returns true if purchase succeeded and entitlement is now active.
  * Returns false if user cancelled.
  * Throws on any other error.
@@ -80,17 +97,14 @@ export async function purchaseRCPro(): Promise<boolean> {
 
   const current = offerings?.current;
 
-  // iOS uses annual subscription; Android uses lifetime (one-time purchase).
-  // Fall back to first available package if the expected one is missing.
-  const platform = Capacitor.getPlatform();
-  const pkg =
-    (platform === 'ios' ? current?.annual : current?.lifetime) ??
-    current?.availablePackages?.[0] ??
-    null;
+  // Both stores must use the lifetime package. Never fall back to an annual
+  // or arbitrary custom package: doing so can silently turn a one-time
+  // purchase into a recurring subscription.
+  const pkg = selectOneTimePackage(current);
   if (!pkg) {
     console.error('[RevenueCat] No packages in offering:', JSON.stringify(offerings));
     throw new Error(
-      'No packages found in RevenueCat offering. Check that the annual product is attached to the default offering in the RC dashboard.',
+      'PepScan Pro is not configured for this store yet. Add the lifetime one-time product to the default RevenueCat offering, then try again.',
     );
   }
 
@@ -109,7 +123,7 @@ export async function purchaseRCPro(): Promise<boolean> {
 }
 
 /**
- * Returns the localised price string for the Pro package (e.g. "$4.99") from
+ * Returns the localized price string for the Pro lifetime package (e.g. "$4.99") from
  * RevenueCat. Returns null on web or if the offering cannot be fetched.
  */
 export async function getProPrice(): Promise<string | null> {
@@ -118,11 +132,7 @@ export async function getProPrice(): Promise<string | null> {
     await initRevenueCat();
     const offerings = await Purchases.getOfferings();
     const current = offerings?.current;
-    const platform = Capacitor.getPlatform();
-    const pkg =
-      (platform === 'ios' ? current?.annual : current?.lifetime) ??
-      current?.availablePackages?.[0] ??
-      null;
+    const pkg = selectOneTimePackage(current);
     // RevenueCat exposes the store-formatted price string on the product object
     const price = (pkg?.product as Record<string, unknown> | undefined)?.priceString;
     return typeof price === 'string' && price.length > 0 ? price : null;

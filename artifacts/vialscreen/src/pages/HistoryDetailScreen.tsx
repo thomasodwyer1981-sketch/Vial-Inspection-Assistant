@@ -1,5 +1,5 @@
 import { Link, useLocation, useParams } from 'wouter';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Trash2,
@@ -17,8 +17,10 @@ import {
   GitCompareArrows,
   Lock,
   Loader2,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
-import { loadSession, deleteSession, getHistoryForSampleName } from '@/utils/storage';
+import { loadSession, deleteSession, getHistoryForSampleName, createRepeatSession, saveActiveSession } from '@/utils/storage';
 import { RESULT_COPY } from '@/constants/copy';
 import { APPEARANCE_PROFILES } from '@/types';
 import { format } from 'date-fns';
@@ -31,6 +33,7 @@ import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { buildInspectionReportInput } from '@/utils/inspectionReport';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { buildReportComparison, getEarlierComparableSessions } from '@/utils/inspectionComparison';
+import { trackHistoryViewed, trackRepeatInspectionStarted } from '@/lib/analytics';
 
 export default function HistoryDetailScreen() {
   const { id } = useParams();
@@ -39,6 +42,10 @@ export default function HistoryDetailScreen() {
   const { isPro, isLoading: proLoading } = useProStatus();
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session) trackHistoryViewed();
+  }, [session?.id]);
 
   if (!session || !session.analysisResult) {
     return (
@@ -57,6 +64,12 @@ export default function HistoryDetailScreen() {
       deleteSession(session.id);
       setLocation('/history');
     }
+  };
+
+  const handleRepeatInspection = () => {
+    saveActiveSession(createRepeatSession(session));
+    trackRepeatInspectionStarted(session.metadata.scanMode ?? 'reconstituted');
+    setLocation('/scan');
   };
 
   const result = session.analysisResult;
@@ -130,6 +143,13 @@ export default function HistoryDetailScreen() {
       </header>
 
       <div className="p-6 space-y-8 pb-6">
+        <button
+          onClick={handleRepeatInspection}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-3.5 text-sm font-bold shadow-sm active:scale-[0.98] transition-transform"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Inspect this vial again
+        </button>
         {/* Triage Header */}
         <div className="bg-card border rounded-2xl p-6 text-center shadow-sm">
           <TriageBadge
@@ -144,6 +164,16 @@ export default function HistoryDetailScreen() {
           <div className="inline-block bg-secondary px-3 py-1.5 rounded-lg text-xs font-bold text-secondary-foreground mb-2">
             Overall Confidence: {result.overallConfidence}%
           </div>
+          {isPro && (
+            <div className={`mt-2 mx-auto w-fit inline-flex items-center gap-1.5 border px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+              result.aiEnhanced
+                ? 'bg-primary/10 border-primary/25 text-primary'
+                : 'bg-secondary border-border text-muted-foreground'
+            }`}>
+              <Sparkles className="w-3 h-3" />
+              {result.aiEnhanced ? 'Enhanced visual review completed' : 'Local review only'}
+            </div>
+          )}
 
           {result.overallConfidence < 50 && (
             <div className="mt-2 mb-2 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider">

@@ -68,15 +68,15 @@ export default function PrivacyPolicy() {
             <p className="text-muted-foreground mb-1">
               If you subscribe to PepScan Pro, your purchase is processed by the Apple App Store
               (Apple Inc.) on iOS or Google Play (Google LLC) on Android. We use RevenueCat, Inc. as
-              our subscription management platform. RevenueCat receives a device identifier and
+              our purchase-entitlement platform. RevenueCat receives a device identifier and
               store transaction or purchase information from the relevant app store and returns your
               entitlement status to the App. We do not receive or store your payment card details.
               We receive only a confirmation of whether a valid Pro entitlement is active.
             </p>
             <p className="text-xs text-muted-foreground">
-              <strong>Lawful basis:</strong> Contract performance (to verify and deliver your Pro subscription).
+              <strong>Lawful basis:</strong> Contract performance (to verify and deliver your Pro purchase).
               <br /><strong>Retention:</strong> Entitlement records held for the duration of your
-              subscription plus any legally required period (typically 7 years for financial records
+              purchase plus any legally required period (typically 7 years for financial records
               under Irish law).
             </p>
           </div>
@@ -187,7 +187,7 @@ export default function PrivacyPolicy() {
           <h2 className="text-base font-bold mb-2">2. How We Use Your Data</h2>
           <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
             <li>To respond to support enquiries and help requests</li>
-            <li>To verify and maintain your Pro subscription entitlement</li>
+            <li>To verify and maintain your Pro purchase entitlement</li>
             <li>To deliver optional enhanced visual review results (Pro subscribers only)</li>
             <li>To diagnose crashes and fix technical issues</li>
             <li>To measure install attribution and aggregate in-app behaviour for advertising purposes</li>

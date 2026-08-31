@@ -857,3 +857,20 @@ export function createNewSession(): ScanSession {
     finalized: false,
   };
 }
+
+/**
+ * Start a fresh inspection while retaining only the metadata that identifies
+ * the same vial. Captures and analysis never carry over to a repeat scan.
+ */
+export function createRepeatSession(source: ScanSession): ScanSession {
+  const repeat = createNewSession();
+  return {
+    ...repeat,
+    metadata: {
+      ...repeat.metadata,
+      ...source.metadata,
+      notes: '',
+      reconstitutedAt: null,
+    },
+  };
+}

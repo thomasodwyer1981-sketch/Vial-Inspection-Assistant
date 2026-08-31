@@ -9,6 +9,13 @@ import { purchaseRCPro, restoreRCPurchases } from '@/utils/revenuecat';
 import { hapticSuccess } from '@/utils/haptics';
 import { logAFEvent } from '@/utils/appsflyer';
 import { useProPrice } from '@/hooks/useProPrice';
+import {
+  trackProOfferViewed,
+  trackProPurchaseAttempt,
+  trackProPurchaseComplete,
+  trackProRestoreAttempt,
+  trackProRestoreComplete,
+} from '@/lib/analytics';
 
 const isNative = Capacitor.isNativePlatform();
 const isIOS = Capacitor.getPlatform() === 'ios';
@@ -17,6 +24,7 @@ export default function UpgradeScreen() {
   const [, navigate] = useLocation();
   const { isPro, isLoading: proLoading, recheck } = useProStatus();
   const proPrice = useProPrice();
+  const priceLabel = proPrice ?? 'Price shown by store';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +37,10 @@ export default function UpgradeScreen() {
     },
     [],
   );
+
+  useEffect(() => {
+    trackProOfferViewed(peekUpgradeReturnPath() === '/scan' ? 'post_scan' : 'upgrade');
+  }, []);
 
   const celebrate = (restored: boolean) => {
     void hapticSuccess();
@@ -48,10 +60,12 @@ export default function UpgradeScreen() {
   const handleNativePurchase = async () => {
     setLoading(true);
     setError(null);
+    trackProPurchaseAttempt('native');
     try {
       const purchased = await purchaseRCPro();
       if (purchased) {
-        void logAFEvent('purchase_complete', { plan: 'pro', revenue: 4.99 });
+        trackProPurchaseComplete('native');
+        void logAFEvent('purchase_complete', { plan: 'pro' });
         celebrate(false);
       }
     } catch (e: unknown) {
@@ -65,9 +79,11 @@ export default function UpgradeScreen() {
   const handleNativeRestore = async () => {
     setRestoreLoading(true);
     setRestoreError(null);
+    trackProRestoreAttempt('native');
     try {
       const restored = await restoreRCPurchases();
       if (restored) {
+        trackProRestoreComplete('native');
         celebrate(true);
       } else {
         setRestoreError(
@@ -252,14 +268,11 @@ export default function UpgradeScreen() {
                     className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.97] transition-all disabled:opacity-60"
                   >
                     <Zap className="w-5 h-5" />
-                    {loading ? 'Processing…' : `Unlock Pro — ${proPrice} / year`}
+                    {loading ? 'Processing…' : `Unlock Pro — ${priceLabel}`}
                   </button>
                   <p className="text-center text-xs text-muted-foreground leading-relaxed">
-                    PepScan Pro — {proPrice}, billed annually. Renews automatically each year unless
-                    cancelled at least 24 hours before the renewal date.{' '}
-                    {isIOS
-                      ? 'Manage or cancel in your Apple ID subscription settings.'
-                      : 'Manage or cancel in Google Play.'}
+                    PepScan Pro is a single purchase of {priceLabel} with no recurring renewal.
+                    Payment is handled securely by the {isIOS ? 'Apple App Store' : 'Google Play'}.
                   </p>
                   <p className="text-center text-xs text-muted-foreground/70">
                     Payment via {isIOS ? 'Apple App Store' : 'Google Play'}. By purchasing you agree to our{' '}
@@ -270,10 +283,10 @@ export default function UpgradeScreen() {
                 </>
               ) : (
                 <div className="rounded-2xl border bg-muted/40 p-5 text-center space-y-3">
-                  <p className="font-semibold text-sm">Available on Android</p>
+                   <p className="font-semibold text-sm">Available in the PepScan app</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    PepScan Pro is purchased through the Android app via Google Play.
-                    Download the app to upgrade.
+                     PepScan Pro is purchased through the app store and is a single purchase
+                     with no recurring renewal. Open PepScan on Android or iOS to upgrade.
                   </p>
                   <p className="text-center text-xs text-muted-foreground/70">
                     By purchasing you agree to our{' '}

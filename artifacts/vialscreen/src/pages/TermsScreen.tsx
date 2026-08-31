@@ -228,18 +228,15 @@ export default function TermsScreen() {
           </p>
         </section>
 
-        {/* ── 9. Subscription ── */}
+        {/* ── 9. Pro purchase ── */}
         <section>
-          <h2 className="text-base font-bold mb-2">9. PepScan Pro Subscription</h2>
+          <h2 className="text-base font-bold mb-2">9. PepScan Pro Purchase</h2>
           <p className="mb-3">
-            PepScan Pro is an optional paid subscription offered through Google Play. Payment will be
-            charged to your Google Play account at confirmation of purchase. Unless cancelled at least
-            24 hours before the end of the current billing period, your subscription will automatically
-            renew for the same term and Google Play will charge your account for renewal. You can manage
-            or cancel your subscription through your Google Play account settings. Any free trial,
-            introductory price, promotional offer, renewal pricing, taxes, and refund rights will be
-            shown to you in Google Play before purchase and will be governed by applicable law and
-            Google Play policies where relevant.
+            PepScan Pro is an optional paid one-time purchase offered through the Apple App Store or
+            Google Play. Payment will be charged to your store account at confirmation of purchase.
+            Pro does not recur or renew. The localized price, taxes, promotional offers, and refund
+            rights, if applicable, will be shown by the relevant store before purchase and governed
+            by applicable law and store policies.
           </p>
           <p className="text-xs text-muted-foreground">
             <strong>EU / Irish consumers:</strong> You may have a statutory right to withdraw from a

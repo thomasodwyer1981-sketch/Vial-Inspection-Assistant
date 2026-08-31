@@ -30,6 +30,7 @@ import { captureError } from '@/lib/sentry';
 import { logAFEvent } from '@/utils/appsflyer';
 import { buildInspectionReportInput } from '@/utils/inspectionReport';
 import { buildReportComparison, getEarlierComparableSessions } from '@/utils/inspectionComparison';
+import { trackEnhancedReview, trackProOfferViewed } from '@/lib/analytics';
 
 /** Format a stored ISO date as a compact relative label ("3d ago", "2w ago"). */
 function fmtDate(iso: string): string {
@@ -1199,6 +1200,8 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
       session?.metadata.appearanceProfile  ||
       'unknown';
     void logAFEvent('scan_complete', { result: afResult, compound });
+    trackEnhancedReview(result.aiEnhanced ? 'completed' : 'local_only');
+    if (!isPro) trackProOfferViewed('post_scan');
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1498,13 +1501,16 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
             </div>
           )}
 
-          {/* AI Enhanced badge */}
-          {result.aiEnhanced && (
-            <div className="mt-4 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/25 text-primary px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-               Expanded visual analysis
-            </div>
-          )}
+          {/* Review source is always explicit so Pro never implies a remote
+              enhancement completed when the optional service was unavailable. */}
+          <div className={`mt-4 inline-flex items-center gap-1.5 border px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+            result.aiEnhanced
+              ? 'bg-primary/10 border-primary/25 text-primary'
+              : 'bg-secondary border-border text-muted-foreground'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${result.aiEnhanced ? 'bg-primary' : 'bg-muted-foreground'}`} />
+            {result.aiEnhanced ? 'Enhanced visual review completed' : 'Local review only'}
+          </div>
 
           {/* Baseline comparison badge — compact; detail appears in the body section */}
           {result.baselineUsed && (
@@ -1647,11 +1653,11 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
             );
           })()}
 
-          {/* ── Detailed visual-factor report teaser — free users ── */}
+          {/* ── Contextual post-scan Pro offer — free users ── */}
           {!isPro && (
             <section>
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                Detailed Visual Factor Report
+                Make This Inspection More Useful
               </h2>
               <div className="relative rounded-2xl overflow-hidden border border-primary/20">
                 {/* Blurred preview of expanded Pro record detail */}
@@ -1686,14 +1692,12 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground leading-tight">
-                      {result.triageResult === 'pass'
-                        ? 'See the full visual-factor breakdown'
-                        : 'See the visual factors behind this outcome'}
+                      Unlock the full record for this scan
                     </p>
                     <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed max-w-[220px] mx-auto">
-                      {result.triageResult === 'pass'
-                        ? 'Pro unlocks factor-by-factor explanations, capture limits, report export, and repeat-inspection comparisons — not just the verdict.'
-                        : 'Pro adds a detailed visual record of the factors behind this outcome, capture limitations, reports, and comparison with earlier saved scans.'}
+                      Pro unlocks evidence explanations, comparison history, and a PDF report for this result.
+                      It can also request an additional visual review when that optional service is available;
+                      otherwise this scan remains clearly marked “Local review only.”
                     </p>
                   </div>
                   <button
@@ -1829,7 +1833,10 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
                 ))}
               </div>
             ) : (
-              <Link href="/upgrade" className="block rounded-xl border border-primary/25 bg-primary/5 p-4">
+              <button
+                onClick={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
+                className="block w-full text-left rounded-xl border border-primary/25 bg-primary/5 p-4"
+              >
                 <div className="flex items-start gap-3">
                   <Lock className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <div>
@@ -1837,7 +1844,7 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Unlock factor explanations, capture-quality limitations, PDF screening reports, expanded local history, profiles, powder screening, and saved-record comparisons.</p>
                   </div>
                 </div>
-              </Link>
+              </button>
             )}
           </section>
         </div>

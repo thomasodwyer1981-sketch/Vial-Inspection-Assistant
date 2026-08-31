@@ -13,6 +13,7 @@ type SeedRecordOptions = {
   primaryReasons?: string[];
   categoryScore?: number;
   notes?: string;
+  aiEnhanced?: boolean;
 };
 
 function record(options: SeedRecordOptions) {
@@ -82,6 +83,7 @@ function record(options: SeedRecordOptions) {
       }],
       ocrText: 'SEMAGLUTIDE 10 mg/mL · LOT-MATCH',
       profileUsed: 'glp1-clear',
+      aiEnhanced: options.aiEnhanced ?? false,
     },
     finalized: true,
   };
@@ -135,6 +137,113 @@ async function seedRecords(page: Page, sessions: ReturnType<typeof record>[], pr
     }
   }, { sessions, pro });
 }
+
+async function seedActiveResult(
+  page: Page,
+  session: ReturnType<typeof record>,
+  pro = false,
+) {
+  await page.addInitScript(({ session, pro }) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('vialscreen:onboarding', JSON.stringify({
+      completed: true,
+      disclaimerAcknowledgedAt: '2026-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('vialscreen:active-session', JSON.stringify({
+      ...session,
+      currentStep: 6,
+      finalized: false,
+    }));
+    if (pro) {
+      localStorage.setItem('vialscreen:pro:membershipId', 'e2e-pro-membership');
+      localStorage.setItem('vialscreen:pro:verifiedAt', Date.now().toString());
+    }
+  }, { session, pro });
+}
+
+test('native package contract selects only the RevenueCat lifetime package', async ({ page }) => {
+  await page.goto('/');
+  const selected = await page.evaluate(async () => {
+    const { selectOneTimePackage } = await import('/src/utils/revenuecat.ts');
+    const lifetime = { identifier: '$rc_lifetime', packageType: 'LIFETIME' };
+    const annual = { identifier: '$rc_annual', packageType: 'ANNUAL' };
+    return {
+      expected: selectOneTimePackage({ lifetime, availablePackages: [annual, lifetime] })?.identifier,
+      discovered: selectOneTimePackage({ lifetime: null, availablePackages: [annual, lifetime] })?.identifier,
+      rejectsAnnual: selectOneTimePackage({ lifetime: null, availablePackages: [annual] }),
+    };
+  });
+
+  expect(selected).toEqual({
+    expected: '$rc_lifetime',
+    discovered: '$rc_lifetime',
+    rejectsAnnual: null,
+  });
+});
+
+test('upgrade copy describes a single purchase with no recurring renewal', async ({ page }) => {
+  await seedRecords(page, []);
+  await page.goto('/upgrade');
+
+  await expect(page.getByText(/single purchase/i)).toBeVisible();
+  await expect(page.getByText(/no recurring renewal/i)).toBeVisible();
+  await expect(page.getByText(/billed annually|renews automatically/i)).toHaveCount(0);
+});
+
+test('free result shows the contextual Pro value and keeps the return path', async ({ page }) => {
+  const current = record({
+    id: 'post-scan-free-offer',
+    createdAt: '2026-08-31T10:00:00.000Z',
+  });
+  await seedActiveResult(page, current);
+  await page.goto('/scan');
+
+  await expect(page.getByText('Local review only', { exact: true })).toBeVisible();
+  await expect(page.getByText('Make This Inspection More Useful')).toBeVisible();
+  await expect(page.getByText(/evidence explanations, comparison history, and a PDF report/i)).toBeVisible();
+  await page.getByRole('button', { name: /Unlock Pro/i }).first().click();
+  await expect(page).toHaveURL(/\/upgrade$/);
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('vialscreen:upgrade:return-path')))
+    .toBe('/scan');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('vialscreen:active-session')))
+    .not.toBeNull();
+});
+
+test('Pro result explicitly shows completed enhanced visual review', async ({ page }) => {
+  const current = record({
+    id: 'post-scan-enhanced',
+    createdAt: '2026-08-31T10:05:00.000Z',
+    aiEnhanced: true,
+  });
+  await seedActiveResult(page, current, true);
+  await page.goto('/scan');
+
+  await expect(page.getByText('Enhanced visual review completed')).toBeVisible();
+  await expect(page.getByText('Make This Inspection More Useful')).toHaveCount(0);
+});
+
+test('saved vial can start a repeat inspection with matching metadata', async ({ page }) => {
+  const current = record({
+    id: 'repeat-inspection-source',
+    createdAt: '2026-08-30T10:00:00.000Z',
+    peptideName: 'Repeat Fixture',
+    batchLot: 'LOT-REPEAT',
+  });
+  await seedRecords(page, [current], true);
+  await page.goto(`/history/${current.id}`);
+
+  await page.getByRole('button', { name: 'Inspect this vial again' }).click();
+  await expect(page).toHaveURL(/\/scan$/);
+  await expect(page.getByPlaceholder('e.g. BPC-157')).toHaveValue('Repeat Fixture');
+  await expect(page.getByPlaceholder('Where it came from')).toHaveValue('Fixture Pharmacy');
+  await expect(page.getByPlaceholder('e.g. B240701')).toHaveValue('LOT-REPEAT');
+  const active = await page.evaluate(() => JSON.parse(localStorage.getItem('vialscreen:active-session') ?? 'null'));
+  expect(active.metadata.batchLot).toBe('LOT-REPEAT');
+  expect(active.metadata.scanMode).toBe('reconstituted');
+  expect(active.captures).toEqual([]);
+  expect(active.analysisResult).toBeNull();
+});
 
 function extractPdfText(pdf: string) {
   const literalText = [...pdf.matchAll(/\((?:\\.|[^\\()])*\)\s*Tj/g)]
