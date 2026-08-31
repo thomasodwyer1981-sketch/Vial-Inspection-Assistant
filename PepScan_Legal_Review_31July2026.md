@@ -158,12 +158,12 @@ Some jurisdictions do not permit certain liability exclusions. Where such exclus
 ### 8. Indemnification
 You agree to indemnify, defend, and hold harmless the PepScan Parties from and against any claims, liabilities, damages, losses, costs, and expenses (including reasonable legal fees) arising out of or in any way connected with your use of the App, your violation of these Terms, or any decision you make in reliance on a PepScan result.
 
-### 9. PepScan Pro Subscription
-- PepScan Pro is an optional paid subscription billed annually via Google Play.
-- Your subscription will automatically renew at the end of each annual period unless cancelled at least 24 hours before the renewal date.
-- You may cancel at any time via your Google Play account. Cancellation takes effect at the end of the current billing period; no partial refunds are issued except as required by applicable law or Google Play's refund policy.
-- Prices are shown in USD and may vary by region. The price at the time of purchase is confirmed in Google Play before you complete the transaction.
-- We reserve the right to change the subscription price; any change will be notified to you in advance and will not affect your current billing period.
+### 9. PepScan Pro One-Time Purchase
+- PepScan Pro is an optional paid one-time purchase offered through the Apple App Store on iOS and Google Play on Android.
+- Payment is charged to the relevant store account when the purchase is confirmed. Pro does not recur or renew.
+- Refund rights and procedures are governed by the relevant store's policies and applicable law. We do not receive or store payment card details.
+- Prices are shown in the user's local store currency and may vary by region. The final price is confirmed by the relevant store before the purchase is completed.
+- We may change the price for future purchases. A price change does not alter a completed purchase or remove the associated Pro entitlement.
 
 ### 10. Intellectual Property
 All content, design, code, and features of PepScan are owned by or licensed to the PepScan developers. You are granted a limited, non-exclusive, non-transferable licence to use the App on your device solely for its intended purpose. You may not copy, modify, distribute, sell, or reverse-engineer any part of the App.

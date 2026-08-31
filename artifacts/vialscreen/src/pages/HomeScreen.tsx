@@ -210,7 +210,7 @@ export default function HomeScreen() {
               <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm text-primary">Unlock Pro — $4.99 one-time</h3>
+               <h3 className="font-semibold text-sm text-primary">Unlock Pro — one-time purchase</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Detailed records · local history · PDF reports</p>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />

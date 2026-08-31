@@ -18,6 +18,7 @@ products' `app_id` against the store app's id before suspecting credentials or t
 - RC product `store_identifier` = Play Console in-app product ID = `lifetime`.
 - Entitlement lookup_key = `Pepscan Pro` (has a space; matches RC_ENTITLEMENT_ID in app code).
 - Client picks `offerings.current.lifetime` first, so the Play product must live in the `$rc_lifetime` package.
+- A product shown as Published in RevenueCat may be an older catalog entry; verify that today's Play Console product ID is the same before testing. Creating a Play product does not automatically create or link a new RevenueCat product.
 
 ## Accessing the RC API from the workspace
 - The RevenueCat Replit connection's credentials are NOT visible to the CodeExecution
@@ -38,7 +39,7 @@ products' `app_id` against the store app's id before suspecting credentials or t
 - RC iOS app not yet created — user needs to: add App Store app in RC dashboard,
   upload P8 key from App Store Connect → Users and Access → Integrations → In-App Purchase,
   get the appl_ SDK key, then set VITE_REVENUECAT_IOS_KEY secret.
-- iOS package lookup uses `current.annual`; Android uses `current.lifetime`.
+- The current client purchase selector requires a Lifetime package on both platforms; do not reintroduce the old annual package as the fallback.
 
 ## Device-side gotchas that mimic config errors
 - Debug APKs (from the push-triggered GitHub workflow) can NEVER purchase — always

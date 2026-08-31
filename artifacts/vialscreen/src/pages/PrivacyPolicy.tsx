@@ -62,14 +62,14 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 1b. Subscription */}
+          {/* 1b. One-time purchase */}
           <div className="mb-4">
-            <h3 className="font-semibold mb-1">1b. Subscription and Purchase Data</h3>
+            <h3 className="font-semibold mb-1">1b. One-time Purchase Data</h3>
             <p className="text-muted-foreground mb-1">
-              If you subscribe to PepScan Pro, your purchase is processed by the Apple App Store
-              (Apple Inc.) on iOS or Google Play (Google LLC) on Android. We use RevenueCat, Inc. as
-              our purchase-entitlement platform. RevenueCat receives a device identifier and
-              store transaction or purchase information from the relevant app store and returns your
+              If you purchase PepScan Pro, your one-time purchase is processed by the Apple App Store
+              (Apple Inc.) on iOS or Google Play (Google LLC) on Android. We use RevenueCat, Inc. for
+              purchase-entitlement management. RevenueCat receives a device identifier and store
+              transaction or purchase information from the relevant app store and returns your
               entitlement status to the App. We do not receive or store your payment card details.
               We receive only a confirmation of whether a valid Pro entitlement is active.
             </p>
@@ -188,7 +188,7 @@ export default function PrivacyPolicy() {
           <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
             <li>To respond to support enquiries and help requests</li>
             <li>To verify and maintain your Pro purchase entitlement</li>
-            <li>To deliver optional enhanced visual review results (Pro subscribers only)</li>
+            <li>To deliver optional enhanced visual review results to Pro users</li>
             <li>To diagnose crashes and fix technical issues</li>
             <li>To measure install attribution and aggregate in-app behaviour for advertising purposes</li>
           </ul>
@@ -213,7 +213,7 @@ export default function PrivacyPolicy() {
             </div>
             <div className="p-3">
               <p className="font-semibold">RevenueCat, Inc.</p>
-              <p className="text-muted-foreground">Subscription entitlement management. Receives device identifier and purchase token. Location: USA. Safeguard: Standard contractual clauses.</p>
+               <p className="text-muted-foreground">Purchase entitlement management. Receives device identifier and purchase token. Location: USA. Safeguard: Standard contractual clauses.</p>
             </div>
             <div className="p-3">
               <p className="font-semibold">AppsFlyer, Inc.</p>
@@ -253,7 +253,7 @@ export default function PrivacyPolicy() {
               <span className="font-medium text-right">Until resolved; max 12 months</span>
             </div>
             <div className="p-3 flex justify-between gap-4">
-              <span className="text-muted-foreground">Subscription records</span>
+              <span className="text-muted-foreground">Purchase entitlement records</span>
               <span className="font-medium text-right">Duration + 7 years (legal obligation)</span>
             </div>
             <div className="p-3 flex justify-between gap-4">

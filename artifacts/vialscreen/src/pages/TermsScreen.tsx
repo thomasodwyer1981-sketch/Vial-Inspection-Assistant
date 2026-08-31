@@ -266,7 +266,7 @@ export default function TermsScreen() {
             Our collection and use of personal data is described in our{' '}
             <Link href="/privacy" className="text-primary underline underline-offset-2">Privacy Policy</Link>,
             which is incorporated into these Terms by reference. You acknowledge that the App may process
-            account information, device information, usage information, subscription information, support
+            account information, device information, usage information, purchase information, support
             communications, and image-related data as described in the Privacy Policy. You are responsible
             for ensuring that you have the right to provide any data or content you submit to the App.
           </p>
