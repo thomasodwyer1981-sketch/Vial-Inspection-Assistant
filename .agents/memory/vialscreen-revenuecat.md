@@ -15,9 +15,10 @@ product per app/platform; Test Store + Play products coexist in the same package
 products' `app_id` against the store app's id before suspecting credentials or testers.
 
 ## Identifier contract (must stay in sync)
-- RC product `store_identifier` = Play Console in-app product ID = `lifetime`.
+- RC Android product `store_identifier` = Play Console product ID = `pepscan_pro_unlock_2026`.
+- The older Android product `lifetime` is a legacy catalog item and is no longer the Android product in the active Lifetime package.
 - Entitlement lookup_key = `Pepscan Pro` (has a space; matches RC_ENTITLEMENT_ID in app code).
-- Client picks `offerings.current.lifetime` first, so the Play product must live in the `$rc_lifetime` package.
+- Client picks `offerings.current.lifetime` first, so the current Android product must live in the `$rc_lifetime` package.
 - A product shown as Published in RevenueCat may be an older catalog entry; verify that today's Play Console product ID is the same before testing. Creating a Play product does not automatically create or link a new RevenueCat product.
 
 ## Accessing the RC API from the workspace
