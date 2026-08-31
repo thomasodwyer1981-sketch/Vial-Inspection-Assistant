@@ -10,6 +10,7 @@ dist
 tmp
 out-tsc
 *.tsbuildinfo
+**/test-results/
 .expo
 .expo-shared
 
