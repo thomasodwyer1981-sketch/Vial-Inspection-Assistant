@@ -66,11 +66,12 @@ export default function PrivacyPolicy() {
           <div className="mb-4">
             <h3 className="font-semibold mb-1">1b. Subscription and Purchase Data</h3>
             <p className="text-muted-foreground mb-1">
-              If you subscribe to PepScan Pro, your purchase is processed by Google Play (Google LLC).
-              We use RevenueCat, Inc. as our subscription management platform. RevenueCat receives a
-              device identifier and purchase token from Google Play and returns your entitlement status
-              to the App. We do not receive or store your payment card details. We receive only a
-              confirmation of whether a valid Pro entitlement is active.
+              If you subscribe to PepScan Pro, your purchase is processed by the Apple App Store
+              (Apple Inc.) on iOS or Google Play (Google LLC) on Android. We use RevenueCat, Inc. as
+              our subscription management platform. RevenueCat receives a device identifier and
+              store transaction or purchase information from the relevant app store and returns your
+              entitlement status to the App. We do not receive or store your payment card details.
+              We receive only a confirmation of whether a valid Pro entitlement is active.
             </p>
             <p className="text-xs text-muted-foreground">
               <strong>Lawful basis:</strong> Contract performance (to verify and deliver your Pro subscription).
@@ -207,8 +208,8 @@ export default function PrivacyPolicy() {
           </p>
           <div className="bg-card border rounded-xl divide-y text-xs">
             <div className="p-3">
-              <p className="font-semibold">Google Play / Google LLC</p>
-              <p className="text-muted-foreground">Payment processing and app distribution. Location: USA. Safeguard: Google's standard contractual clauses.</p>
+               <p className="font-semibold">Apple App Store / Apple Inc. and Google Play / Google LLC</p>
+               <p className="text-muted-foreground">Payment processing and app distribution on iOS and Android. Location: USA. Safeguard: each provider's standard contractual clauses.</p>
             </div>
             <div className="p-3">
               <p className="font-semibold">RevenueCat, Inc.</p>
