@@ -101,10 +101,11 @@ export default function PrivacyPolicy() {
           <div className="mb-4">
             <h3 className="font-semibold mb-1">1d. Analytics and Attribution Data</h3>
             <p className="text-muted-foreground mb-1">
-              We use AppsFlyer, Inc. for install attribution and in-app analytics. AppsFlyer collects:
-              a device advertising identifier (Google Advertising ID), IP address (used for geo-attribution,
-              then truncated), install source, and in-app events. The in-app events we send to AppsFlyer are
-              limited to:
+              We use AppsFlyer, Inc. for install attribution and in-app analytics. On Android, AppsFlyer may
+              collect a device advertising identifier (Google Advertising ID), IP address (used for
+              geo-attribution, then truncated), install source, and in-app events. On iOS, PepScan does not
+              request App Tracking Transparency authorization or access Apple's IDFA. The in-app events we
+              send to AppsFlyer are limited to:
             </p>
             <ul className="list-disc pl-5 space-y-1 text-muted-foreground mb-2">
               <li>

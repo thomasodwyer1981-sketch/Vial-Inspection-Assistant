@@ -48,10 +48,8 @@ export async function initAppsFlyer(): Promise<void> {
     await AppsFlyer.initSDK({
       appID: 'com.pepscan.app',
       devKey,
-      // TODO: set isDebug back to false once scan_complete has been confirmed
-      // in the AppsFlyer Event Report and linked as the X Ads conversion goal.
-      isDebug: true,
-      waitForATTUserAuthorization: 10, // seconds (iOS ATT prompt grace period)
+      // Production builds must not emit AppsFlyer debug logs.
+      isDebug: false,
       registerOnDeepLink: true,
       registerConversionListener: true,
       ...(Capacitor.getPlatform() === 'ios' && appleAppID ? { appleAppID } : {}),
