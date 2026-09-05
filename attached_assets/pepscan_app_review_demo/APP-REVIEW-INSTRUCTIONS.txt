@@ -1,0 +1,21 @@
+PEPSCAN — APP REVIEW DEMO IMAGES
+
+These synthetic images are provided only so App Review can exercise the app's image-selection and appearance-inspection features. They do not depict a verified product and must not be interpreted as evidence of identity, purity, potency, sterility, safety, authenticity, or suitability for human use.
+
+Before testing
+1. Save the JPG files to the device's Photos library.
+2. Open PepScan.
+3. Choose the relevant inspection mode and select the image from Photos when prompted.
+
+Reconstituted / liquid inspection
+- For the white-background step, select 01-clear-vial-white-background.jpg.
+- For the black-background step, select 02-clear-vial-black-background.jpg.
+- Continue to results, then review the findings and save/history functionality.
+
+Powder / pre-mix inspection
+- Choose powder or pre-mix inspection mode.
+- Select 03-powder-vial-white-background.jpg.
+- Continue to results and review the powder-appearance findings.
+
+Pro access
+PepScan Pro is a one-time, non-consumable in-app purchase. App Review can use Apple's sandbox purchase environment to test purchase and restore. No account is required to use the app.

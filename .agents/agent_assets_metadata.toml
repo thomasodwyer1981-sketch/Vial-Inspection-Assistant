@@ -6,30 +6,35 @@ id = "ghRjgoBPj_LKafTiwd8Zy"
 uri = "file://vialscreen-completion-report.md"
 type = "text"
 title = "VialScreen Completion Report"
+logical_id = "d0b7dddb-95ec-4c12-8b92-ce192454a330"
 
 [[outputs]]
 id = "erabdfBrLyfmFFriOREYg"
 uri = "file://vialscreen-completion-report.docx"
 type = "word_document"
 title = "VialScreen Completion Report (.docx)"
+logical_id = "7d842432-d139-4a8d-bb4f-dda1adf08de1"
 
 [[outputs]]
 id = "IJ82vHbEsSY49Tu7xvTuY"
 uri = "file://app-release.aab"
 type = "unspecified"
 title = "PepScan signed AAB (app-release.aab)"
+logical_id = "957b8bc5-88c2-4286-8e1a-edb6b5cb4ef1"
 
 [[outputs]]
 id = "V9HmP5QPheeSkhEM9waHg"
 uri = "file://attached_assets/pepscan-icon-512.png"
 type = "image"
 title = "PepScan App Icon (512×512)"
+logical_id = "f4892ca7-bfaa-4342-bdce-adb42fa86128"
 
 [[outputs]]
 id = "Sz8xpjLrfkMIqNSPGEQkW"
 uri = "file://attached_assets/pepscan-feature-graphic.png"
 type = "image"
 title = "Feature Graphic (1024×500)"
+logical_id = "4a8c8d43-e168-4eca-b3f1-d85207c7adf1"
 
 [[outputs]]
 id = "qZLfzskl49Z96V928jiw3"
@@ -37,6 +42,7 @@ uri = "file://attached_assets/screenshots/phone-home.jpg"
 type = "image"
 title = "Phone — Home screen"
 description = "Phone store screenshot: Home screen"
+logical_id = "9bbf0c4b-472c-4c42-982b-16c12bc57766"
 
 [[outputs]]
 id = "_YPLh1FlIz3z5-PD8h3CO"
@@ -44,6 +50,7 @@ uri = "file://attached_assets/screenshots/phone-scan.jpg"
 type = "image"
 title = "Phone — Scan screen"
 description = "Phone store screenshot: Scan screen"
+logical_id = "960ddcf0-3e07-4b9d-912b-7a06c7cb37eb"
 
 [[outputs]]
 id = "PeEIDI3ARapj6aOliTlEN"
@@ -51,6 +58,7 @@ uri = "file://attached_assets/screenshots/phone-history.jpg"
 type = "image"
 title = "Phone — History screen"
 description = "Phone store screenshot: History screen"
+logical_id = "2642f7c9-b8eb-431d-8010-865811cff9a4"
 
 [[outputs]]
 id = "JX5mTDiJLPeD2-N2Fff9h"
@@ -58,6 +66,7 @@ uri = "file://attached_assets/screenshots/phone-upgrade.jpg"
 type = "image"
 title = "Phone — Upgrade screen"
 description = "Phone store screenshot: Upgrade screen"
+logical_id = "fd9e0362-1980-4318-be13-1f480d97f672"
 
 [[outputs]]
 id = "s2X1hVj4CIArqcwU5a4uo"
@@ -65,6 +74,7 @@ uri = "file://attached_assets/screenshots/tablet7-home.jpg"
 type = "image"
 title = "7\" Tablet — Home"
 description = "7-inch tablet store screenshot: Home screen"
+logical_id = "782871c0-372f-4ee8-8b0d-d6c75de77dcd"
 
 [[outputs]]
 id = "44Rdgxh3svj6n0mXGvcfa"
@@ -72,6 +82,7 @@ uri = "file://attached_assets/screenshots/tablet7-scan.jpg"
 type = "image"
 title = "7\" Tablet — Scan"
 description = "7-inch tablet store screenshot: Scan screen"
+logical_id = "da183103-6f9d-46dd-9223-4a1c34a613e5"
 
 [[outputs]]
 id = "PiqQHpoYufQha3c4O8u-5"
@@ -79,6 +90,7 @@ uri = "file://attached_assets/screenshots/tablet10-home.jpg"
 type = "image"
 title = "10\" Tablet — Home"
 description = "10-inch tablet store screenshot: Home screen"
+logical_id = "997e79eb-a70a-4f12-9c22-22656716b43c"
 
 [[outputs]]
 id = "sIybb-9ci_I8zzCAGh-yk"
@@ -86,114 +98,133 @@ uri = "file://attached_assets/screenshots/tablet10-scan.jpg"
 type = "image"
 title = "10\" Tablet — Scan"
 description = "10-inch tablet store screenshot: Scan screen"
+logical_id = "d03b4263-15d3-4abc-96af-1ff40ae87469"
 
 [[outputs]]
 id = "bhjieXkRj6bMeE4fFidr8"
 uri = "file://attached_assets/pepscan-icon-final.png"
 type = "image"
 title = "PepScan Icon — teal background (512×512)"
+logical_id = "13efc25d-83c2-40db-ad74-2a979af7a773"
 
 [[outputs]]
 id = "Jix2Z9OryNWCJrm_zzSL9"
 uri = "file://screenshots/screenshot-1-home.png"
 type = "image"
 title = "1 — Visual QC in Your Pocket"
+logical_id = "b2d15bdf-de67-4d3b-beb8-1d1beea77470"
 
 [[outputs]]
 id = "8K2UgGT070n_FLBwzxjpH"
 uri = "file://screenshots/screenshot-2-capture.png"
 type = "image"
 title = "2 — Dual-Background Capture"
+logical_id = "7419cbca-8ba5-432f-865b-b37253bbfd59"
 
 [[outputs]]
 id = "b2-ruJNXQlAA_vrkL1kCQ"
 uri = "file://screenshots/screenshot-3-results.png"
 type = "image"
 title = "3 — Instant AI Triage Results"
+logical_id = "498de301-2f18-40bc-9241-23d42633010f"
 
 [[outputs]]
 id = "Py4nTmWe3Ype15ID42Igw"
 uri = "file://screenshots/screenshot-4-history.png"
 type = "image"
 title = "4 — Full Vial History"
+logical_id = "a30cc127-cfd5-4007-8eee-b22347a98e5b"
 
 [[outputs]]
 id = "8OFgJcY5rhfK_L_lANHV4"
 uri = "file://screenshots/screenshot-5-pro.png"
 type = "image"
 title = "5 — Go Pro $4.99/yr"
+logical_id = "f1901eef-cc75-4240-8643-edb24212f830"
 
 [[outputs]]
 id = "6u84Ia_tagQLaxoXiLito"
 uri = "file://screenshots/ipad-1-home.png"
 type = "image"
 title = "iPad Screenshot 1 — Home"
+logical_id = "f265b25c-e1cc-4687-9e14-27d5d6cf9b89"
 
 [[outputs]]
 id = "r0ejZSgOXajKmheawQu6h"
 uri = "file://screenshots/ipad-2-capture.png"
 type = "image"
 title = "iPad Screenshot 2 — Capture"
+logical_id = "20f03d94-b68e-4dd4-9f1d-0603bf7a697d"
 
 [[outputs]]
 id = "cmMJ6aer6QxiZNT7wO24n"
 uri = "file://screenshots/ipad-3-results.png"
 type = "image"
 title = "iPad Screenshot 3 — Results"
+logical_id = "f8335007-bebe-4834-a7dd-960dc3d104c6"
 
 [[outputs]]
 id = "79NUfvgUMlUabu7cdduX1"
 uri = "file://screenshots/ipad-4-history.png"
 type = "image"
 title = "iPad Screenshot 4 — History"
+logical_id = "6bbe42b3-b5ee-4602-adad-2b207879b1d3"
 
 [[outputs]]
 id = "Wx5HqLOXY4AnzlYlbPK-t"
 uri = "file://screenshots/ipad-5-pro.png"
 type = "image"
 title = "iPad Screenshot 5 — Pro"
+logical_id = "c4ef92d2-4422-45e7-863e-a9dc428834b9"
 
 [[outputs]]
 id = "q9kjWfULBF0H2fxd663RY"
 uri = "file://screenshots/play-1-hero.png"
 type = "image"
 title = "Play Store — 1: Hero"
+logical_id = "fb0d293f-723e-475d-860d-e826e4e8b77f"
 
 [[outputs]]
 id = "RhjIIZSoR-TyfB8vDADRq"
 uri = "file://screenshots/play-2-capture.png"
 type = "image"
 title = "Play Store — 2: Capture"
+logical_id = "ca48b5fb-5aa4-4e74-a4c2-ecdd20dfb205"
 
 [[outputs]]
 id = "IVwZXk5WjvggHf8V1194E"
 uri = "file://screenshots/play-3-results.png"
 type = "image"
 title = "Play Store — 3: Results"
+logical_id = "39a45149-d626-4dd3-b385-0704ca3bcf67"
 
 [[outputs]]
 id = "iGKdRies_FY6tfgo6iEy9"
 uri = "file://screenshots/play-4-history.png"
 type = "image"
 title = "Play Store — 4: History"
+logical_id = "6d2b57c3-667f-4f09-88e2-aa1cbf7cc33f"
 
 [[outputs]]
 id = "ZS6bbj_VyQqV4eSkJGqPm"
 uri = "file://screenshots/play-5-pro.png"
 type = "image"
 title = "Play Store — 5: Pro"
+logical_id = "4f3d166c-7f7e-46c1-8657-22b07441c321"
 
 [[outputs]]
 id = "Eb00y1t_3PxhnozFDjc_w"
 uri = "file://pepscan-demo.mp4"
 type = "video"
 title = "PepScan Demo Video — Final"
+logical_id = "c4eef7ed-d7c5-4daf-be30-7578530c76e7"
 
 [[outputs]]
 id = "UAbUTnS5JtFDeEYZNKu4B"
 uri = "file://PepScan_Legal_Review_31July2026.md"
 type = "text"
 title = "PepScan Legal Disclaimers — Review Document"
+logical_id = "af63705c-6732-40fe-a2e8-5f4764c7f49c"
 
 [[outputs]]
 id = "Ty3aoqqfXoVVzw9Pr-PwO"
@@ -201,3 +232,60 @@ uri = "file://android-release-1.2.10/app-release.aab"
 type = "unspecified"
 title = "PepScan Android release 1.2.10 (versionCode 41)"
 description = "Signed Android App Bundle built from the latest Pro improvements. GitHub workflow 33372805346 completed successfully, including the Sentry-version safety guard. Upload this AAB to Google Play Internal Testing first."
+logical_id = "1287bf73-4228-4f47-ad32-bedf5bca43dd"
+
+[[outputs]]
+id = "tmZ4l6cQGhxgHkZgH7-bZ"
+uri = "file://attached_assets/PepScan-App-Review-Demo-Images.zip"
+type = "unspecified"
+title = "PepScan App Review demo pack"
+description = "Three scan-ready JPG images plus reviewer instructions for Apple Guideline 2.1(a)."
+logical_id = "05442867-610f-4135-9100-bdeada0e4f9f"
+content_hash = "sha256:70f4141053a7d5786dc20610b9d6dbf9e0c76d70ecfb6287d257c38b7c791cf1"
+size = 98275
+mtime_ms = 1788585259683
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:3a7d04c8-a4b7-4c65-b5d4-842d8dbd93e5/05442867-610f-4135-9100-bdeada0e4f9f/a1946514-0d49-4d48-9c55-3ae60c58fac3"
+storage_version_token = "1788585265221540"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "m_QGnll0DGGINb_2XCuom"
+uri = "file://attached_assets/pepscan_app_review_demo/01-clear-vial-white-background.jpg"
+type = "image"
+title = "Demo 1 — clear vial on white"
+description = "Use for the white-background step of a liquid inspection."
+logical_id = "b64c1d9f-0c19-4472-a4bf-017ec67a7ec1"
+content_hash = "sha256:77eec565297d658863e60271fdfeea3802cda1a29539ed744c5ea5eb63249c6b"
+size = 51079
+mtime_ms = 1788585259647
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:3a7d04c8-a4b7-4c65-b5d4-842d8dbd93e5/b64c1d9f-0c19-4472-a4bf-017ec67a7ec1/704e7b66-9a02-40f4-b465-5cc4899b810c"
+storage_version_token = "1788585266193198"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "8ljwo2yZG5_nHlh9BT5_h"
+uri = "file://attached_assets/pepscan_app_review_demo/02-clear-vial-black-background.jpg"
+type = "image"
+title = "Demo 2 — clear vial on black"
+description = "Use for the black-background step of the same liquid inspection."
+logical_id = "ffc72302-9bbe-4357-af2e-e69000befb5b"
+content_hash = "sha256:bf35c9e268bb69be5aeb94902e8880766ed22c1d027eaf74aa8d3838332d7fd3"
+size = 59096
+mtime_ms = 1788585259655
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:3a7d04c8-a4b7-4c65-b5d4-842d8dbd93e5/ffc72302-9bbe-4357-af2e-e69000befb5b/1856110a-856e-4379-ae0c-d7ef1ba51177"
+storage_version_token = "1788585266795481"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "xzfWuietLpypIuhl1XbDo"
+uri = "file://attached_assets/pepscan_app_review_demo/03-powder-vial-white-background.jpg"
+type = "image"
+title = "Demo 3 — powder vial on white"
+description = "Use to exercise powder or pre-mix inspection mode."
+logical_id = "64200027-bc6f-4d5a-ba4e-82ae53666998"
+content_hash = "sha256:fde3b06950a320f32fc06254e7dadda34e1d6020ad53a58c7f6c1c70fd53d8ce"
+size = 54971
+mtime_ms = 1788585259659
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:3a7d04c8-a4b7-4c65-b5d4-842d8dbd93e5/64200027-bc6f-4d5a-ba4e-82ae53666998/142fb8aa-6fc1-4401-9706-844ab4cfb4bb"
+storage_version_token = "1788585267407690"
+content_type = "image/jpeg"
