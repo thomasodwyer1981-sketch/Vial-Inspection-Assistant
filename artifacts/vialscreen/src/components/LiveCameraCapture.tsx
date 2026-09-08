@@ -234,19 +234,29 @@ export default function LiveCameraCapture({
       setStateSync('streaming');
     } catch (err) {
       if (gen !== streamGenRef.current) return; // overlay closed meanwhile — irrelevant
-      // Loud and diagnosable: report the exact reason to Sentry, then show a
-      // screen that tells the user what to do — never hang on "Opening camera…".
-      captureError(err, { where: 'LiveCameraCapture.startStream' });
       const name = err instanceof Error ? err.name : '';
+      // Permission denial is an expected user/platform outcome, not an app
+      // failure. Keep it as a breadcrumb for later diagnostics without creating
+      // a production error alert. Unexpected camera failures still go to Sentry.
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        addBreadcrumb(
+          'Camera permission denied',
+          { where: 'LiveCameraCapture.startStream', background, error_name: name },
+          'warning',
+        );
+      } else {
+        captureError(err, { where: 'LiveCameraCapture.startStream' });
+      }
+
       if (name === 'NotAllowedError' || name === 'SecurityError') {
         setCameraError({
           title: 'Camera access is blocked',
-          hint: 'PepScan isn’t allowed to use the camera. Open your phone Settings → Apps → PepScan → Permissions → Camera and choose “Allow only while using the app”, then try again.',
+          hint: 'PepScan isn’t allowed to use the camera. On iPhone or iPad, open Settings → Apps → PepScan and enable Camera. On Android, open Settings → Apps → PepScan → Permissions → Camera. Then try again.',
         });
       } else if (name === 'CameraTimeoutError') {
         setCameraError({
           title: 'The camera didn’t respond',
-          hint: 'If no permission dialog appeared, camera access may be blocked: check Settings → Apps → PepScan → Permissions → Camera. Otherwise close other apps that use the camera and try again.',
+          hint: 'If no permission dialog appeared, camera access may be blocked in your device’s Settings. Otherwise close other apps that use the camera and try again.',
         });
       } else if (name === 'NotFoundError' || name === 'CameraUnavailableError') {
         setCameraError({
