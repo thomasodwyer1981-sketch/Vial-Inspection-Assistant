@@ -82,8 +82,8 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # setup-android defaults to the removed "tools" package, which
-          # makes the workflow fail before Gradle starts on current runners.
+          # Keep the SDK package list explicit because the legacy default is
+          # unavailable on current runners.
           packages: platform-tools platforms;android-36 build-tools;36.0.0
 
       - name: Sync Capacitor
