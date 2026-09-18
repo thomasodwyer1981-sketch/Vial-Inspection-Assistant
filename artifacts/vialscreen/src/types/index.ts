@@ -63,6 +63,21 @@ export interface CategoryScore {
    * Useful for transparency and debugging.
    */
   method: string;
+
+  /**
+   * Optional raw OCR text retained for structured Pro label parsing.
+   * Kept separate from the display explanation so OCR is not truncated.
+   */
+  rawText?: string;
+
+  /**
+   * Optional capture-quality signals used by the Pro confidence breakdown.
+   */
+  qualitySignals?: {
+    sharpness: number;
+    lighting: number;
+    framing: number;
+  };
 }
 
 export type CategoryKey =
@@ -74,6 +89,30 @@ export type CategoryKey =
   | 'labelOcr'
   | 'crackDamage'
   | 'glareInterference';
+
+export type ConfidenceFactorStatus = 'good' | 'fair' | 'poor';
+
+export interface ConfidenceFactor {
+  key: 'label-readability' | 'lighting-glare' | 'blur-focus' | 'framing-crop' | 'expected-name-match';
+  label: string;
+  score: number;
+  status: ConfidenceFactorStatus;
+  reason: string;
+}
+
+export interface LabelMismatch {
+  expectedName: string;
+  printedName: string;
+}
+
+export interface LabelIntelligence {
+  lotBatch: string | null;
+  expiry: string | null;
+  manufacturerBrand: string | null;
+  volumeConcentration: string | null;
+  printedName: string | null;
+  mismatch: LabelMismatch | null;
+}
 
 // ---- Scan Mode --------------------------------------------
 
@@ -297,6 +336,22 @@ export interface AnalysisResult {
    * OCR-extracted text from the label capture, if available.
    */
   ocrText: string | null;
+
+  /**
+   * Structured label fields derived only from OCR text. Null means the
+   * requested field was not found; values are never inferred from metadata.
+   */
+  labelIntelligence?: LabelIntelligence;
+
+  /**
+   * Readable explanation of the real signals that contributed to confidence.
+   */
+  confidenceFactors?: ConfidenceFactor[];
+
+  /**
+   * Capture improvements selected from the weakest confidence factors.
+   */
+  rescanTips?: string[];
 
   /**
    * The appearance profile that was active when analysis ran.

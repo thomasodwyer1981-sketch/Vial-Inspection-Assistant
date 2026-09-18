@@ -1596,6 +1596,9 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
             profileDescription={profileUsed ? APPEARANCE_PROFILE_COPY[profileUsed]?.description : null}
             profileAnalysisNote={profileUsed ? APPEARANCE_PROFILE_COPY[profileUsed]?.analysisNote : null}
             meaning={isPro ? resultCopy.explanation : null}
+            labelIntelligence={result.labelIntelligence}
+            confidenceFactors={result.confidenceFactors}
+            rescanTips={result.rescanTips}
             onUnlock={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
           />
 

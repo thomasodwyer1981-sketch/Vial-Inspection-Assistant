@@ -14,6 +14,22 @@ type SeedRecordOptions = {
   categoryScore?: number;
   notes?: string;
   aiEnhanced?: boolean;
+  labelIntelligence?: {
+    lotBatch: string | null;
+    expiry: string | null;
+    manufacturerBrand: string | null;
+    volumeConcentration: string | null;
+    printedName: string | null;
+    mismatch: { expectedName: string; printedName: string } | null;
+  };
+  confidenceFactors?: Array<{
+    key: 'label-readability' | 'lighting-glare' | 'blur-focus' | 'framing-crop' | 'expected-name-match';
+    label: string;
+    score: number;
+    status: 'good' | 'fair' | 'poor';
+    reason: string;
+  }>;
+  rescanTips?: string[];
 };
 
 function record(options: SeedRecordOptions) {
@@ -82,6 +98,40 @@ function record(options: SeedRecordOptions) {
         method: 'fixture',
       }],
       ocrText: 'SEMAGLUTIDE 10 mg/mL · LOT-MATCH',
+      labelIntelligence: options.labelIntelligence ?? {
+        lotBatch: 'LOT-MATCH',
+        expiry: null,
+        manufacturerBrand: null,
+        volumeConcentration: '10 mg/mL',
+        printedName: 'SEMAGLUTIDE',
+        mismatch: null,
+      },
+      confidenceFactors: options.confidenceFactors ?? [{
+        key: 'label-readability',
+        label: 'Label readability / OCR',
+        score: 86,
+        status: 'good',
+        reason: 'Label text extracted.',
+      }, {
+        key: 'lighting-glare',
+        label: 'Lighting / glare',
+        score: 78,
+        status: 'good',
+        reason: 'Minimal glare detected.',
+      }, {
+        key: 'blur-focus',
+        label: 'Blur / focus',
+        score: 74,
+        status: 'good',
+        reason: 'The required captures provided a strong sharpness signal.',
+      }, {
+        key: 'framing-crop',
+        label: 'Framing / crop',
+        score: 82,
+        status: 'good',
+        reason: 'The required captures provided an adequate framing signal.',
+      }],
+      rescanTips: options.rescanTips ?? [],
       profileUsed: 'glp1-clear',
       aiEnhanced: options.aiEnhanced ?? false,
     },
@@ -196,6 +246,36 @@ test('native package contract selects only the RevenueCat lifetime package', asy
   });
 });
 
+test('label intelligence extracts explicit OCR fields without filling missing values', async ({ page }) => {
+  await page.goto('/');
+  const parsed = await page.evaluate(async () => {
+    const { extractLabelIntelligence } = await import('/src/utils/labelIntelligence.ts');
+    return extractLabelIntelligence(
+      'Tirzepatide\nLOT: BATCH-2407\nEXP: 2027-12\nMFG: Northstar Labs\n5 mg/mL · 2 mL',
+      'Semaglutide',
+    );
+  });
+
+  expect(parsed).toMatchObject({
+    lotBatch: 'BATCH-2407',
+    expiry: '2027-12',
+    manufacturerBrand: 'Northstar Labs',
+    volumeConcentration: '5 mg/mL · 2 mL',
+    mismatch: {
+      expectedName: 'Semaglutide',
+      printedName: 'Tirzepatide',
+    },
+  });
+  expect(parsed.printedName).toBe('Tirzepatide');
+  expect(extractValue(parsed, 'unavailable')).toBeUndefined();
+});
+
+function extractValue(value: unknown, key: string) {
+  return value && typeof value === 'object' && key in value
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+}
+
 test('upgrade copy describes a single purchase with no recurring renewal', async ({ page }) => {
   await seedRecords(page, []);
   await page.goto('/upgrade');
@@ -305,6 +385,45 @@ test('Pro saved detail exposes the saved factor explanation and PDF action', asy
   await expect(page.getByRole('button', { name: 'PDF Report' })).toBeVisible();
   await expect(page.getByText('Fixture factor explanation: mild haze is visible in the saved image.')).toBeVisible();
   await expect(page.getByText('Detailed visual-factor record is a Pro feature')).not.toBeVisible();
+});
+
+test('Pro saved detail reopens structured label intelligence and confidence explanations', async ({ page }) => {
+  const current = record({
+    id: 'detail-pro-label-intelligence',
+    createdAt: '2026-04-03T10:00:00.000Z',
+    labelIntelligence: {
+      lotBatch: 'BATCH-2407',
+      expiry: '2027-12',
+      manufacturerBrand: 'Northstar Labs',
+      volumeConcentration: '5 mg/mL · 2 mL',
+      printedName: 'Tirzepatide',
+      mismatch: {
+        expectedName: 'Semaglutide',
+        printedName: 'Tirzepatide',
+      },
+    },
+    confidenceFactors: [{
+      key: 'label-readability',
+      label: 'Label readability / OCR',
+      score: 41,
+      status: 'fair',
+      reason: 'Label text extracted with limited readability.',
+    }],
+    rescanTips: ['Move closer and keep the full label in frame.'],
+  });
+  await seedRecords(page, [current], true);
+  await page.goto(`/history/${current.id}`);
+
+  await expect(page.getByText('Label intelligence')).toBeVisible();
+  await expect(page.getByText('BATCH-2407')).toBeVisible();
+  await expect(page.getByText('2027-12')).toBeVisible();
+  await expect(page.getByText('Northstar Labs')).toBeVisible();
+  await expect(page.getByText('5 mg/mL · 2 mL')).toBeVisible();
+  await expect(page.getByText('Label mismatch — research check')).toBeVisible();
+  await expect(page.getByText('Tirzepatide', { exact: true })).toBeVisible();
+  await expect(page.getByText('Why this confidence score')).toBeVisible();
+  await expect(page.getByText('Label readability / OCR')).toBeVisible();
+  await expect(page.getByText('Move closer and keep the full label in frame.')).toBeVisible();
 });
 
 test('comparison offers only earlier records with the same name, mode, and batch/lot', async ({ page }) => {

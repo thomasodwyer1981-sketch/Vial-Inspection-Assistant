@@ -252,6 +252,9 @@ export default function HistoryDetailScreen() {
           profileDescription={profileCopy?.description}
           profileAnalysisNote={profileCopy?.analysisNote}
           meaning={isPro ? resultCopy.explanation : null}
+          labelIntelligence={result.labelIntelligence}
+          confidenceFactors={result.confidenceFactors}
+          rescanTips={result.rescanTips}
           onUnlock={() => { rememberUpgradeReturnPath(`/history/${session.id}`); setLocation('/upgrade'); }}
         />
 
