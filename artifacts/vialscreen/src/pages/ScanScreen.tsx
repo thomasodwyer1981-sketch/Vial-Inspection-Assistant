@@ -25,7 +25,7 @@ import {
   type SaveFailure,
 } from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
-import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
+import { PRO_UNLOCK_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
 import { captureError } from '@/lib/sentry';
 import { logAFEvent } from '@/utils/appsflyer';
@@ -349,7 +349,7 @@ function PrepareStep() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-primary">Pro Feature</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Powder-vial visual screening is available with PepScan Pro — {PRO_PRICE_DISPLAY}.
+                  Powder-vial visual screening is available with PepScan Pro — {PRO_UNLOCK_DISPLAY}.
                 </p>
                 <button
                   onClick={() => { rememberUpgradeReturnPath('/scan'); navigate('/upgrade'); }}

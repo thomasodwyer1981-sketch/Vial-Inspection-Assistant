@@ -30,7 +30,7 @@ import MediaPreview from '@/components/MediaPreview';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 import ProResearchPanel from '@/components/ProResearchPanel';
 import { useProStatus } from '@/hooks/useProStatus';
-import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
+import { PRO_UNLOCK_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { buildInspectionReportInput } from '@/utils/inspectionReport';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { buildReportComparison, getEarlierComparableSessions } from '@/utils/inspectionComparison';
@@ -240,7 +240,7 @@ export default function HistoryDetailScreen() {
           </div>
           {!proLoading && !isPro && (
             <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
-              Pro adds full visual-factor explanations, saved-record PDF reports, and comparisons with earlier scans — {PRO_PRICE_DISPLAY}.
+              Pro adds full visual-factor explanations, saved-record PDF reports, and comparisons with earlier scans — {PRO_UNLOCK_DISPLAY}.
             </p>
           )}
           {reportError && <p className="mt-3 text-xs text-destructive">{reportError}</p>}

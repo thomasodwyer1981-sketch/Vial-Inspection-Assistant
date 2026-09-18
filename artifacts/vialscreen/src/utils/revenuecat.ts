@@ -23,7 +23,7 @@ let initialized = false;
 let initializationPromise: Promise<boolean> | null = null;
 
 /**
- * Select only RevenueCat's lifetime package. Kept pure so the store contract
+ * Select only RevenueCat's one-time package. Kept pure so the store contract
  * can be regression-tested without opening a native billing sheet.
  */
 export function selectOneTimePackage<T extends { packageType?: unknown }>(
@@ -105,7 +105,7 @@ export async function checkRCEntitlement(): Promise<boolean> {
 }
 
 /**
- * Triggers the native store purchase sheet for the lifetime one-time package.
+ * Triggers the native store purchase sheet for the one-time package.
  * Returns true if purchase succeeded and entitlement is now active.
  * Returns false if user cancelled.
  * Throws on any other error.
@@ -144,14 +144,14 @@ export async function purchaseRCPro(): Promise<boolean> {
     );
   }
 
-  // Both stores must use the lifetime package. Never fall back to an annual
+  // Both stores must use the one-time package. Never fall back to an annual
   // or arbitrary custom package: doing so can silently turn a one-time
   // purchase into a recurring subscription.
   const pkg = selectCurrentOneTimePackage(offerings);
   if (!pkg) {
     console.error('[RevenueCat] No packages in offering:', JSON.stringify(offerings));
     throw new Error(
-      `PepScan Pro is not configured for this store yet. Add the lifetime one-time product to the "${RC_CURRENT_OFFERING_ID}" RevenueCat offering, then try again.`,
+      `PepScan Pro is not configured for this store yet. Add the one-time product to the "${RC_CURRENT_OFFERING_ID}" RevenueCat offering, then try again.`,
     );
   }
 
@@ -170,8 +170,8 @@ export async function purchaseRCPro(): Promise<boolean> {
 }
 
 /**
- * Returns the localized price string for the Pro lifetime package (e.g. "$4.99") from
- * RevenueCat. Returns null on web or if the offering cannot be fetched.
+ * Returns the localized store price string for the Pro package from RevenueCat.
+ * Returns null on web or if the offering cannot be fetched.
  */
 export async function getProPrice(): Promise<string | null> {
   if (!Capacitor.isNativePlatform()) return null;
@@ -188,7 +188,7 @@ export async function getProPrice(): Promise<string | null> {
 }
 
 /**
- * Restores previous Play Store purchases.
+ * Restores previous store purchases.
  * Returns true if a Pro entitlement was restored.
  */
 export async function restoreRCPurchases(): Promise<boolean> {
