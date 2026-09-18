@@ -58,8 +58,5 @@
 	<string>PepScan can save scan result images to your Photos library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PepScan can read images from your Photos library to re-analyse a previously captured vial.</string>
-	<!-- App Tracking Transparency: required by AppsFlyer and Firebase Analytics before accessing IDFA -->
-	<key>NSUserTrackingUsageDescription</key>
-	<string>Allow tracking to help us understand how PepScan is used and improve the app experience. No personal data is sold.</string>
 </dict>
 </plist>

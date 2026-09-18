@@ -3,6 +3,24 @@ _Generated: 20 July 2026_
 
 ---
 ç
+
+## ✅ PHYSICAL RELEASE ACCEPTANCE
+
+### PepScan 1.2.9 — iOS Build 39
+**Validation date:** 31 August 2026
+**Device:** affected iPhone running iOS 26.6
+**Build provenance:** [iOS workflow run 33327607221](https://github.com/thomasodwyer1981-sketch/Vial-Inspection-Assistant/actions/runs/33327607221)
+
+The affected iPhone was upgraded from Build 38 to Build 39 without deleting
+PepScan data. The release acceptance checks passed:
+
+- A real inspection completed and saved successfully.
+- The new record appeared in History.
+- After closing and relaunching PepScan, the record and its detail screen still
+  opened.
+- No new failed-save event appeared in Sentry for Build 39.
+- The tester also confirmed that photo save worked.
+
 ## ✅ DONE
 
 ### Core Application

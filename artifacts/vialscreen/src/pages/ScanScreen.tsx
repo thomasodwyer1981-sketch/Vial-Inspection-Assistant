@@ -11,19 +11,27 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
+import ProResearchPanel from '@/components/ProResearchPanel';
 import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2, Clock, ClipboardCopy, RefreshCw, ChevronDown, ChevronUp, Send, XCircle, Star } from 'lucide-react';
 import { saveCardToPhotos, shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
 import { maybeRequestReview } from '@/utils/inAppReview';
 import { ScanStep } from '@/types';
-import { loadActiveSession, loadSession, getHistoryForSampleName } from '@/utils/storage';
+import {
+  loadActiveSession,
+  loadSession,
+  getHistoryForSampleName,
+  getLastSaveFailure,
+  type SaveFailure,
+} from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
-import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
+import { PRO_UNLOCK_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { hapticSuccess, hapticWarning } from '@/utils/haptics';
 import { captureError } from '@/lib/sentry';
 import { logAFEvent } from '@/utils/appsflyer';
 import { buildInspectionReportInput } from '@/utils/inspectionReport';
 import { buildReportComparison, getEarlierComparableSessions } from '@/utils/inspectionComparison';
+import { trackEnhancedReview, trackProOfferViewed } from '@/lib/analytics';
 
 /** Format a stored ISO date as a compact relative label ("3d ago", "2w ago"). */
 function fmtDate(iso: string): string {
@@ -73,7 +81,8 @@ export default function ScanScreen() {
 
 function ScanScreenInner() {
   const [, setLocation] = useLocation();
-  const [saveFailed, setSaveFailed] = useState(false);
+  const [saveFailure, setSaveFailure] = useState<SaveFailure | null>(null);
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
 
   const {
     session,
@@ -104,7 +113,11 @@ function ScanScreenInner() {
       if (activeSession && activeSession.finalized && activeSession.pendingSave) {
         // Finalized but not saved — resume to results so user can retry
         resumeSession(activeSession);
-        setSaveFailed(true);
+        setSaveFailure(activeSession.pendingSaveFailure ?? {
+          stage: 'detail',
+          kind: 'write',
+          errorName: 'PreviousSaveFailure',
+        });
       } else if (activeSession && !activeSession.finalized) {
         resumeSession(activeSession);
       } else {
@@ -134,21 +147,41 @@ function ScanScreenInner() {
     setLocation('/scan');
   };
 
-  const handleFinish = () => {
-    const saved = finalizeSession();
-    if (saved) {
-      setSaveFailed(false);
-      setLocation('/history');
-    } else {
-      setSaveFailed(true);
+  const handleFinish = async () => {
+    setIsSavingRecord(true);
+    try {
+      const saved = await finalizeSession();
+      if (saved) {
+        setSaveFailure(null);
+        setLocation('/history');
+      } else {
+        setSaveFailure(getLastSaveFailure() ?? {
+          stage: 'detail',
+          kind: 'write',
+          errorName: 'UnknownError',
+        });
+      }
+    } finally {
+      setIsSavingRecord(false);
     }
   };
 
-  const handleRetrySave = () => {
-    const saved = retrySave();
-    if (saved) {
-      setSaveFailed(false);
-      setLocation('/history');
+  const handleRetrySave = async () => {
+    setIsSavingRecord(true);
+    try {
+      const saved = await retrySave();
+      if (saved) {
+        setSaveFailure(null);
+        setLocation('/history');
+      } else {
+        setSaveFailure(getLastSaveFailure() ?? {
+          stage: 'detail',
+          kind: 'write',
+          errorName: 'UnknownError',
+        });
+      }
+    } finally {
+      setIsSavingRecord(false);
     }
     // If still fails, banner stays visible
   };
@@ -182,9 +215,10 @@ function ScanScreenInner() {
           <ResultsStep
             onFinish={handleFinish}
             onRetake={handleRetake}
-            saveFailed={saveFailed}
+            saveFailure={saveFailure}
             onRetrySave={handleRetrySave}
-            onClearSaveFailure={() => setSaveFailed(false)}
+            onClearSaveFailure={() => setSaveFailure(null)}
+            isSavingRecord={isSavingRecord}
           />
         )}
       </main>
@@ -315,7 +349,7 @@ function PrepareStep() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-primary">Pro Feature</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Powder-vial visual screening is available with PepScan Pro — {PRO_PRICE_DISPLAY}.
+                  Powder-vial visual screening is available with PepScan Pro — {PRO_UNLOCK_DISPLAY}.
                 </p>
                 <button
                   onClick={() => { rememberUpgradeReturnPath('/scan'); navigate('/upgrade'); }}
@@ -1122,14 +1156,15 @@ function getFactorSpecificNextSteps(
 // ── Results Step ────────────────────────────────────────────────────────────
 
 interface ResultsStepProps {
-  onFinish: () => void;
+  onFinish: () => Promise<void>;
   onRetake: () => void;
-  saveFailed: boolean;
-  onRetrySave: () => void;
+  saveFailure: SaveFailure | null;
+  onRetrySave: () => Promise<void>;
   onClearSaveFailure: () => void;
+  isSavingRecord: boolean;
 }
 
-function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveFailure }: ResultsStepProps) {
+function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSaveFailure, isSavingRecord }: ResultsStepProps) {
   const { session, retakeForQuality } = useScanSessionContext();
   const [, setLocation] = useLocation();
   const { isPro } = useProStatus();
@@ -1166,6 +1201,8 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       session?.metadata.appearanceProfile  ||
       'unknown';
     void logAFEvent('scan_complete', { result: afResult, compound });
+    trackEnhancedReview(result.aiEnhanced ? 'completed' : 'local_only');
+    if (!isPro) trackProOfferViewed('post_scan');
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1390,18 +1427,34 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
   return (
     <div className="flex flex-col h-full">
       {/* Save failure banner */}
-      {saveFailed && (
+      {saveFailure && (
         <div className="bg-destructive/10 border-b border-destructive/30 px-4 py-3 shrink-0">
           <div className="flex items-start gap-3">
             <HardDrive className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-destructive mb-0.5">Scan could not be saved</p>
-              <p className="text-xs text-destructive/80 leading-relaxed">PepScan’s saved-record storage is full. Your result is still here. Delete older PepScan records, then try again.</p>
+              <p className="text-xs text-destructive/80 leading-relaxed">
+                {saveFailure.kind === 'quota'
+                  ? `PepScan could not store the ${saveFailure.stage === 'history' ? 'History entry' : 'record details'} because its saved-record storage is full. Your result is still here. Delete older PepScan records, then try again.`
+                  : `PepScan could not write the ${saveFailure.stage === 'history' ? 'History entry' : 'record details'}. Your result is still here. Try again; if it continues, restart PepScan without clearing its data.`}
+              </p>
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={() => { onClearSaveFailure(); setLocation('/history'); }} className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg">Manage Records →</button>
-            <button onClick={onRetrySave} className="flex-1 bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 rounded-lg">Try Again</button>
+            <button
+              onClick={() => { onClearSaveFailure(); setLocation('/history'); }}
+              disabled={isSavingRecord}
+              className="flex-1 bg-destructive/15 text-destructive text-xs font-bold py-2 px-3 rounded-lg disabled:opacity-50"
+            >
+              Manage Records →
+            </button>
+            <button
+              onClick={onRetrySave}
+              disabled={isSavingRecord}
+              className="flex-1 bg-destructive text-destructive-foreground text-xs font-bold py-2 px-3 rounded-lg disabled:opacity-50"
+            >
+              {isSavingRecord ? 'Reporting…' : 'Try Again'}
+            </button>
           </div>
         </div>
       )}
@@ -1424,7 +1477,9 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
           )}
           <h1 className="text-2xl font-bold tracking-tight mb-3">{resultCopy.summary}</h1>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4 max-w-xs mx-auto">
-            {resultCopy.explanation}
+            {isPro
+              ? resultCopy.explanation
+              : 'Your basic visual outcome is ready. Unlock Pro for the full interpretation and research context.'}
           </p>
 
           {/* Prominent statutory warning — shown on every result */}
@@ -1449,13 +1504,16 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             </div>
           )}
 
-          {/* AI Enhanced badge */}
-          {result.aiEnhanced && (
-            <div className="mt-4 inline-flex items-center gap-1.5 bg-primary/10 border border-primary/25 text-primary px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-               Expanded visual analysis
-            </div>
-          )}
+          {/* Review source is always explicit so Pro never implies a remote
+              enhancement completed when the optional service was unavailable. */}
+          <div className={`mt-4 inline-flex items-center gap-1.5 border px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+            result.aiEnhanced
+              ? 'bg-primary/10 border-primary/25 text-primary'
+              : 'bg-secondary border-border text-muted-foreground'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${result.aiEnhanced ? 'bg-primary' : 'bg-muted-foreground'}`} />
+            {result.aiEnhanced ? 'Enhanced visual review completed' : 'Local review only'}
+          </div>
 
           {/* Baseline comparison badge — compact; detail appears in the body section */}
           {result.baselineUsed && (
@@ -1518,7 +1576,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                       <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isFlag ? 'bg-destructive' : 'bg-foreground/60'}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground leading-relaxed font-medium">{reason}</p>
-                        {context && (
+                        {context && isPro && (
                           <p className="text-xs text-muted-foreground leading-relaxed mt-2 italic border-t border-border/50 pt-2">
                             {context}
                           </p>
@@ -1530,6 +1588,19 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
               })}
             </ul>
           </section>
+
+          <ProResearchPanel
+            isPro={isPro}
+            compoundName={session?.metadata.peptideName || profileInfo?.label}
+            compoundNote={getCompoundTip(session?.metadata.peptideName)}
+            profileDescription={profileUsed ? APPEARANCE_PROFILE_COPY[profileUsed]?.description : null}
+            profileAnalysisNote={profileUsed ? APPEARANCE_PROFILE_COPY[profileUsed]?.analysisNote : null}
+            meaning={isPro ? resultCopy.explanation : null}
+            labelIntelligence={result.labelIntelligence}
+            confidenceFactors={result.confidenceFactors}
+            rescanTips={result.rescanTips}
+            onUnlock={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
+          />
 
           {/* ── Rescan nudge — poor capture quality ── */}
           {(() => {
@@ -1581,28 +1652,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
             </section>
           )}
 
-          {/* ── Compound-specific tip ── */}
-          {!assessmentUnavailable && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (() => {
-            const tip = getCompoundTip(session?.metadata.peptideName);
-            if (!tip) return null;
-            return (
-              <section className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <div className="flex items-start gap-3">
-                  <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">{session?.metadata.peptideName} — Compound Note</p>
-                    <p className="text-sm text-foreground leading-relaxed">{tip}</p>
-                  </div>
-                </div>
-              </section>
-            );
-          })()}
-
-          {/* ── Detailed visual-factor report teaser — free users ── */}
+          {/* ── Contextual post-scan Pro offer — free users ── */}
           {!isPro && (
             <section>
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                Detailed Visual Factor Report
+                Make This Inspection More Useful
               </h2>
               <div className="relative rounded-2xl overflow-hidden border border-primary/20">
                 {/* Blurred preview of expanded Pro record detail */}
@@ -1637,21 +1691,19 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground leading-tight">
-                      {result.triageResult === 'pass'
-                        ? 'See the full visual-factor breakdown'
-                        : 'See the visual factors behind this outcome'}
+                      Unlock the full record for this scan
                     </p>
                     <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed max-w-[220px] mx-auto">
-                      {result.triageResult === 'pass'
-                        ? 'Pro unlocks factor-by-factor explanations, capture limits, report export, and repeat-inspection comparisons — not just the verdict.'
-                        : 'Pro adds a detailed visual record of the factors behind this outcome, capture limitations, reports, and comparison with earlier saved scans.'}
+                      Pro unlocks evidence explanations, comparison history, and a PDF report for this result.
+                      It can also request an additional visual review when that optional service is available;
+                      otherwise this scan remains clearly marked “Local review only.”
                     </p>
                   </div>
                   <button
                     onClick={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
                     className="bg-primary text-primary-foreground text-xs font-bold px-5 py-2.5 rounded-xl active:scale-[0.98] transition-all shadow-md shadow-primary/25"
                   >
-                    Unlock Pro — {PRO_PRICE_DISPLAY}
+                    Unlock Pro — {PRO_UNLOCK_DISPLAY}
                   </button>
                 </div>
               </div>
@@ -1780,7 +1832,10 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                 ))}
               </div>
             ) : (
-              <Link href="/upgrade" className="block rounded-xl border border-primary/25 bg-primary/5 p-4">
+              <button
+                onClick={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
+                className="block w-full text-left rounded-xl border border-primary/25 bg-primary/5 p-4"
+              >
                 <div className="flex items-start gap-3">
                   <Lock className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <div>
@@ -1788,7 +1843,7 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Unlock factor explanations, capture-quality limitations, PDF screening reports, expanded local history, profiles, powder screening, and saved-record comparisons.</p>
                   </div>
                 </div>
-              </Link>
+              </button>
             )}
           </section>
         </div>
@@ -1800,11 +1855,11 @@ function ResultsStep({ onFinish, onRetake, saveFailed, onRetrySave, onClearSaveF
       <div className="shrink-0 pt-4 px-4 pb-safe-4 bg-background/95 backdrop-blur border-t space-y-3">
         <button
           onClick={onFinish}
-          disabled={saveFailed}
+          disabled={Boolean(saveFailure) || isSavingRecord}
           className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground py-3.5 rounded-2xl font-bold shadow-md shadow-primary/20 active:scale-[0.98] disabled:opacity-50 transition-all"
         >
           <Save className="w-4 h-4" />
-          {saveFailed ? 'Save Failed — See Above' : 'Save Vial Record'}
+          {isSavingRecord ? 'Saving…' : saveFailure ? 'Save Failed — See Above' : 'Save Vial Record'}
         </button>
         {shareError && (
           <p className="text-xs text-destructive text-center bg-destructive/10 rounded-xl py-2 px-3">

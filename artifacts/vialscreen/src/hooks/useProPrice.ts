@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { getProPrice } from '@/utils/revenuecat';
-import { PRO_PRICE_DISPLAY } from '@/utils/pro';
 
 /**
  * Returns the store-formatted price string from RevenueCat on native
- * (e.g. "$4.99" or "€4.99") falling back to the static PRO_PRICE_DISPLAY
- * constant on web or when the offering cannot be fetched.
+ * (for example, a localized currency string). It must not show a hardcoded
+ * price while the store offering is unavailable.
  */
-export function useProPrice(): string {
-  const [price, setPrice] = useState<string>(PRO_PRICE_DISPLAY);
+export function useProPrice(): string | null {
+  const [price, setPrice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;

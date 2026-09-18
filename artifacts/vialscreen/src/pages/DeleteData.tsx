@@ -82,8 +82,9 @@ export default function DeleteData() {
             and we will submit a deletion request on your behalf.
           </p>
           <p className="text-muted-foreground">
-            Purchase records are held by Google Play and governed by Google's own
-            privacy and data deletion policies.
+            Purchase records are held by the relevant app store — Apple App Store on iOS or
+            Google Play on Android — and governed by that store's own privacy and data deletion
+            policies.
           </p>
         </section>
 

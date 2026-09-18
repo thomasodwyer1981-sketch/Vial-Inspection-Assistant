@@ -20,3 +20,8 @@ An AAB is a zip. Web assets live at `base/assets/public/assets/*.js`. Grep for a
 
 ## Google Play track opt-in traps
 A phone only receives updates from the track its tester account is opted into. Uploading a new build to Closed/Alpha does nothing for a phone enrolled in Internal testing — it keeps reinstalling the old version, which looks like "updates not applied". Internal track releases go live near-instantly; open testing and production go through review and auto-roll-out on approval. When a bad build is out: upload the fixed higher versionCode to the same tracks (it supersedes a pending/live release); discard in-review releases where the option exists; halt rollout if already live.
+
+## Sentry Cocoa 9.29 breaks Capacitor 4.3.0's iOS build
+**Rule:** Keep the `@sentry/capacitor@4.3.0` Swift package dependency pinned to exact Sentry Cocoa `9.28.0`; its published range otherwise resolves to 9.29+, which removes `PrivateSentrySDKOnly`.
+**Why:** The Capacitor plugin still calls that legacy hybrid SDK API. A clean SPM resolve can therefore fail before the app archive even starts, despite JavaScript and Capacitor sync succeeding.
+**How to apply:** Preserve the pnpm patch that changes the plugin's `Package.swift` from `from: "9.16.1"` to `exact: "9.28.0"` and verify clean CI installs apply it before resolving Swift packages.

@@ -14,12 +14,40 @@
 
 import * as Sentry from '@sentry/capacitor';
 import * as SentryReact from '@sentry/react';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+const bundledAppVersion = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? 'unknown';
+const bundledAppBuild = (import.meta.env.VITE_APP_BUILD as string | undefined) ?? 'unknown';
 // The Replit preview runs on a public dev domain, not localhost. Reporting
 // from it turns Vite/React Fast Refresh transitions into false production
 // alerts, while compiled mobile builds use production mode and remain covered.
 const sentryEnabled = Boolean(dsn) && !import.meta.env.DEV;
+const isNativePlatform = Capacitor.isNativePlatform();
+const SAVE_FAILURE_FLUSH_TIMEOUT_MS = 2_000;
+
+interface AppDiagnosticInfo {
+  version: string;
+  build: string;
+}
+
+let appDiagnosticInfoPromise: Promise<AppDiagnosticInfo> | null = null;
+
+function getAppDiagnosticInfo(): Promise<AppDiagnosticInfo> {
+  if (!appDiagnosticInfoPromise) {
+    appDiagnosticInfoPromise = isNativePlatform
+      ? App.getInfo()
+          .then((info) => ({ version: info.version, build: info.build }))
+          .catch(() => ({ version: bundledAppVersion, build: bundledAppBuild }))
+      : Promise.resolve({ version: bundledAppVersion, build: bundledAppBuild });
+  }
+  return appDiagnosticInfoPromise;
+}
+
+export function shouldDropSentryEvent(hostname: string, nativePlatform: boolean): boolean {
+  return hostname === 'localhost' && !nativePlatform;
+}
 
 export function initSentry() {
   if (!sentryEnabled) {
@@ -33,11 +61,14 @@ export function initSentry() {
       // Capture 100 % of errors; sample 20 % of performance traces
       tracesSampleRate: 0.2,
       // Release tag helps correlate errors to a specific build
-      release: import.meta.env.VITE_APP_VERSION ?? 'dev',
+      release: bundledAppBuild === 'unknown'
+        ? bundledAppVersion
+        : `pepscan@${bundledAppVersion}+${bundledAppBuild}`,
       environment: import.meta.env.MODE, // "development" | "production"
-      // Don't send errors from localhost
+      // Capacitor serves bundled iOS/Android assets from a localhost origin.
+      // Suppress only a real browser localhost build, never a native WebView.
       beforeSend(event) {
-        if (window.location.hostname === 'localhost') return null;
+        if (shouldDropSentryEvent(window.location.hostname, isNativePlatform)) return null;
         return event;
       },
     },
@@ -110,6 +141,39 @@ export function captureMessage(
     if (context) scope.setExtras(context);
     Sentry.captureMessage(message, level);
   });
+}
+
+export async function captureSaveFailureDiagnostic(context: {
+  stage: string;
+  kind: string;
+  errorName: string;
+  storageChars: number;
+}): Promise<boolean> {
+  if (!sentryEnabled) return false;
+
+  const appInfo = await getAppDiagnosticInfo();
+  Sentry.withScope((scope) => {
+    scope.setTag('save.stage', context.stage);
+    scope.setTag('save.kind', context.kind);
+    scope.setTag('app.version', appInfo.version);
+    scope.setTag('app.build', appInfo.build);
+    scope.setExtras({
+      stage: context.stage,
+      kind: context.kind,
+      error_name: context.errorName,
+      pepscan_storage_chars: context.storageChars,
+      app_version: appInfo.version,
+      app_build: appInfo.build,
+      platform: Capacitor.getPlatform(),
+    });
+    Sentry.captureMessage('Inspection record save failed', 'error');
+  });
+
+  try {
+    return await Sentry.flush(SAVE_FAILURE_FLUSH_TIMEOUT_MS);
+  } catch {
+    return false;
+  }
 }
 
 /**

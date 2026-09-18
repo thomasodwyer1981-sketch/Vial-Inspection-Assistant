@@ -38,6 +38,7 @@ import {
   estimateVialROI,
   type DifferentialTurbidity,
 } from './imageAnalysis';
+import { extractLabelIntelligence } from '../utils/labelIntelligence';
 
 // ----------------------------------------------------------------
 // Score → Status thresholds
@@ -78,6 +79,9 @@ async function scoreCaptureQuality(
 
   const scores: number[] = [];
   const issues: string[] = [];
+  const sharpnessSignals: number[] = [];
+  const lightingSignals: number[] = [];
+  const framingSignals: number[] = [];
 
   for (const cap of [whiteCapture, blackCapture].filter(Boolean) as MediaCapture[]) {
     try {
@@ -96,38 +100,44 @@ async function scoreCaptureQuality(
       // Sharpness
       if (blur.sharpnessScore < 30) issues.push('image appears blurry');
       scores.push(blur.sharpnessScore);
+      sharpnessSignals.push(blur.sharpnessScore);
 
+      let lightingScore = glare.glareScore;
       if (glare.glareFraction > 0.25) {
         issues.push('glare obscures the vial');
         scores.push(20);
+        lightingScore = 20;
       } else {
         scores.push(glare.glareScore);
       }
 
+      const framingScore = framing.usable ? 90 : 15;
       if (!framing.usable) {
         issues.push(framing.reason ?? 'vial is poorly framed');
-        scores.push(15);
+        scores.push(framingScore);
       } else {
-        scores.push(90);
+        scores.push(framingScore);
       }
+      framingSignals.push(framingScore);
 
       // Overexposure
+      let exposureScore = 90;
       if (pixelStats.overexposedFraction > 0.4) {
         issues.push('image appears overexposed');
-        scores.push(20);
+        exposureScore = 20;
       } else if (pixelStats.overexposedFraction > 0.2) {
-        scores.push(60);
-      } else {
-        scores.push(90);
+        exposureScore = 60;
       }
+      scores.push(exposureScore);
 
       // Underexposure
+      let underexposureScore = 85;
       if (pixelStats.underexposedFraction > 0.5) {
         issues.push('image appears underexposed');
-        scores.push(20);
-      } else {
-        scores.push(85);
+        underexposureScore = 20;
       }
+      scores.push(underexposureScore);
+      lightingSignals.push(Math.min(lightingScore, exposureScore, underexposureScore));
 
       // Image resolution check
       if (cap.width < 400 || cap.height < 400) {
@@ -144,6 +154,8 @@ async function scoreCaptureQuality(
 
   const score = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
   const status = scoreToStatus(score);
+  const averageSignal = (values: number[]) =>
+    values.length > 0 ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : score;
 
   let explanation: string;
   if (issues.length === 0) {
@@ -161,6 +173,11 @@ async function scoreCaptureQuality(
     method:
       'Laplacian variance for sharpness (threshold: <50=blurry, >500=sharp). ' +
       'Overexposure: fraction of pixels >245 brightness. Underexposure: fraction <10.',
+    qualitySignals: {
+      sharpness: averageSignal(sharpnessSignals),
+      lighting: averageSignal(lightingSignals),
+      framing: averageSignal(framingSignals),
+    },
   };
 }
 
@@ -778,6 +795,7 @@ async function scoreLabelOcr(
         explanation: 'Label capture was taken but text could not be extracted. ' +
           'Verify the label is clearly visible and well-lit.',
         method: 'Tesseract.js OCR — insufficient text extracted.',
+      rawText: text || undefined,
       };
     }
 
@@ -815,6 +833,7 @@ async function scoreLabelOcr(
       method: 'Tesseract.js OCR over all label captures, English language pack. ' +
         'Match scored by word-level overlap after OCR-tolerant normalization ' +
         '(case/punctuation stripped; O↔0, I/L↔1, S↔5 collapsed on both sides).',
+      rawText: text,
     };
   } catch {
     // OCR failed or Tesseract unavailable. First run needs network access to
@@ -965,6 +984,127 @@ async function scoreGlareInterference(captures: MediaCapture[]): Promise<Categor
   };
 }
 
+function deriveConfidenceFactors(
+  categories: CategoryScore[],
+  qualityBlockers: CaptureQualityBlocker[],
+  expectedPeptideName?: string,
+): NonNullable<AnalysisResult['confidenceFactors']> {
+  const byCategory = new Map(categories.map((category) => [category.category, category]));
+  const captureQuality = byCategory.get('captureQuality');
+  const glare = byCategory.get('glareInterference');
+  const label = byCategory.get('labelOcr');
+  const qualitySignals = captureQuality?.qualitySignals;
+
+  const sharpnessScore = qualitySignals?.sharpness ?? captureQuality?.score ?? 50;
+  const lightingScore = qualitySignals?.lighting ?? glare?.score ?? 50;
+  const hasFramingBlocker = qualityBlockers.some((blocker) => blocker.code === 'poor-framing');
+  const framingScore = hasFramingBlocker
+    ? Math.min(25, qualitySignals?.framing ?? 25)
+    : qualitySignals?.framing ?? captureQuality?.score ?? 50;
+
+  let matchScore = 50;
+  let matchReason = expectedPeptideName
+    ? 'An expected compound name was entered, but OCR did not provide a reliable match signal.'
+    : 'No expected compound name was entered, so name matching was not available.';
+  if (label) {
+    if (/appears to match label text/i.test(label.explanation)) {
+      matchScore = 90;
+      matchReason = 'The expected name appears in the readable label text.';
+    } else if (/partial match/i.test(label.explanation)) {
+      matchScore = 60;
+      matchReason = 'Some of the expected name appears in the label text; review the printed label.';
+    } else if (/not clearly found/i.test(label.explanation)) {
+      matchScore = 30;
+      matchReason = 'The expected name was not clearly found in the readable label text.';
+    } else if (label.status === 'unable') {
+      matchReason = 'OCR could not provide enough label text for a name comparison.';
+    }
+  }
+
+  const factors: NonNullable<AnalysisResult['confidenceFactors']> = [
+    {
+      key: 'label-readability',
+      label: 'Label readability / OCR',
+      score: label?.score ?? 50,
+      status: confidenceStatus(label?.score ?? 50),
+      reason: label
+        ? conciseSignalReason(label.explanation, 'OCR provided a limited label read.')
+        : 'No label capture was available for OCR.',
+    },
+    {
+      key: 'lighting-glare',
+      label: 'Lighting / glare',
+      score: lightingScore,
+      status: confidenceStatus(lightingScore),
+      reason: glare
+        ? conciseSignalReason(glare.explanation, 'Lighting signal was limited.')
+        : 'Lighting signal was not available.',
+    },
+    {
+      key: 'blur-focus',
+      label: 'Blur / focus',
+      score: sharpnessScore,
+      status: confidenceStatus(sharpnessScore),
+      reason: sharpnessScore >= 70
+        ? 'The required captures provided a strong sharpness signal.'
+        : sharpnessScore >= 40
+          ? 'Some softness may reduce the detail available for review.'
+          : 'Blur or softness may be limiting the detail available for review.',
+    },
+    {
+      key: 'framing-crop',
+      label: 'Framing / crop',
+      score: framingScore,
+      status: confidenceStatus(framingScore),
+      reason: hasFramingBlocker
+        ? 'A required capture may not show the vial fully inside the frame.'
+        : framingScore >= 70
+          ? 'The required captures provided an adequate framing signal.'
+          : 'The vial framing signal was limited.',
+    },
+  ];
+  if (expectedPeptideName?.trim()) {
+    factors.push({
+      key: 'expected-name-match',
+      label: 'Expected-name match',
+      score: matchScore,
+      status: confidenceStatus(matchScore),
+      reason: matchReason,
+    });
+  }
+  return factors;
+}
+
+function confidenceStatus(score: number): 'good' | 'fair' | 'poor' {
+  if (score >= 70) return 'good';
+  if (score >= 40) return 'fair';
+  return 'poor';
+}
+
+function conciseSignalReason(text: string, fallback: string): string {
+  const firstSentence = text.split(/[.!?](?:\s|$)/)[0]?.trim();
+  return firstSentence ? `${firstSentence}.` : fallback;
+}
+
+function deriveRescanTips(
+  factors: NonNullable<AnalysisResult['confidenceFactors']>,
+): string[] {
+  const tipsByKey: Record<NonNullable<AnalysisResult['confidenceFactors']>[number]['key'], string> = {
+    'label-readability': 'Move closer and keep the full label, lot line, and expiry line in frame.',
+    'lighting-glare': 'Reduce glare with softer, off-axis lighting.',
+    'blur-focus': 'Hold steadier and wait for the label to come into focus.',
+    'framing-crop': 'Fill the frame with the vial without cutting off the label edges.',
+    'expected-name-match': 'Check the printed compound name against the name entered before rescanning.',
+  };
+
+  return factors
+    .filter((factor) => factor.score < 70)
+    .sort((a, b) => a.score - b.score)
+    .map((factor) => tipsByKey[factor.key])
+    .filter((tip, index, all) => all.indexOf(tip) === index)
+    .slice(0, 4);
+}
+
 // ----------------------------------------------------------------
 // POWDER APPEARANCE (powder/pre-mix mode only)
 // Analyzes white-background capture for lyophilized powder color.
@@ -1087,11 +1227,12 @@ async function runPowderAnalysis(
   const flaggedCategories = categories.filter((c) => c.status === 'flag');
   const reviewCategories = categories.filter((c) => c.status === 'review');
 
-  let ocrText: string | null = null;
-  if (ocrScore.status !== 'unable') {
-    const match = ocrScore.explanation.match(/Extracted: "([^"]+)"/);
-    if (match) ocrText = match[1];
-  }
+  const ocrText =
+    ocrScore.rawText ??
+    (ocrScore.status !== 'unable'
+      ? ocrScore.explanation.match(/Extracted: "([^"]+)"/)?.[1] ?? null
+      : null);
+  const confidenceFactors = deriveConfidenceFactors(categories, qualityBlockers, expectedPeptideName);
 
   let triageResult: TriageResult;
   const primaryReasons: string[] = [];
@@ -1150,6 +1291,9 @@ async function runPowderAnalysis(
     assessmentOutcome,
     qualityBlockers,
     ocrText,
+    labelIntelligence: extractLabelIntelligence(ocrText, expectedPeptideName),
+    confidenceFactors,
+    rescanTips: deriveRescanTips(confidenceFactors),
     profileUsed: null,
   };
 }
@@ -1228,12 +1372,12 @@ export async function runAnalysis(
   const flaggedCategories = categories.filter((c) => c.status === 'flag');
   const reviewCategories = categories.filter((c) => c.status === 'review');
 
-  // OCR extracted text (from category method log)
-  let ocrText: string | null = null;
-  if (ocrScore.status !== 'unable') {
-    const match = ocrScore.explanation.match(/Extracted: "([^"]+)"/);
-    if (match) ocrText = match[1];
-  }
+  // OCR text is retained in full for structured Pro label intelligence.
+  const ocrText =
+    ocrScore.rawText ??
+    (ocrScore.status !== 'unable'
+      ? ocrScore.explanation.match(/Extracted: "([^"]+)"/)?.[1] ?? null
+      : null);
 
   let triageResult: TriageResult;
   const primaryReasons: string[] = [];
@@ -1242,6 +1386,7 @@ export async function runAnalysis(
     assessmentOutcome === 'unable-to-assess' ||
     captureQualityScore.score < 50 ||
     glareScore.score < 40;
+  const confidenceFactors = deriveConfidenceFactors(categories, qualityBlockers, expectedPeptideName);
 
   if (assessmentOutcome === 'unable-to-assess') {
     triageResult = 'review';
@@ -1325,6 +1470,9 @@ export async function runAnalysis(
     assessmentOutcome,
     qualityBlockers,
     ocrText,
+    labelIntelligence: extractLabelIntelligence(ocrText, expectedPeptideName),
+    confidenceFactors,
+    rescanTips: deriveRescanTips(confidenceFactors),
     profileUsed: resolvedProfile,
   };
 }

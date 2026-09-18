@@ -10,7 +10,8 @@
 - [localStorage quota & thumbnails](vialscreen-quota-thumbnails.md) — never store full dataUrls in history; 144px thumbs + orphaned-session pruning rules
 - [RevenueCat payments](vialscreen-revenuecat.md) — error-23 root cause (offering lacked the Play product), RC connector API access pattern, Play/RC identifier contract
 - [Release pipeline gotchas](vialscreen-release-pipeline.md) — mixed Sentry-version launch crash, AAB content verification via bundle grep, Play track opt-in traps
+- [Native Sentry delivery](vialscreen-sentry-native-origin.md) — Capacitor WebViews use localhost; never filter that origin when the platform is native
 - [Device camera rules](vialscreen-device-camera.md) — cap getUserMedia at 1920 (4K melts WebView memory), best-of-3 burst, capture failures must be loud
 - [R8 ProGuard ANR risk](r8-anr-risk.md) — proguard-android-optimize.txt causes RenderProxy::setStopped ANR; always use proguard-android.txt for Capacitor WebView apps
-- [Capture quality gating](vialscreen-capture-quality-gating.md) — unreliable required photos are an explicit retake outcome, never a softened visual verdict
-- [iOS Photos add-only testing](ios-photos-add-only-testing.md) — verify one write in code and exact visible asset count in Photos; add-only apps cannot read back
+- [Physical iOS persistence validation](physical-ios-persistence.md) — simulator checks cannot replace upgrade-and-relaunch testing on the affected WKWebView device
+- [Label OCR intelligence](label-intelligence.md) — Pro label fields come only from explicit OCR; missing values stay unavailable and never fall back to metadata

@@ -8,7 +8,7 @@ import {
   storeProUnlock,
 } from '@/utils/pro';
 import { getApiBase } from '@/utils/api';
-import { checkRCEntitlement } from '@/utils/revenuecat';
+import { checkRCEntitlement, subscribeToRCEntitlement } from '@/utils/revenuecat';
 
 interface ProStatus {
   isPro: boolean;
@@ -107,6 +107,36 @@ export function useProStatus(): ProStatus {
   useEffect(() => {
     void verify();
   }, [verify]);
+
+  // RevenueCat emits updated customer info after purchases, restores, and
+  // store-side entitlement refreshes. Keep the UI unlocked immediately.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let cancelled = false;
+    let removeListener: (() => Promise<void>) | null = null;
+
+    void subscribeToRCEntitlement((active) => {
+      if (cancelled) return;
+      setIsPro(active);
+      setMembershipId(active ? 'rc_entitlement' : null);
+      setIsLoading(false);
+    }).then((remove) => {
+      if (cancelled) {
+        void remove();
+      } else {
+        removeListener = remove;
+      }
+    }).catch(() => {
+      // The initial entitlement check remains the source of truth if the
+      // native listener cannot be registered.
+    });
+
+    return () => {
+      cancelled = true;
+      if (removeListener) void removeListener();
+    };
+  }, []);
 
   // Re-verify whenever the user returns to the app — covers the case where
   // someone completes a Play Store purchase in a browser overlay and comes back.

@@ -13,6 +13,23 @@ type SeedRecordOptions = {
   primaryReasons?: string[];
   categoryScore?: number;
   notes?: string;
+  aiEnhanced?: boolean;
+  labelIntelligence?: {
+    lotBatch: string | null;
+    expiry: string | null;
+    manufacturerBrand: string | null;
+    volumeConcentration: string | null;
+    printedName: string | null;
+    mismatch: { expectedName: string; printedName: string } | null;
+  };
+  confidenceFactors?: Array<{
+    key: 'label-readability' | 'lighting-glare' | 'blur-focus' | 'framing-crop' | 'expected-name-match';
+    label: string;
+    score: number;
+    status: 'good' | 'fair' | 'poor';
+    reason: string;
+  }>;
+  rescanTips?: string[];
 };
 
 function record(options: SeedRecordOptions) {
@@ -81,7 +98,42 @@ function record(options: SeedRecordOptions) {
         method: 'fixture',
       }],
       ocrText: 'SEMAGLUTIDE 10 mg/mL · LOT-MATCH',
+      labelIntelligence: options.labelIntelligence ?? {
+        lotBatch: 'LOT-MATCH',
+        expiry: null,
+        manufacturerBrand: null,
+        volumeConcentration: '10 mg/mL',
+        printedName: 'SEMAGLUTIDE',
+        mismatch: null,
+      },
+      confidenceFactors: options.confidenceFactors ?? [{
+        key: 'label-readability',
+        label: 'Label readability / OCR',
+        score: 86,
+        status: 'good',
+        reason: 'Label text extracted.',
+      }, {
+        key: 'lighting-glare',
+        label: 'Lighting / glare',
+        score: 78,
+        status: 'good',
+        reason: 'Minimal glare detected.',
+      }, {
+        key: 'blur-focus',
+        label: 'Blur / focus',
+        score: 74,
+        status: 'good',
+        reason: 'The required captures provided a strong sharpness signal.',
+      }, {
+        key: 'framing-crop',
+        label: 'Framing / crop',
+        score: 82,
+        status: 'good',
+        reason: 'The required captures provided an adequate framing signal.',
+      }],
+      rescanTips: options.rescanTips ?? [],
       profileUsed: 'glp1-clear',
+      aiEnhanced: options.aiEnhanced ?? false,
     },
     finalized: true,
   };
@@ -136,6 +188,157 @@ async function seedRecords(page: Page, sessions: ReturnType<typeof record>[], pr
   }, { sessions, pro });
 }
 
+async function seedActiveResult(
+  page: Page,
+  session: ReturnType<typeof record>,
+  pro = false,
+) {
+  await page.addInitScript(({ session, pro }) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('vialscreen:onboarding', JSON.stringify({
+      completed: true,
+      disclaimerAcknowledgedAt: '2026-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('vialscreen:active-session', JSON.stringify({
+      ...session,
+      currentStep: 6,
+      finalized: false,
+    }));
+    if (pro) {
+      localStorage.setItem('vialscreen:pro:membershipId', 'e2e-pro-membership');
+      localStorage.setItem('vialscreen:pro:verifiedAt', Date.now().toString());
+    }
+  }, { session, pro });
+}
+
+test('native package contract selects only the RevenueCat lifetime package', async ({ page }) => {
+  await page.goto('/');
+  const selected = await page.evaluate(async () => {
+    const {
+      RC_CURRENT_OFFERING_ID,
+      selectCurrentOneTimePackage,
+      selectOneTimePackage,
+    } = await import('/src/utils/revenuecat.ts');
+    const lifetime = { identifier: '$rc_lifetime', packageType: 'LIFETIME' };
+    const annual = { identifier: '$rc_annual', packageType: 'ANNUAL' };
+    return {
+      expected: selectOneTimePackage({ lifetime, availablePackages: [annual, lifetime] })?.identifier,
+      discovered: selectOneTimePackage({ lifetime: null, availablePackages: [annual, lifetime] })?.identifier,
+      rejectsAnnual: selectOneTimePackage({ lifetime: null, availablePackages: [annual] }),
+      currentOffering: RC_CURRENT_OFFERING_ID,
+      currentPackage: selectCurrentOneTimePackage({
+        current: { identifier: 'unlock', lifetime, availablePackages: [annual, lifetime] },
+      })?.identifier,
+      rejectsLegacyOffering: selectCurrentOneTimePackage({
+        current: { identifier: 'default', lifetime, availablePackages: [annual, lifetime] },
+      }),
+    };
+  });
+
+  expect(selected).toEqual({
+    expected: '$rc_lifetime',
+    discovered: '$rc_lifetime',
+    rejectsAnnual: null,
+    currentOffering: 'unlock',
+    currentPackage: '$rc_lifetime',
+    rejectsLegacyOffering: null,
+  });
+});
+
+test('label intelligence extracts explicit OCR fields without filling missing values', async ({ page }) => {
+  await page.goto('/');
+  const parsed = await page.evaluate(async () => {
+    const { extractLabelIntelligence } = await import('/src/utils/labelIntelligence.ts');
+    return extractLabelIntelligence(
+      'Tirzepatide\nLOT: BATCH-2407\nEXP: 2027-12\nMFG: Northstar Labs\n5 mg/mL · 2 mL',
+      'Semaglutide',
+    );
+  });
+
+  expect(parsed).toMatchObject({
+    lotBatch: 'BATCH-2407',
+    expiry: '2027-12',
+    manufacturerBrand: 'Northstar Labs',
+    volumeConcentration: '5 mg/mL · 2 mL',
+    mismatch: {
+      expectedName: 'Semaglutide',
+      printedName: 'Tirzepatide',
+    },
+  });
+  expect(parsed.printedName).toBe('Tirzepatide');
+  expect(extractValue(parsed, 'unavailable')).toBeUndefined();
+});
+
+function extractValue(value: unknown, key: string) {
+  return value && typeof value === 'object' && key in value
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+}
+
+test('upgrade copy describes a single purchase with no recurring renewal', async ({ page }) => {
+  await seedRecords(page, []);
+  await page.goto('/upgrade');
+
+  await expect(page.getByText(/single purchase/i)).toBeVisible();
+  await expect(page.getByText(/no recurring renewal/i)).toBeVisible();
+  await expect(page.getByText(/billed annually|renews automatically/i)).toHaveCount(0);
+});
+
+test('free result shows the contextual Pro value and keeps the return path', async ({ page }) => {
+  const current = record({
+    id: 'post-scan-free-offer',
+    createdAt: '2026-08-31T10:00:00.000Z',
+  });
+  await seedActiveResult(page, current);
+  await page.goto('/scan');
+
+  await expect(page.getByText('Local review only', { exact: true })).toBeVisible();
+  await expect(page.getByText('Make This Inspection More Useful')).toBeVisible();
+  await expect(page.getByText(/evidence explanations, comparison history, and a PDF report/i)).toBeVisible();
+  await page.getByRole('button', { name: /Unlock Pro/i }).first().click();
+  await expect(page).toHaveURL(/\/upgrade$/);
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('vialscreen:upgrade:return-path')))
+    .toBe('/scan');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('vialscreen:active-session')))
+    .not.toBeNull();
+});
+
+test('Pro result explicitly shows completed enhanced visual review', async ({ page }) => {
+  const current = record({
+    id: 'post-scan-enhanced',
+    createdAt: '2026-08-31T10:05:00.000Z',
+    aiEnhanced: true,
+  });
+  await seedActiveResult(page, current, true);
+  await page.goto('/scan');
+
+  await expect(page.getByText('Enhanced visual review completed')).toBeVisible();
+  await expect(page.getByText('Make This Inspection More Useful')).toHaveCount(0);
+});
+
+test('saved vial can start a repeat inspection with matching metadata', async ({ page }) => {
+  const current = record({
+    id: 'repeat-inspection-source',
+    createdAt: '2026-08-30T10:00:00.000Z',
+    peptideName: 'Repeat Fixture',
+    batchLot: 'LOT-REPEAT',
+  });
+  await seedRecords(page, [current], true);
+  await page.goto(`/history/${current.id}`);
+
+  await page.getByRole('button', { name: 'Inspect this vial again' }).click();
+  await expect(page).toHaveURL(/\/scan$/);
+  await expect(page.getByPlaceholder('e.g. BPC-157')).toHaveValue('Repeat Fixture');
+  await expect(page.getByPlaceholder('Where it came from')).toHaveValue('Fixture Pharmacy');
+  await expect(page.getByPlaceholder('e.g. B240701')).toHaveValue('LOT-REPEAT');
+  const active = await page.evaluate(() => JSON.parse(localStorage.getItem('vialscreen:active-session') ?? 'null'));
+  expect(active.metadata.batchLot).toBe('LOT-REPEAT');
+  expect(active.metadata.scanMode).toBe('reconstituted');
+  expect(active.captures).toEqual([]);
+  expect(active.analysisResult).toBeNull();
+});
+
 function extractPdfText(pdf: string) {
   const literalText = [...pdf.matchAll(/\((?:\\.|[^\\()])*\)\s*Tj/g)]
     .map(([match]) => match.slice(1, match.lastIndexOf(')')))
@@ -182,6 +385,45 @@ test('Pro saved detail exposes the saved factor explanation and PDF action', asy
   await expect(page.getByRole('button', { name: 'PDF Report' })).toBeVisible();
   await expect(page.getByText('Fixture factor explanation: mild haze is visible in the saved image.')).toBeVisible();
   await expect(page.getByText('Detailed visual-factor record is a Pro feature')).not.toBeVisible();
+});
+
+test('Pro saved detail reopens structured label intelligence and confidence explanations', async ({ page }) => {
+  const current = record({
+    id: 'detail-pro-label-intelligence',
+    createdAt: '2026-04-03T10:00:00.000Z',
+    labelIntelligence: {
+      lotBatch: 'BATCH-2407',
+      expiry: '2027-12',
+      manufacturerBrand: 'Northstar Labs',
+      volumeConcentration: '5 mg/mL · 2 mL',
+      printedName: 'Tirzepatide',
+      mismatch: {
+        expectedName: 'Semaglutide',
+        printedName: 'Tirzepatide',
+      },
+    },
+    confidenceFactors: [{
+      key: 'label-readability',
+      label: 'Label readability / OCR',
+      score: 41,
+      status: 'fair',
+      reason: 'Label text extracted with limited readability.',
+    }],
+    rescanTips: ['Move closer and keep the full label in frame.'],
+  });
+  await seedRecords(page, [current], true);
+  await page.goto(`/history/${current.id}`);
+
+  await expect(page.getByText('Label intelligence')).toBeVisible();
+  await expect(page.getByText('BATCH-2407')).toBeVisible();
+  await expect(page.getByText('2027-12')).toBeVisible();
+  await expect(page.getByText('Northstar Labs')).toBeVisible();
+  await expect(page.getByText('5 mg/mL · 2 mL')).toBeVisible();
+  await expect(page.getByText('Label mismatch — research check')).toBeVisible();
+  await expect(page.getByText('Tirzepatide', { exact: true })).toBeVisible();
+  await expect(page.getByText('Why this confidence score')).toBeVisible();
+  await expect(page.getByText('Label readability / OCR')).toBeVisible();
+  await expect(page.getByText('Move closer and keep the full label in frame.')).toBeVisible();
 });
 
 test('comparison offers only earlier records with the same name, mode, and batch/lot', async ({ page }) => {
@@ -410,6 +652,293 @@ test('legacy repair removes oversized keys before rewriting when WebKit is at qu
     captureDataUrl: '',
     activeCaptureDataUrl: '',
   });
+});
+
+test('final save proactively compacts a near-full legacy store and enforces the 100-record cap', async ({ page }) => {
+  const current = record({
+    id: 'current-after-storage-upgrade',
+    createdAt: '2026-04-04T10:00:00.000Z',
+    peptideName: 'Current Vial',
+  });
+  const oversizedImage = `data:image/jpeg;base64,${'A'.repeat(20_000)}`;
+
+  await page.goto('/');
+  const outcome = await page.evaluate(async ({ current, oversizedImage }) => {
+    localStorage.clear();
+    const oldRecords = Array.from({ length: 105 }, (_, index) => ({
+      ...current,
+      id: `legacy-${index}`,
+      createdAt: new Date(Date.UTC(2026, 2, 1, 0, index)).toISOString(),
+    }));
+    localStorage.setItem('vialscreen:history', JSON.stringify(
+      oldRecords.map((session) => ({
+        id: session.id,
+        createdAt: session.createdAt,
+        triageResult: 'pass',
+        peptideName: `Legacy ${session.id}`,
+        vendor: '',
+        overallConfidence: 80,
+        thumbnailDataUrl: oversizedImage,
+      })),
+    ));
+    for (const session of oldRecords.slice(0, 10)) {
+      localStorage.setItem(`vialscreen:session:${session.id}`, JSON.stringify({
+        ...session,
+        captures: session.captures.map((capture: { dataUrl: string }) => ({
+          ...capture,
+          dataUrl: oversizedImage,
+          thumbDataUrl: oversizedImage,
+        })),
+      }));
+    }
+    localStorage.setItem('vialscreen:session:orphan-large-record', JSON.stringify({
+      ...current,
+      id: 'orphan-large-record',
+      captures: current.captures.map((capture: { dataUrl: string }) => ({
+        ...capture,
+        dataUrl: `data:image/jpeg;base64,${'B'.repeat(350_000)}`,
+        thumbDataUrl: oversizedImage,
+      })),
+    }));
+
+    const originalSetItem = Storage.prototype.setItem;
+    const quotaChars = Array.from({ length: localStorage.length }, (_, index) => {
+      const key = localStorage.key(index);
+      return key ? key.length + (localStorage.getItem(key)?.length ?? 0) : 0;
+    }).reduce((sum, size) => sum + size, 0) + 5_000;
+    Storage.prototype.setItem = function cappedSetItem(key: string, value: string) {
+      const existingLength = this.getItem(key)?.length ?? 0;
+      const used = Array.from({ length: this.length }, (_, index) => {
+        const storedKey = this.key(index);
+        return storedKey ? storedKey.length + (this.getItem(storedKey)?.length ?? 0) : 0;
+      }).reduce((sum, size) => sum + size, 0);
+      if (used - existingLength + value.length > quotaChars) {
+        throw new DOMException('Simulated WebKit quota reached.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const { saveFinalizedSession } = await import('/src/utils/storage.ts');
+      const saved = await saveFinalizedSession(current);
+      const history = JSON.parse(localStorage.getItem('vialscreen:history') ?? '[]');
+      const savedDetail = JSON.parse(
+        localStorage.getItem(`vialscreen:session:${current.id}`) ?? 'null',
+      );
+      return {
+        saved,
+        historyCount: history.length,
+        firstId: history[0]?.id,
+        oversizedThumbnails: history.filter(
+          (item: { thumbnailDataUrl?: string }) => (item.thumbnailDataUrl?.length ?? 0) > 12_000,
+        ).length,
+        detailHasFullImage: Boolean(savedDetail?.captures?.some(
+          (capture: { dataUrl?: string }) => capture.dataUrl,
+        )),
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, { current, oversizedImage });
+
+  expect(outcome).toEqual({
+    saved: true,
+    historyCount: 100,
+    firstId: current.id,
+    oversizedThumbnails: 0,
+    detailHasFullImage: false,
+  });
+});
+
+test('final save releases the duplicate active-session copy before writing detail', async ({ page }) => {
+  const current = record({
+    id: 'active-session-quota-release',
+    createdAt: '2026-04-04T11:00:00.000Z',
+    peptideName: 'Active Session Quota Fixture',
+  });
+
+  await page.goto('/');
+  const outcome = await page.evaluate(async (current) => {
+    localStorage.clear();
+    const active = JSON.stringify(current);
+    localStorage.setItem('vialscreen:active-session', active);
+    localStorage.setItem('quota-padding', 'P'.repeat(40_000));
+
+    const originalSetItem = Storage.prototype.setItem;
+    const quotaChars = Array.from({ length: localStorage.length }, (_, index) => {
+      const key = localStorage.key(index);
+      return key ? key.length + (localStorage.getItem(key)?.length ?? 0) : 0;
+    }).reduce((sum, size) => sum + size, 0) + 500;
+
+    Storage.prototype.setItem = function cappedSetItem(key: string, value: string) {
+      const existingLength = this.getItem(key)?.length ?? 0;
+      const used = Array.from({ length: this.length }, (_, index) => {
+        const storedKey = this.key(index);
+        return storedKey ? storedKey.length + (this.getItem(storedKey)?.length ?? 0) : 0;
+      }).reduce((sum, size) => sum + size, 0);
+      if (used - existingLength + value.length > quotaChars) {
+        throw new DOMException('Simulated WebKit quota reached.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const { saveFinalizedSession } = await import('/src/utils/storage.ts');
+      const saved = await saveFinalizedSession(current);
+      return {
+        saved,
+        activeExists: localStorage.getItem('vialscreen:active-session') !== null,
+        detailExists: localStorage.getItem(`vialscreen:session:${current.id}`) !== null,
+        historyIds: JSON.parse(localStorage.getItem('vialscreen:history') ?? '[]')
+          .map((item: { id: string }) => item.id),
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, current);
+
+  expect(outcome).toEqual({
+    saved: true,
+    activeExists: false,
+    detailExists: true,
+    historyIds: [current.id],
+  });
+});
+
+test('save diagnostics distinguish a History-index failure from a detail failure', async ({ page }) => {
+  const current = record({ id: 'history-write-failure' });
+
+  await page.goto('/');
+  const failure = await page.evaluate(async (current) => {
+    localStorage.clear();
+    localStorage.setItem('vialscreen:active-session', JSON.stringify(current));
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function rejectHistory(key: string, value: string) {
+      if (key === 'vialscreen:history') {
+        throw new DOMException('History write blocked.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const { getLastSaveFailure, saveFinalizedSession } = await import('/src/utils/storage.ts');
+      const saved = await saveFinalizedSession(current);
+      return {
+        saved,
+        failure: getLastSaveFailure(),
+        detailExists: localStorage.getItem(`vialscreen:session:${current.id}`) !== null,
+        activeExists: localStorage.getItem('vialscreen:active-session') !== null,
+        fallbackReadable: Boolean(
+          (await import('/src/utils/storage.ts')).loadSession(current.id),
+        ),
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, current);
+
+  expect(failure).toEqual({
+    saved: true,
+    failure: {
+      stage: 'history',
+      kind: 'quota',
+      errorName: 'QuotaExceededError',
+    },
+    detailExists: false,
+    activeExists: true,
+    fallbackReadable: true,
+  });
+});
+
+test('IndexedDB fallback survives relaunch when iOS rejects localStorage writes', async ({ page }) => {
+  const current = record({
+    id: 'indexeddb-ios-fallback',
+    createdAt: '2026-08-30T17:51:13.000Z',
+    peptideName: 'Build 39 Fallback Fixture',
+  });
+
+  await page.goto('/');
+  const saved = await page.evaluate(async (current) => {
+    localStorage.clear();
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function rejectPepScanRecords(key: string, value: string) {
+      if (key === 'vialscreen:history' || key.startsWith('vialscreen:session:')) {
+        throw new DOMException('Simulated iOS WebView rejection.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    };
+
+    try {
+      const storage = await import('/src/utils/storage.ts');
+      const didSave = await storage.saveFinalizedSession(current);
+      return {
+        didSave,
+        historyIds: storage.getScanHistory().map((item) => item.id),
+        detailId: storage.loadSession(current.id)?.id,
+      };
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
+  }, current);
+
+  expect(saved).toEqual({
+    didSave: true,
+    historyIds: [current.id],
+    detailId: current.id,
+  });
+
+  await page.reload();
+  await page.goto(`/history/${current.id}`);
+  await expect(page.getByRole('heading', { name: 'Build 39 Fallback Fixture' })).toBeVisible();
+  await expect(page.getByText('Fixture finding: visible haze should be reviewed.')).toBeVisible();
+});
+
+test('Sentry keeps native Capacitor localhost events and drops browser localhost events', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { shouldDropSentryEvent } = await import('/src/lib/sentry.ts');
+    return {
+      nativeLocalhost: shouldDropSentryEvent('localhost', true),
+      browserLocalhost: shouldDropSentryEvent('localhost', false),
+      productionHost: shouldDropSentryEvent('pepscan.replit.app', false),
+    };
+  });
+
+  expect(result).toEqual({
+    nativeLocalhost: false,
+    browserLocalhost: true,
+    productionHost: false,
+  });
+});
+
+test('pending save keeps the real failure classification after an app relaunch', async ({ page }) => {
+  const current = {
+    ...record({
+      id: 'pending-history-after-relaunch',
+      createdAt: '2026-04-04T12:00:00.000Z',
+    }),
+    pendingSave: true,
+    pendingSaveFailure: {
+      stage: 'history' as const,
+      kind: 'quota' as const,
+      errorName: 'QuotaExceededError',
+    },
+  };
+
+  await page.goto('/');
+  await page.evaluate((current) => {
+    localStorage.clear();
+    localStorage.setItem('vialscreen:onboarding', JSON.stringify({
+      completed: true,
+      disclaimerAcknowledgedAt: '2026-01-01T00:00:00.000Z',
+    }));
+    localStorage.setItem('vialscreen:active-session', JSON.stringify(current));
+  }, current);
+
+  await page.goto('/scan');
+  await expect(page.getByText('Scan could not be saved')).toBeVisible();
+  await expect(page.getByText(/could not store the History entry/)).toBeVisible();
+  await expect(page.getByText(/record details because/)).toHaveCount(0);
 });
 
 test('denied iOS Photos access shows Settings guidance without changing the inspection record', async ({ page }) => {

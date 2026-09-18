@@ -62,20 +62,21 @@ export default function PrivacyPolicy() {
             </p>
           </div>
 
-          {/* 1b. Subscription */}
+          {/* 1b. One-time purchase */}
           <div className="mb-4">
-            <h3 className="font-semibold mb-1">1b. Subscription and Purchase Data</h3>
+            <h3 className="font-semibold mb-1">1b. One-time Purchase Data</h3>
             <p className="text-muted-foreground mb-1">
-              If you subscribe to PepScan Pro, your purchase is processed by Google Play (Google LLC).
-              We use RevenueCat, Inc. as our subscription management platform. RevenueCat receives a
-              device identifier and purchase token from Google Play and returns your entitlement status
-              to the App. We do not receive or store your payment card details. We receive only a
-              confirmation of whether a valid Pro entitlement is active.
+              If you purchase PepScan Pro, your one-time purchase is processed by the Apple App Store
+              (Apple Inc.) on iOS or Google Play (Google LLC) on Android. We use RevenueCat, Inc. for
+              purchase-entitlement management. RevenueCat receives a device identifier and store
+              transaction or purchase information from the relevant app store and returns your
+              entitlement status to the App. We do not receive or store your payment card details.
+              We receive only a confirmation of whether a valid Pro entitlement is active.
             </p>
             <p className="text-xs text-muted-foreground">
-              <strong>Lawful basis:</strong> Contract performance (to verify and deliver your Pro subscription).
+              <strong>Lawful basis:</strong> Contract performance (to verify and deliver your Pro purchase).
               <br /><strong>Retention:</strong> Entitlement records held for the duration of your
-              subscription plus any legally required period (typically 7 years for financial records
+              purchase plus any legally required period (typically 7 years for financial records
               under Irish law).
             </p>
           </div>
@@ -100,10 +101,11 @@ export default function PrivacyPolicy() {
           <div className="mb-4">
             <h3 className="font-semibold mb-1">1d. Analytics and Attribution Data</h3>
             <p className="text-muted-foreground mb-1">
-              We use AppsFlyer, Inc. for install attribution and in-app analytics. AppsFlyer collects:
-              a device advertising identifier (Google Advertising ID), IP address (used for geo-attribution,
-              then truncated), install source, and in-app events. The in-app events we send to AppsFlyer are
-              limited to:
+              We use AppsFlyer, Inc. for install attribution and in-app analytics. On Android, AppsFlyer may
+              collect a device advertising identifier (Google Advertising ID), IP address (used for
+              geo-attribution, then truncated), install source, and in-app events. On iOS, PepScan does not
+              request App Tracking Transparency authorization or access Apple's IDFA. The in-app events we
+              send to AppsFlyer are limited to:
             </p>
             <ul className="list-disc pl-5 space-y-1 text-muted-foreground mb-2">
               <li>
@@ -186,8 +188,8 @@ export default function PrivacyPolicy() {
           <h2 className="text-base font-bold mb-2">2. How We Use Your Data</h2>
           <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
             <li>To respond to support enquiries and help requests</li>
-            <li>To verify and maintain your Pro subscription entitlement</li>
-            <li>To deliver optional enhanced visual review results (Pro subscribers only)</li>
+            <li>To verify and maintain your Pro purchase entitlement</li>
+            <li>To deliver optional enhanced visual review results to Pro users</li>
             <li>To diagnose crashes and fix technical issues</li>
             <li>To measure install attribution and aggregate in-app behaviour for advertising purposes</li>
           </ul>
@@ -207,12 +209,12 @@ export default function PrivacyPolicy() {
           </p>
           <div className="bg-card border rounded-xl divide-y text-xs">
             <div className="p-3">
-              <p className="font-semibold">Google Play / Google LLC</p>
-              <p className="text-muted-foreground">Payment processing and app distribution. Location: USA. Safeguard: Google's standard contractual clauses.</p>
+               <p className="font-semibold">Apple App Store / Apple Inc. and Google Play / Google LLC</p>
+               <p className="text-muted-foreground">Payment processing and app distribution on iOS and Android. Location: USA. Safeguard: each provider's standard contractual clauses.</p>
             </div>
             <div className="p-3">
               <p className="font-semibold">RevenueCat, Inc.</p>
-              <p className="text-muted-foreground">Subscription entitlement management. Receives device identifier and purchase token. Location: USA. Safeguard: Standard contractual clauses.</p>
+               <p className="text-muted-foreground">Purchase entitlement management. Receives device identifier and purchase token. Location: USA. Safeguard: Standard contractual clauses.</p>
             </div>
             <div className="p-3">
               <p className="font-semibold">AppsFlyer, Inc.</p>
@@ -252,7 +254,7 @@ export default function PrivacyPolicy() {
               <span className="font-medium text-right">Until resolved; max 12 months</span>
             </div>
             <div className="p-3 flex justify-between gap-4">
-              <span className="text-muted-foreground">Subscription records</span>
+              <span className="text-muted-foreground">Purchase entitlement records</span>
               <span className="font-medium text-right">Duration + 7 years (legal obligation)</span>
             </div>
             <div className="p-3 flex justify-between gap-4">

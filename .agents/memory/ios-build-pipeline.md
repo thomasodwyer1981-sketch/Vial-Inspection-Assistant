@@ -36,6 +36,12 @@ Apple ID: **6795666262** | Bundle ID: `com.pepscan.app` | Team ID: `B6PJBT97RS`
 
 **CocoaPods deprecation note:** `@sentry/capacitor@4.3.0` deprecates its `.podspec`; it will be removed in the next minor release. Since the project already uses SPM this has no immediate impact, but confirms SPM is the correct long-term path.
 
-**Validation required:** iOS 26 device/simulator validation cannot be performed from a CI environment. Physical hardware is needed to install build 32 over a build with persisted Firebase/Sentry state and verify repeated launches succeed.
+## Release-source verification
 
-**Photos permission validation:** CI now checks the iOS Photos usage strings, native add-only authorization branches, plugin registration, and the JavaScript denial/recovery copy before the browser regressions and archive jobs run. This catches wiring regressions, but actual allow/deny behavior still needs device or simulator validation.
+**Rule:** Before reporting a TestFlight upload as containing a fix, verify the workflow `headSha` matches remote `main` and inspect that remote revision for the required code. A successful workflow proves only that its checked-out revision built and uploaded.
+
+**Why:** Build 35 passed every CI job but remote `main` did not contain the locally completed storage and Photos changes, so testers received old behavior in a technically successful upload.
+
+**How to apply:** Push and fetch remote `main`, verify the required symbols/files with `git show origin/main:...`, then confirm the dispatched run reports that exact remote SHA.
+
+**Validation required:** CI can compile, install, launch, and perform a short liveness check on an iOS 26 simulator. Physical hardware is still required to validate upgrades over real persisted caches and visible Photos-library writes.

@@ -15,7 +15,7 @@ import TriageBadge from '@/components/TriageBadge';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
 import { loadSession } from '@/utils/storage';
 import { useProStatus } from '@/hooks/useProStatus';
-import { PRO_PRICE_DISPLAY } from '@/utils/pro';
+import { PRO_UNLOCK_DISPLAY } from '@/utils/pro';
 import { RESULT_COPY } from '@/constants/copy';
 import type { CategoryScore, ScanSession } from '@/types';
 import { getEarlierComparableSessions, getObservedFindingChanges } from '@/utils/inspectionComparison';
@@ -67,7 +67,7 @@ export default function InspectionCompareScreen() {
               See changed visible findings, factor scores, capture limitations, and notes beside an earlier saved inspection of the same sample.
             </p>
             <Link href="/upgrade" className="mt-5 inline-flex bg-primary text-primary-foreground font-bold text-sm px-5 py-3 rounded-xl">
-              Unlock Pro — {PRO_PRICE_DISPLAY}
+              Unlock Pro — {PRO_UNLOCK_DISPLAY}
             </Link>
           </div>
         </div>

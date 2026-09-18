@@ -141,7 +141,7 @@ export default function LiveCameraCapture({
       const files = await openFilePicker({ accept: 'image/*', capture: 'environment' });
       if (files.length > 0) {
         const result = await fileToDataUrl(files[0]);
-        const thumbDataUrl = await generateThumbnail(result.dataUrl, 144).catch(() => undefined);
+        const thumbDataUrl = await generateThumbnail(result.dataUrl, 96).catch(() => undefined);
         onCapture({ ...result, thumbDataUrl });
       }
       onClose();
@@ -338,8 +338,8 @@ export default function LiveCameraCapture({
 
       // Best-of-3 burst — solid sharpness selection without the memory churn
       // of 5 high-res grabs (which hit OOM-adjacent failures on real devices).
-      // 1600px max dimension: the analysis engine works at 512px, so anything
-      // beyond 1600 only slows the burst and bloats memory with no accuracy gain.
+      // 800px max dimension: the analysis engine works at 512px, so anything
+      // beyond 800 only slows the burst and bloats memory with no accuracy gain.
       //
       // IMPORTANT: we draw the analysis canvas DIRECTLY from the live video
       // element rather than going through loadImage(toDataURL(...)). On Android
@@ -350,7 +350,10 @@ export default function LiveCameraCapture({
         sharpness: number;
         imageData: ImageData;
       };
-      const candidates: Candidate[] = [];
+      // Keep only the current winner. Retaining three data URLs and three
+      // ImageData buffers until the end of the burst needlessly spikes memory
+      // on iPad WebViews.
+      let bestCandidate: Candidate | null = null;
       for (let i = 0; i < 3; i++) {
         if (i > 0) await new Promise<void>((r) => setTimeout(r, 220));
         if (isStale()) return;
@@ -372,13 +375,21 @@ export default function LiveCameraCapture({
         if (!actx) throw new Error('Canvas 2D context unavailable — cannot analyze frame.');
         actx.drawImage(video, 0, 0, aw, ah);
         const imageData = actx.getImageData(0, 0, aw, ah);
+        // imageData is detached from the canvas, so release the canvas backing
+        // store before the next frame is allocated.
+        ac.width = 1;
+        ac.height = 1;
         const blur = computeBlurMetrics(imageData);
 
-        candidates.push({ ...frame, sharpness: blur.sharpnessScore, imageData });
+        const candidate = { ...frame, sharpness: blur.sharpnessScore, imageData };
+        if (!bestCandidate || candidate.sharpness > bestCandidate.sharpness) {
+          bestCandidate = candidate;
+        }
       }
 
       // Pick sharpest frame
-      const best = candidates.reduce((a, b) => (a.sharpness > b.sharpness ? a : b));
+      if (!bestCandidate) throw new Error('Camera burst did not produce a usable frame.');
+      const best = bestCandidate;
 
       // Full quality assessment — reuse the already-captured imageData (no loadImage needed)
       const { imageData } = best;
@@ -577,7 +588,14 @@ export default function LiveCameraCapture({
     if (!capturedResult) return;
     // Attach a small thumbnail at accept time — history storage must never
     // hold full-resolution captures (they exhaust the localStorage quota).
-    const thumbDataUrl = await generateThumbnail(capturedResult.dataUrl, 144).catch(() => undefined);
+    const thumbDataUrl = await generateThumbnail(capturedResult.dataUrl, 96).catch(() => undefined);
+    // Do not keep the native camera pipeline alive while the parent stores the
+    // accepted frame and advances to the next scan step.
+    if (streamRef.current) {
+      stopStream(streamRef.current);
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
     onCapture({ ...capturedResult, thumbDataUrl });
     onClose();
   };

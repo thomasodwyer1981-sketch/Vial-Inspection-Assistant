@@ -194,3 +194,10 @@ id = "UAbUTnS5JtFDeEYZNKu4B"
 uri = "file://PepScan_Legal_Review_31July2026.md"
 type = "text"
 title = "PepScan Legal Disclaimers — Review Document"
+
+[[outputs]]
+id = "Ty3aoqqfXoVVzw9Pr-PwO"
+uri = "file://android-release-1.2.10/app-release.aab"
+type = "unspecified"
+title = "PepScan Android release 1.2.10 (versionCode 41)"
+description = "Signed Android App Bundle built from the latest Pro improvements. GitHub workflow 33372805346 completed successfully, including the Sentry-version safety guard. Upload this AAB to Google Play Internal Testing first."

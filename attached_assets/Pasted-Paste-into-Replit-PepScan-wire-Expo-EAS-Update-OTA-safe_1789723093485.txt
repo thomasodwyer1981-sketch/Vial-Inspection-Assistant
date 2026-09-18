@@ -1,0 +1,51 @@
+Paste into Replit:
+
+---
+
+PepScan: wire Expo EAS Update (OTA) safely.
+
+Goal
+1) Audit whether production already supports OTA.
+2) If not, wire `expo-updates` + EAS Update for production.
+3) Tell me clearly whether today’s unlock copy can OTA to live 1.2.11, or needs one more store binary first.
+
+Context
+- App: PepScan (Expo / Replit).
+- Live iOS: 1.2.11 (build 42) just released.
+- Monetization: RevenueCat current offering `unlock`, package `$rc_lifetime` / one-time unlock; show live `priceString`; no hard-coded prices; no user-facing “lifetime”.
+- Do NOT change store product IDs, ASC/Play Console, or RevenueCat offerings.
+
+Phase A — Audit (report first)
+- Check `package.json` for `expo-updates` and `eas-cli` usage.
+- Check `app.json` / `app.config.*` for `updates`, `runtimeVersion`, `extra.eas.projectId`, channels.
+- Check `eas.json` for update channels / production profile.
+- Check if the app calls `Updates.checkForUpdateAsync` / `fetchUpdateAsync` / reload on launch (optional but nice).
+- Conclude: **Can current store binary receive OTAs? YES/NO** and why (`runtimeVersion` match matters).
+
+Phase B — Wire if missing
+- Add/configure `expo-updates` for the current Expo SDK.
+- Set `runtimeVersion` policy to something stable for store builds (prefer `appVersion` unless project already uses fingerprint — don’t thrash an existing policy).
+- Ensure EAS project id is set; create/link if needed.
+- Add `eas.json` production update channel mapping for store builds (`production`).
+- Keep native changes minimal. If a native rebuild is required for Updates to work, say so explicitly.
+- Do not break existing RevenueCat unlock / paywall work.
+
+Phase C — Publish path
+- If OTA-capable now: prepare/publish an update for channel `production` with message like “Unlock Pro copy + live RC priceString” (only if EAS auth is available in this environment; otherwise print exact commands for me).
+- If NOT OTA-capable on 1.2.11: stop after wiring config + give exact next steps: bump build, submit stores, then `eas update`.
+
+Verification
+- Typecheck/tests still pass.
+- Summarize files changed.
+- Final answer in 5 lines:
+  1) OTA ready on live binary? Y/N
+  2) What was wired
+  3) Can push today’s copy via OTA now? Y/N
+  4) Exact command(s) to publish
+  5) Any blocker (Expo login / EAS project / native rebuild)
+
+Do not invent Expo credentials. If login is required, stop and list what’s needed.
+
+---
+
+Paste the Replit result back and I’ll tell you the next move (publish OTA vs new store build).

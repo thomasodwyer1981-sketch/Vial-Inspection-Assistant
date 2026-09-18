@@ -79,12 +79,11 @@ export async function requestCameraStream(
       {
         video: {
           facingMode,
-          // 1920×1440 is plenty: captures top out at 1600px and the analysis
-          // engine works at 512px. Requesting 4K here made phones run the full
-          // 12MP pipeline — ballooning WebView memory, slowing the whole device,
-          // and making canvas frame-grabs fail under memory pressure.
-          width: { ideal: 1920, min: 640 },
-          height: { ideal: 1440, min: 480 },
+          // 1280×960 is enough: captures top out at 800px and the analysis
+          // engine works at 512px. A lower target keeps the iOS WebView's
+          // native camera buffers smaller without reducing useful output.
+          width: { ideal: 1280, max: 1600, min: 640 },
+          height: { ideal: 960, max: 1200, min: 480 },
         },
         audio: false,
       },
@@ -105,7 +104,7 @@ export async function requestCameraStream(
 // ----------------------------------------------------------------
 export function captureFrameFromVideo(
   video: HTMLVideoElement,
-  maxDim = 2048,
+  maxDim = 800,
 ): CaptureResult {
   const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
   const width = Math.round(video.videoWidth * scale);
@@ -118,8 +117,14 @@ export function captureFrameFromVideo(
   if (!ctx) throw new Error('Canvas 2D context unavailable — cannot capture frame.');
   ctx.drawImage(video, 0, 0, width, height);
 
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+  // Release the backing store immediately. The returned data URL is the only
+  // frame data that needs to survive this helper.
+  canvas.width = 1;
+  canvas.height = 1;
+
   return {
-    dataUrl: canvas.toDataURL('image/jpeg', 0.92),
+    dataUrl,
     width,
     height,
   };
@@ -143,7 +148,7 @@ export function fileToDataUrl(file: File): Promise<CaptureResult> {
       const img = new Image();
       img.onload = () => {
         // Normalize size if needed
-        const maxDim = 1920;
+        const maxDim = 1600;
         const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
         const width = Math.round(img.width * scale);
         const height = Math.round(img.height * scale);
@@ -155,7 +160,10 @@ export function fileToDataUrl(file: File): Promise<CaptureResult> {
           const ctx = canvas.getContext('2d');
           if (!ctx) { reject(new Error('Canvas 2D context unavailable')); return; }
           ctx.drawImage(img, 0, 0, width, height);
-          resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), width, height });
+          const normalizedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          canvas.width = 1;
+          canvas.height = 1;
+          resolve({ dataUrl: normalizedDataUrl, width, height });
         } else {
           resolve({ dataUrl, width, height });
         }
@@ -233,7 +241,7 @@ export async function captureImage(
 // Generate a thumbnail (smaller) version of a data URL
 // Used for history list view
 // ----------------------------------------------------------------
-export function generateThumbnail(dataUrl: string, maxDim = 120): Promise<string> {
+export function generateThumbnail(dataUrl: string, maxDim = 96): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -246,7 +254,10 @@ export function generateThumbnail(dataUrl: string, maxDim = 120): Promise<string
       const ctx = canvas.getContext('2d');
       if (!ctx) { reject(new Error('Canvas 2D context unavailable')); return; }
       ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
+      const thumbnail = canvas.toDataURL('image/jpeg', 0.58);
+      canvas.width = 1;
+      canvas.height = 1;
+      resolve(thumbnail);
     };
     img.onerror = reject;
     img.src = dataUrl;
