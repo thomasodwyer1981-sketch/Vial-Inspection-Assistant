@@ -11,6 +11,7 @@ import ChecklistItem from '@/components/ChecklistItem';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
+import ProResearchPanel from '@/components/ProResearchPanel';
 import { ArrowLeft, ArrowRight, Camera, AlertTriangle, HardDrive, Palette, CheckCircle2, Share2, ImageIcon, FileText, X as XIcon, Lock, Zap, Layers, History, Moon, Save, Loader2, Clock, ClipboardCopy, RefreshCw, ChevronDown, ChevronUp, Send, XCircle, Star } from 'lucide-react';
 import { saveCardToPhotos, shareOrDownloadCard } from '@/utils/shareCard';
 import { shareOrDownloadPdf } from '@/utils/sharePdf';
@@ -1476,7 +1477,9 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
           )}
           <h1 className="text-2xl font-bold tracking-tight mb-3">{resultCopy.summary}</h1>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4 max-w-xs mx-auto">
-            {resultCopy.explanation}
+            {isPro
+              ? resultCopy.explanation
+              : 'Your basic visual outcome is ready. Unlock Pro for the full interpretation and research context.'}
           </p>
 
           {/* Prominent statutory warning — shown on every result */}
@@ -1573,7 +1576,7 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
                       <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isFlag ? 'bg-destructive' : 'bg-foreground/60'}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-foreground leading-relaxed font-medium">{reason}</p>
-                        {context && (
+                        {context && isPro && (
                           <p className="text-xs text-muted-foreground leading-relaxed mt-2 italic border-t border-border/50 pt-2">
                             {context}
                           </p>
@@ -1585,6 +1588,16 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
               })}
             </ul>
           </section>
+
+          <ProResearchPanel
+            isPro={isPro}
+            compoundName={session?.metadata.peptideName || profileInfo?.label}
+            compoundNote={getCompoundTip(session?.metadata.peptideName)}
+            profileDescription={profileUsed ? APPEARANCE_PROFILE_COPY[profileUsed]?.description : null}
+            profileAnalysisNote={profileUsed ? APPEARANCE_PROFILE_COPY[profileUsed]?.analysisNote : null}
+            meaning={isPro ? resultCopy.explanation : null}
+            onUnlock={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
+          />
 
           {/* ── Rescan nudge — poor capture quality ── */}
           {(() => {
@@ -1635,23 +1648,6 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
               )}
             </section>
           )}
-
-          {/* ── Compound-specific tip ── */}
-          {!assessmentUnavailable && (result.triageResult === 'review' || result.triageResult === 'do-not-use') && (() => {
-            const tip = getCompoundTip(session?.metadata.peptideName);
-            if (!tip) return null;
-            return (
-              <section className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <div className="flex items-start gap-3">
-                  <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">{session?.metadata.peptideName} — Compound Note</p>
-                    <p className="text-sm text-foreground leading-relaxed">{tip}</p>
-                  </div>
-                </div>
-              </section>
-            );
-          })()}
 
           {/* ── Contextual post-scan Pro offer — free users ── */}
           {!isPro && (

@@ -18,8 +18,13 @@ products' `app_id` against the store app's id before suspecting credentials or t
 - RC Android product `store_identifier` = Play Console product ID = `pepscan_pro_unlock_2026`.
 - The older Android product `lifetime` is a legacy catalog item and is no longer the Android product in the active Lifetime package.
 - Entitlement lookup_key = `Pepscan Pro` (has a space; matches RC_ENTITLEMENT_ID in app code).
-- Client picks `offerings.current.lifetime` first, so the current Android product must live in the `$rc_lifetime` package.
+- The client accepts only the current offering `unlock` and its `$rc_lifetime` package; it must never fall back to `default`, annual, monthly, or arbitrary lifetime packages.
 - A product shown as Published in RevenueCat may be an older catalog entry; verify that today's Play Console product ID is the same before testing. Creating a Play product does not automatically create or link a new RevenueCat product.
+
+## Immediate entitlement updates
+- Native Pro-aware screens subscribe through the Capacitor SDK's customer-info update listener and derive access only from the active `Pepscan Pro` entitlement.
+- **Why:** purchase and restore callbacks can finish while a different screen is mounted; visibility checks alone leave that screen stale until navigation or app resume.
+- **How to apply:** keep the listener cleanup paired with each subscription and keep RevenueCat authoritative; do not persist a separate native membership flag.
 
 ## Accessing the RC API from the workspace
 - The RevenueCat Replit connection's credentials are NOT visible to the CodeExecution
@@ -33,14 +38,11 @@ products' `app_id` against the store app's id before suspecting credentials or t
   `/packages/{pkg}/products` is 405.
 - Project `proj08d7d92d` (Pepscan); Play app `appbb4c6b1f97` (com.pepscan.app).
 
-## iOS RevenueCat setup (pending as of 2026-07-29)
-- Code updated to use platform-specific keys: `VITE_REVENUECAT_IOS_KEY` (appl_ prefix) for iOS,
+## iOS RevenueCat setup
+- Code uses platform-specific keys: `VITE_REVENUECAT_IOS_KEY` (appl_ prefix) for iOS,
   `VITE_REVENUECAT_API_KEY` (goog_ prefix) for Android.
-- iOS product ID in App Store Connect: `com.pepscan.app.pro_annual` (1-year, $4.99)
-- RC iOS app not yet created — user needs to: add App Store app in RC dashboard,
-  upload P8 key from App Store Connect → Users and Access → Integrations → In-App Purchase,
-  get the appl_ SDK key, then set VITE_REVENUECAT_IOS_KEY secret.
-- The current client purchase selector requires a Lifetime package on both platforms; do not reintroduce the old annual package as the fallback.
+- iOS product ID is `com.pepscan.app.pro_lifetime`; it belongs in the same `$rc_lifetime`
+  package under the `unlock` offering. Do not reintroduce the old annual product.
 
 ## Device-side gotchas that mimic config errors
 - Debug APKs (from the push-triggered GitHub workflow) can NEVER purchase — always

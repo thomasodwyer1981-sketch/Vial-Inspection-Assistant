@@ -209,11 +209,10 @@ export default function UpgradeScreen() {
                 <Zap className="w-7 h-7 text-primary" />
               </div>
               <h2 className="text-2xl font-extrabold tracking-tight mb-2 leading-tight">
-                Build a better<br />inspection record.
+                Unlock the full<br />inspection record.
               </h2>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-                PepScan Pro turns a visual screen into a deeper, exportable record: what was observed,
-                which capture limits applied, and how a repeat inspection changed.
+                Unlock full info for this scan and future scans — one-time purchase.
               </p>
             </div>
 
@@ -268,10 +267,10 @@ export default function UpgradeScreen() {
                     className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-br from-primary to-primary/85 text-primary-foreground font-bold text-base py-4 rounded-2xl shadow-lg shadow-primary/25 active:scale-[0.97] transition-all disabled:opacity-60"
                   >
                     <Zap className="w-5 h-5" />
-                    {loading ? 'Processing…' : `Unlock Pro — ${priceLabel}`}
+                    {loading ? 'Processing…' : 'Unlock Pro — one-time'}
                   </button>
                   <p className="text-center text-xs text-muted-foreground leading-relaxed">
-                    PepScan Pro is a single purchase of {priceLabel} with no recurring renewal.
+                    One-time price: {priceLabel}. PepScan Pro has no recurring renewal.
                     Payment is handled securely by the {isIOS ? 'Apple App Store' : 'Google Play'}.
                   </p>
                   <p className="text-center text-xs text-muted-foreground/70">
@@ -309,7 +308,7 @@ export default function UpgradeScreen() {
                       {restoreLoading ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Restoring…</>
                       ) : (
-                        <><RotateCcw className="w-4 h-4" /> Restore previous purchase</>
+                        <><RotateCcw className="w-4 h-4" /> Restore Purchases</>
                       )}
                     </button>
                     {restoreError && (

@@ -21,13 +21,14 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { loadSession, deleteSession, getHistoryForSampleName, createRepeatSession, saveActiveSession } from '@/utils/storage';
-import { RESULT_COPY } from '@/constants/copy';
+import { RESULT_COPY, APPEARANCE_PROFILE_COPY } from '@/constants/copy';
 import { APPEARANCE_PROFILES } from '@/types';
 import { format } from 'date-fns';
 import TriageBadge from '@/components/TriageBadge';
 import CategoryScoreCard from '@/components/CategoryScoreCard';
 import MediaPreview from '@/components/MediaPreview';
 import DisclaimerBanner from '@/components/DisclaimerBanner';
+import ProResearchPanel from '@/components/ProResearchPanel';
 import { useProStatus } from '@/hooks/useProStatus';
 import { PRO_PRICE_DISPLAY, rememberUpgradeReturnPath } from '@/utils/pro';
 import { buildInspectionReportInput } from '@/utils/inspectionReport';
@@ -84,6 +85,7 @@ export default function HistoryDetailScreen() {
   // Old sessions without either field get null (graceful fallback).
   const profileUsed = result.profileUsed ?? metadata.appearanceProfile ?? null;
   const profileInfo = profileUsed ? APPEARANCE_PROFILES[profileUsed] : null;
+  const profileCopy = profileUsed ? APPEARANCE_PROFILE_COPY[profileUsed] : null;
 
   // Only show the metadata section if at least one field has a value
   const hasMetadata = !!(
@@ -243,6 +245,15 @@ export default function HistoryDetailScreen() {
           )}
           {reportError && <p className="mt-3 text-xs text-destructive">{reportError}</p>}
         </div>
+
+        <ProResearchPanel
+          isPro={isPro}
+          compoundName={metadata.peptideName || profileInfo?.label}
+          profileDescription={profileCopy?.description}
+          profileAnalysisNote={profileCopy?.analysisNote}
+          meaning={isPro ? resultCopy.explanation : null}
+          onUnlock={() => { rememberUpgradeReturnPath(`/history/${session.id}`); setLocation('/upgrade'); }}
+        />
 
         {/* Metadata — only if at least one field has a value */}
         {hasMetadata && (

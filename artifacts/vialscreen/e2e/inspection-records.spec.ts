@@ -165,13 +165,24 @@ async function seedActiveResult(
 test('native package contract selects only the RevenueCat lifetime package', async ({ page }) => {
   await page.goto('/');
   const selected = await page.evaluate(async () => {
-    const { selectOneTimePackage } = await import('/src/utils/revenuecat.ts');
+    const {
+      RC_CURRENT_OFFERING_ID,
+      selectCurrentOneTimePackage,
+      selectOneTimePackage,
+    } = await import('/src/utils/revenuecat.ts');
     const lifetime = { identifier: '$rc_lifetime', packageType: 'LIFETIME' };
     const annual = { identifier: '$rc_annual', packageType: 'ANNUAL' };
     return {
       expected: selectOneTimePackage({ lifetime, availablePackages: [annual, lifetime] })?.identifier,
       discovered: selectOneTimePackage({ lifetime: null, availablePackages: [annual, lifetime] })?.identifier,
       rejectsAnnual: selectOneTimePackage({ lifetime: null, availablePackages: [annual] }),
+      currentOffering: RC_CURRENT_OFFERING_ID,
+      currentPackage: selectCurrentOneTimePackage({
+        current: { identifier: 'unlock', lifetime, availablePackages: [annual, lifetime] },
+      })?.identifier,
+      rejectsLegacyOffering: selectCurrentOneTimePackage({
+        current: { identifier: 'default', lifetime, availablePackages: [annual, lifetime] },
+      }),
     };
   });
 
@@ -179,6 +190,9 @@ test('native package contract selects only the RevenueCat lifetime package', asy
     expected: '$rc_lifetime',
     discovered: '$rc_lifetime',
     rejectsAnnual: null,
+    currentOffering: 'unlock',
+    currentPackage: '$rc_lifetime',
+    rejectsLegacyOffering: null,
   });
 });
 

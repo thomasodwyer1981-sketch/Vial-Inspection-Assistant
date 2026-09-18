@@ -14,8 +14,13 @@ import { Purchases } from '@revenuecat/purchases-capacitor';
 
 /** Must match RevenueCat dashboard entitlement identifier exactly. */
 export const RC_ENTITLEMENT_ID = 'Pepscan Pro';
+/** The only offering that the client is allowed to present. */
+export const RC_CURRENT_OFFERING_ID = 'unlock';
+/** The only package that grants the one-time Pro unlock. */
+export const RC_LIFETIME_PACKAGE_ID = '$rc_lifetime';
 
 let initialized = false;
+let initializationPromise: Promise<boolean> | null = null;
 
 /**
  * Select only RevenueCat's lifetime package. Kept pure so the store contract
@@ -27,34 +32,69 @@ export function selectOneTimePackage<T extends { packageType?: unknown }>(
     availablePackages?: readonly T[];
   } | null | undefined,
 ): T | null {
+  const packages = offering?.availablePackages;
+  const lifetime = offering?.lifetime;
   return (
-    offering?.lifetime ??
-    offering?.availablePackages?.find((candidate) => candidate.packageType === 'LIFETIME') ??
+    (lifetime && (lifetime as T & { identifier?: string }).identifier === RC_LIFETIME_PACKAGE_ID
+      ? lifetime
+      : null) ??
+    packages?.find(
+      (candidate) =>
+        (candidate as T & { identifier?: string }).identifier === RC_LIFETIME_PACKAGE_ID &&
+        candidate.packageType === 'LIFETIME',
+    ) ??
     null
   );
 }
 
-export async function initRevenueCat(): Promise<void> {
-  if (!Capacitor.isNativePlatform() || initialized) return;
+export function selectCurrentOneTimePackage<T extends { packageType?: unknown }>(
+  offerings:
+    | {
+        current?: {
+          identifier?: string;
+          lifetime?: T | null;
+          availablePackages?: readonly T[];
+        } | null;
+      }
+    | null
+    | undefined,
+): T | null {
+  const current = offerings?.current;
+  return current?.identifier === RC_CURRENT_OFFERING_ID
+    ? selectOneTimePackage(current)
+    : null;
+}
 
-  const platform = Capacitor.getPlatform(); // 'ios' | 'android'
-  const iosKey = import.meta.env.VITE_REVENUECAT_IOS_KEY as string | undefined;
-  const androidKey = import.meta.env.VITE_REVENUECAT_API_KEY as string | undefined;
-  const apiKey = platform === 'ios' ? iosKey : androidKey;
+export async function initRevenueCat(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  if (initialized) return true;
+  if (initializationPromise) return initializationPromise;
 
-  if (!apiKey) {
-    console.warn(`[RevenueCat] API key not set for platform: ${platform}`);
-    return;
-  }
+  initializationPromise = (async () => {
+    const platform = Capacitor.getPlatform(); // 'ios' | 'android'
+    const iosKey = import.meta.env.VITE_REVENUECAT_IOS_KEY as string | undefined;
+    const androidKey = import.meta.env.VITE_REVENUECAT_API_KEY as string | undefined;
+    const apiKey = platform === 'ios' ? iosKey : androidKey;
 
-  await Purchases.configure({ apiKey });
-  initialized = true;
+    if (!apiKey) {
+      console.warn(`[RevenueCat] API key not set for platform: ${platform}`);
+      return false;
+    }
+
+    await Purchases.configure({ apiKey });
+    initialized = true;
+    return true;
+  })().finally(() => {
+    if (!initialized) initializationPromise = null;
+  });
+
+  return initializationPromise;
 }
 
 /** Returns true if the user has an active Pro entitlement in RevenueCat. */
 export async function checkRCEntitlement(): Promise<boolean> {
   try {
-    await initRevenueCat();
+    if (!await initRevenueCat()) return false;
     const { customerInfo } = await Purchases.getCustomerInfo();
     return RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
   } catch (e) {
@@ -71,7 +111,9 @@ export async function checkRCEntitlement(): Promise<boolean> {
  * Throws on any other error.
  */
 export async function purchaseRCPro(): Promise<boolean> {
-  await initRevenueCat();
+  if (!await initRevenueCat()) {
+    throw new Error('RevenueCat is not configured for this device.');
+  }
 
   let offerings;
   try {
@@ -96,15 +138,20 @@ export async function purchaseRCPro(): Promise<boolean> {
   }
 
   const current = offerings?.current;
+  if (!current || current.identifier !== RC_CURRENT_OFFERING_ID) {
+    throw new Error(
+      `PepScan Pro is not configured for the current "${RC_CURRENT_OFFERING_ID}" offering.`,
+    );
+  }
 
   // Both stores must use the lifetime package. Never fall back to an annual
   // or arbitrary custom package: doing so can silently turn a one-time
   // purchase into a recurring subscription.
-  const pkg = selectOneTimePackage(current);
+  const pkg = selectCurrentOneTimePackage(offerings);
   if (!pkg) {
     console.error('[RevenueCat] No packages in offering:', JSON.stringify(offerings));
     throw new Error(
-      'PepScan Pro is not configured for this store yet. Add the lifetime one-time product to the default RevenueCat offering, then try again.',
+      `PepScan Pro is not configured for this store yet. Add the lifetime one-time product to the "${RC_CURRENT_OFFERING_ID}" RevenueCat offering, then try again.`,
     );
   }
 
@@ -129,10 +176,9 @@ export async function purchaseRCPro(): Promise<boolean> {
 export async function getProPrice(): Promise<string | null> {
   if (!Capacitor.isNativePlatform()) return null;
   try {
-    await initRevenueCat();
+    if (!await initRevenueCat()) return null;
     const offerings = await Purchases.getOfferings();
-    const current = offerings?.current;
-    const pkg = selectOneTimePackage(current);
+    const pkg = selectCurrentOneTimePackage(offerings);
     // RevenueCat exposes the store-formatted price string on the product object
     const price = (pkg?.product as Record<string, unknown> | undefined)?.priceString;
     return typeof price === 'string' && price.length > 0 ? price : null;
@@ -147,11 +193,38 @@ export async function getProPrice(): Promise<string | null> {
  */
 export async function restoreRCPurchases(): Promise<boolean> {
   try {
-    await initRevenueCat();
+    if (!await initRevenueCat()) {
+      throw new Error('RevenueCat is not configured for this device.');
+    }
     const { customerInfo } = await Purchases.restorePurchases();
     return RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
   } catch (e) {
     console.warn('[RevenueCat] restore failed:', e);
     throw e;
   }
+}
+
+/**
+ * Subscribe to RevenueCat's native customer-info updates so every mounted
+ * Pro-aware screen reflects a purchase or restore without waiting for a
+ * route change or visibility refresh.
+ */
+export async function subscribeToRCEntitlement(
+  onChange: (isPro: boolean) => void,
+): Promise<() => Promise<void>> {
+  if (!await initRevenueCat()) return async () => {};
+
+  const callbackId = await Purchases.addCustomerInfoUpdateListener((customerInfo) => {
+    onChange(RC_ENTITLEMENT_ID in customerInfo.entitlements.active);
+  });
+
+  return async () => {
+    try {
+      await Purchases.removeCustomerInfoUpdateListener({
+        listenerToRemove: callbackId,
+      });
+    } catch (error) {
+      console.warn('[RevenueCat] customer-info listener cleanup failed:', error);
+    }
+  };
 }
