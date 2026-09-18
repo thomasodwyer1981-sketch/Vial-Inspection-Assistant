@@ -84,10 +84,7 @@ jobs:
         with:
           # setup-android defaults to the removed "tools" package, which
           # makes the workflow fail before Gradle starts on current runners.
-          packages: |
-            platform-tools
-            platforms;android-36
-            build-tools;36.0.0
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
 
       - name: Sync Capacitor
         working-directory: artifacts/vialscreen
