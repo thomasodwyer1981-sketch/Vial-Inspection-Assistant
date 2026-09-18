@@ -1703,7 +1703,7 @@ function ResultsStep({ onFinish, onRetake, saveFailure, onRetrySave, onClearSave
                     onClick={() => { rememberUpgradeReturnPath('/scan'); setLocation('/upgrade'); }}
                     className="bg-primary text-primary-foreground text-xs font-bold px-5 py-2.5 rounded-xl active:scale-[0.98] transition-all shadow-md shadow-primary/25"
                   >
-                    Unlock Pro — {PRO_PRICE_DISPLAY}
+                    Unlock Pro — {PRO_UNLOCK_DISPLAY}
                   </button>
                 </div>
               </div>

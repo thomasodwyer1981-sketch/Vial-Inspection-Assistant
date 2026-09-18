@@ -26,6 +26,11 @@ products' `app_id` against the store app's id before suspecting credentials or t
 - **Why:** purchase and restore callbacks can finish while a different screen is mounted; visibility checks alone leave that screen stale until navigation or app resume.
 - **How to apply:** keep the listener cleanup paired with each subscription and keep RevenueCat authoritative; do not persist a separate native membership flag.
 
+## Price display boundary
+- Native paywalls must display the localized `priceString` from the selected current-offering package. Non-native gates use neutral one-time-unlock copy and must not contain a local currency fallback.
+- **Why:** store prices vary by platform, country, tax, and store updates; a hard-coded fallback can show a stale or incorrect price.
+- **How to apply:** keep price loading separate from entitlement state, select only the current `unlock` offering and `$rc_lifetime` package, and never substitute a numeric amount in client copy.
+
 ## Accessing the RC API from the workspace
 - The RevenueCat Replit connection's credentials are NOT visible to the CodeExecution
   sandbox (`listConnections('revenuecat')` returns `[]` even when status is `added`).
