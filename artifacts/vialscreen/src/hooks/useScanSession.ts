@@ -231,9 +231,16 @@ export function useScanSession(): UseScanSession {
     baselineContext?: string[];
     baselineScanCount?: number;
   }) => {
+    const scanResultsEnabled = (): boolean => false;
+    if (!scanResultsEnabled()) {
+      setAnalysisError('Scanning has been switched off. Pepscan is closing on 15 October 2026.');
+      setIsAnalyzing(false);
+      setAnalysisStatus('');
+      return;
+    }
+
     const current = sessionRef.current ?? session;
     if (!current) return;
-
     setIsAnalyzing(true);
     setAnalysisError(null);
 

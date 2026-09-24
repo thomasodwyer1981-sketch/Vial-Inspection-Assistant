@@ -36,32 +36,9 @@ export interface VisionAnalysisInput {
 }
 
 export async function runVisionAnalysis(
-  input: VisionAnalysisInput,
+  _input: VisionAnalysisInput,
 ): Promise<AIVisionResult | null> {
-  try {
-    const base = (import.meta.env.BASE_URL as string).replace(/\/$/, '');
-    const res = await fetch(`${base}/api/vision/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        captures: input.captures.map((c) => ({
-          background: c.background,
-          dataUrl: c.dataUrl,
-        })),
-        peptideName: input.peptideName ?? undefined,
-        scanMode: input.scanMode ?? 'liquid',
-        appearanceProfile: input.appearanceProfile ?? undefined,
-        baselineContext: input.baselineContext?.length ? input.baselineContext : undefined,
-        reconstitutedAt: input.reconstitutedAt ?? undefined,
-      }),
-    });
-
-    if (!res.ok) return null;
-    const data = await res.json() as { success: boolean; analysis?: AIVisionResult };
-    return data.success && data.analysis ? data.analysis : null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /**

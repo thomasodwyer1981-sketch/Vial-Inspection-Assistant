@@ -22,13 +22,25 @@ import { Capacitor } from '@capacitor/core';
 
 // Only instrument on real native builds — the plugin throws on web.
 const isNative = Capacitor.isNativePlatform();
+let analyticsDisabled = true;
+
+/** Permanently disable Firebase Analytics collection for the PepScan shutdown. */
+export async function disableAnalytics(): Promise<void> {
+  analyticsDisabled = true;
+  if (!isNative) return;
+  try {
+    await FirebaseAnalytics.setEnabled({ enabled: false });
+  } catch {
+    // best-effort; event methods below remain hard-disabled regardless
+  }
+}
 
 /** Log a custom Firebase Analytics event. Silent no-op on web. */
 export async function logEvent(
   name: string,
   params?: Record<string, string | number | boolean>,
 ): Promise<void> {
-  if (!isNative) return;
+  if (!isNative || analyticsDisabled) return;
   try {
     // Truncate string values to 100 chars as required by Firebase
     const safe: Record<string, string | number | boolean> = {};
@@ -45,7 +57,7 @@ export async function logEvent(
 
 /** Tag the current screen — appears in Firebase > Events > screen_view. */
 export async function setScreen(screenName: string): Promise<void> {
-  if (!isNative) return;
+  if (!isNative || analyticsDisabled) return;
   try {
     await FirebaseAnalytics.setCurrentScreen({ screenName });
   } catch { /* best-effort */ }
