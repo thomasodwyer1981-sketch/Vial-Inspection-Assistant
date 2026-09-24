@@ -35,13 +35,19 @@ products' `app_id` against the store app's id before suspecting credentials or t
 - The RevenueCat Replit connection's credentials are NOT visible to the CodeExecution
   sandbox (`listConnections('revenuecat')` returns `[]` even when status is `added`).
 - **Why:** credentials are withheld from the sandbox for this connector; not a slug problem.
-- **How to apply:** write a temp `.mjs` script in the workspace root (module resolution
-  fails from /tmp) using `@replit/connectors-sdk` → `connectors.proxy("revenuecat", "/v2/...")`,
-  run with node, delete after. Proxy returns a raw Response — call `.json()`.
+- **How to apply:** run Node from the workspace root (module resolution fails from `/tmp`).
+  The installed SDK is CommonJS and exports `ReplitConnectors`; instantiate it with
+  `new sdk.ReplitConnectors()` and call `client.proxy("revenuecat", "/v2/...")`.
+  Proxy returns a raw Response — call `.json()`.
 - Attach/detach use action routes: `POST /v2/projects/{pid}/packages/{pkg}/actions/attach_products`
   with `{ products: [{ product_id, eligibility_criteria: "all" }] }`. Plain POST on
   `/packages/{pkg}/products` is 405.
 - Project `proj08d7d92d` (Pepscan); Play app `appbb4c6b1f97` (com.pepscan.app).
+
+## Permanent closure selling state
+- The active `unlock` offering's `$rc_lifetime` package is intentionally empty.
+- **Why:** PepScan stopped selling Pro during permanent closure; detaching every product also blocks purchases from older installed app versions.
+- **How to apply:** do not reattach iOS, Play, or Test Store products unless the owner explicitly reverses the closure decision.
 
 ## iOS RevenueCat setup
 - Code uses platform-specific keys: `VITE_REVENUECAT_IOS_KEY` (appl_ prefix) for iOS,
